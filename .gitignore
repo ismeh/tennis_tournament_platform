@@ -84,9 +84,6 @@ bin/
 *.tar.gz
 *.rar
 
-# virtual machine crash logs
-hs_err_pid*
-
 # LaTeX specific
 *.aux
 *.lof
@@ -122,11 +119,7 @@ hs_err_pid*
 *.synctex.gz(busy)
 *.pdfsync
 
-# LaTeX build tool files
-*.fls
-
 # LaTeX index files
-*.alg
 *.glg
 *.glo
 *.gls
@@ -139,13 +132,12 @@ hs_err_pid*
 
 # LaTeX algorithm packages
 *.nlg
-*.nlo
 *.nls
+*.alg
 
 # LaTeX acronym packages
 *.acn
 *.acr
-*.alg
 
 # LaTeX hyperref
 *.brf
@@ -219,4 +211,3 @@ indent.log
 *~
 *.swp
 *.swo
-*-blx.bib
