@@ -26,3 +26,188 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Java specific
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Java build tools
+target/
+build/
+.gradle/
+.gradletasknamecache
+gradle-app.setting
+!gradle-wrapper.jar
+!**/src/main/**/target/
+!**/src/main/**/build/
+!**/src/test/**/target/
+!**/src/test/**/build/
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Java IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+bin/
+.vscode/
+.metadata/
+.recommenders/
+*.launch
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files
+*.zip
+*.tar.gz
+*.rar
+
+# LaTeX specific
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+# LaTeX intermediate files
+*.dvi
+*.xdv
+*-converted-to.*
+
+# Bibliography auxiliary files
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+# Build tool auxiliary files
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+# LaTeX index files
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.lzo
+*.lzs
+*.idx
+*.ilg
+*.ind
+
+# LaTeX algorithm packages
+*.nlg
+*.nls
+*.alg
+
+# LaTeX acronym packages
+*.acn
+*.acr
+
+# LaTeX hyperref
+*.brf
+
+# LaTeX knitr
+*-concordance.tex
+*.tikz
+*-tikzDictionary
+
+# LaTeX listings
+*.lol
+
+# LaTeX makeidx
+*.maf
+*.mlf
+*.mlt
+*.mtc[0-9]*
+*.slf[0-9]*
+*.slt[0-9]*
+*.stc[0-9]*
+
+# LaTeX minitoc
+*.nav
+
+# LaTeX nomencl
+*.nlo
+
+# LaTeX beamer
+*.snm
+*.vrb
+
+# LaTeX pax
+*.pax
+
+# LaTeX pdfcomment
+*.upa
+*.upb
+
+# LaTeX pythontex
+*.pytxcode
+pythontex-files-*/
+
+# LaTeX tcolorbox
+*.listing
+
+# LaTeX thmtools
+*.thm
+
+# LaTeX TikZ & PGF
+*.dpth
+*.md5
+*.auxlock
+
+# LaTeX todonotes
+*.tdo
+
+# LaTeX xindy
+*.xdy
+
+# LaTeX WinEdt
+*.bak
+*.sav
+
+# LaTeX latexindent backup files
+indent.log
+
+# Compiled LaTeX documents (keep PDFs out by default, uncomment if needed)
+# *.pdf
+
+# LaTeX editor specific
+*~
+*.swp
+*.swo
