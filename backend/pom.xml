@@ -29,9 +29,10 @@
 	<properties>
 		<java.version>25</java.version>
         <spring-restdocs.version>4.0.0</spring-restdocs.version>
+        <keycloack.version>26.4.7</keycloack.version>
     </properties>
 	<dependencies>
-		<dependency>
+        <dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
@@ -48,9 +49,20 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>2.2.224</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-h2console</artifactId>
         </dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
@@ -87,6 +99,12 @@
 			<artifactId>spring-restdocs-mockmvc</artifactId>
 			<scope>test</scope>
 		</dependency>
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-model-pom</artifactId>
+            <version>${keycloack.version}</version>
+            <type>pom</type>
+        </dependency>
     </dependencies>
 
 	<build>
