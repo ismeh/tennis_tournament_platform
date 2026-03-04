@@ -22,5 +22,13 @@ spring:
       schema-locations: classpath:sql_scripts/schema-h2.sql
       data-locations: classpath:sql_scripts/data-h2.sql
       mode: always # Always initialize the database with the specified SQL script
+logging:
+  level:
+    org.springframework.web: "info"
+    org.hibernate: "error"
+  file:
+    name: logs/prod-application.log
+  pattern:
+    level: "%5p [req-id: %X{correlationId}]"
 server:
   port: 8085
