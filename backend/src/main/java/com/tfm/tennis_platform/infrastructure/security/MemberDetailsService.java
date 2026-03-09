@@ -1,9 +1,11 @@
 package com.tfm.tennis_platform.infrastructure.security;
 
-import com.tfm.tennis_platform.infrastructure.persistence.repository.MemberRepository;
+import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMemberRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MemberEntity;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -13,19 +15,22 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MemberDetailsService implements UserDetailsService {
 
-    private final MemberRepository memberRepository;
+    private final JpaMemberRepository memberRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) {
         MemberEntity user = memberRepository.findByEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("No existe"));
+                .orElseThrow(() -> new UsernameNotFoundException("User do not exist"));
 
-        return new org.springframework.security.core.userdetails.User(
+        log.info("Email read from DB: {}", user.getEmail());//.charAt(0) + "****");
+
+        return new User(
                 user.getEmail(),
                 user.getPassword(),
-                List.of(new SimpleGrantedAuthority("ROLE" + user.getTier().toUpperCase()))
+                List.of(new SimpleGrantedAuthority("ROLE_" + user.getTier().toUpperCase()))
         );
     }
 
