@@ -21,15 +21,15 @@ public class MemberDetailsService implements UserDetailsService {
     private final JpaMemberRepository memberRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String username) {
-        MemberEntity user = memberRepository.findByEmail(username)
+    public UserDetails loadUserByUsername(String email) {
+        MemberEntity user = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User do not exist"));
 
         log.info("Email read from DB: {}", user.getEmail());//.charAt(0) + "****");
 
         return new User(
                 user.getEmail(),
-                user.getPassword(),
+                user.getPasswordHash(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getTier().toUpperCase()))
         );
     }
