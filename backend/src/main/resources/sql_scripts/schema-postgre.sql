@@ -1,122 +1,131 @@
--- Creación de tipos ENUM para mayor control
+-- Ensure UUID generation function
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 CREATE TYPE user_gender AS ENUM ('H', 'M');
 CREATE TYPE category_genre AS ENUM ('H', 'M', 'X');
-CREATE TYPE category_mode AS ENUM ('single', 'doubles');
-CREATE TYPE member_tier AS ENUM ('free', 'intermediate', 'advanced');
-CREATE TYPE tournament_state AS ENUM ('soon', 'inscription', 'playing', 'finished');
+CREATE TYPE category_mode AS ENUM ('SINGLE', 'DOUBLES');
+CREATE TYPE member_tier AS ENUM ('FREE', 'INTERMEDIATE', 'ADVANCED');
+CREATE TYPE tournament_state AS ENUM ('SOON', 'INSCRIPTION', 'PLAYING', 'FINISHED');
 
--- Tablas Principales
-CREATE TABLE members (
-                         id SERIAL PRIMARY KEY,
-                         email VARCHAR(255) UNIQUE NOT NULL,
-                         username VARCHAR(100) NOT NULL,
-                         password VARCHAR(255),
-                         gender user_gender NOT NULL,
-                         tier member_tier DEFAULT 'free',
-                         registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- PERSONS (base entity, aligned with international tennis IDs)
+CREATE TABLE persons (
+                         id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                         tennis_id     VARCHAR(20) UNIQUE,           -- IPIN / ITF global ID
+                         first_name    VARCHAR(100) NOT NULL,
+                         last_name     VARCHAR(100) NOT NULL,
+                         nationality   CHAR(3),                      -- ISO 3166-1 alpha-3
+                         birth_date    DATE,
+                         gender        VARCHAR(10)                   -- MALE / FEMALE
 );
 
-CREATE TABLE roles (
-                       id SERIAL PRIMARY KEY,
-                       name VARCHAR(50) NOT NULL
+CREATE TABLE users (
+   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   email         VARCHAR(255) UNIQUE NOT NULL,
+   password_hash VARCHAR(255) NOT NULL,
+   tier          member_tier DEFAULT 'FREE',
+   registered_at TIMESTAMPTZ DEFAULT NOW(),
+   person_id     UUID REFERENCES persons(id) ON DELETE SET NULL  -- vínculo opcional
 );
 
-CREATE TABLE categories (
-                            id SERIAL PRIMARY KEY,
-                            name VARCHAR(100) NOT NULL,
-                            genre category_genre NOT NULL,
-                            mode category_mode NOT NULL
-);
-
+-- TOURNAMENTS
 CREATE TABLE tournaments (
-                             id SERIAL PRIMARY KEY,
-                             name VARCHAR(150) NOT NULL,
-                             description TEXT,
-                             start_date DATE NOT NULL,
-                             end_date DATE NOT NULL,
-                             max_players INTEGER NOT NULL,
-                             location VARCHAR(255),
-                             state tournament_state DEFAULT 'soon',
-                             created_by INTEGER REFERENCES members(id)
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(200) NOT NULL,
+    start_date      DATE NOT NULL,
+    end_date        DATE NOT NULL,
+    venue           VARCHAR(200),
+    country         CHAR(3),
+    surface         VARCHAR(20),                -- CLAY / HARD / GRASS / CARPET
+    category        VARCHAR(50),                -- ITF / ATP / WTA / NATIONAL
+    status          VARCHAR(20)                 -- ACTIVE / COMPLETED / CANCELLED
 );
 
--- Tablas Relacionales e Inscripciones
-CREATE TABLE tournament_categories (
-                                       id SERIAL PRIMARY KEY,
-                                       tournament_id INTEGER REFERENCES tournaments(id) ON DELETE CASCADE,
-                                       category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE
+-- PARTICIPANTS (persons or pairs/teams registered in a tournament)
+CREATE TABLE participants (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id    UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    person_id        UUID REFERENCES persons(id),   -- NULL if participant is a pair/team
+    participant_type VARCHAR(20) NOT NULL,          -- INDIVIDUAL / PAIR / TEAM
+    entry_status     VARCHAR(30),                   -- DIRECT_ACCEPTANCE / WILDCARD / QUALIFIER / LUCKY_LOSER
+    seed             INTEGER
 );
 
-CREATE TABLE inscriptions (
-                              id SERIAL PRIMARY KEY,
-                              tournament_id INTEGER REFERENCES tournaments(id) ON DELETE CASCADE,
-                              category_id INTEGER REFERENCES categories(id), -- Añadido para saber en qué categoría compite
-                              member_id INTEGER REFERENCES members(id),
-                              partner_id INTEGER REFERENCES members(id), -- NULL si es single
-                              role_id INTEGER REFERENCES roles(id),
-                              registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- PAIR / TEAM MEMBERS mapping (many-to-many between participants and persons)
+CREATE TABLE participant_members (
+    participant_id  UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+    person_id       UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    PRIMARY KEY (participant_id, person_id)
 );
 
--- Partidos e Historial
-CREATE TABLE matches (
-                         id SERIAL PRIMARY KEY,
-                         tournament_id INTEGER REFERENCES tournaments(id) ON DELETE CASCADE,
-                         category_id INTEGER REFERENCES categories(id),
-                         first_inscription_id INTEGER REFERENCES inscriptions(id),
-                         second_inscription_id INTEGER REFERENCES inscriptions(id),
-                         winner_id INTEGER REFERENCES inscriptions(id),
-                         round_number INTEGER NOT NULL, -- 1=Final, 2=Semis, 3=Cuartos...
-                         next_match_id INTEGER REFERENCES matches(id), -- Para lógica de brackets
-                         scheduled_at TIMESTAMP,
-                         court VARCHAR(50),
-                         result VARCHAR(100) -- Ej: "6-4 / 7-5"
+-- EVENTS (within a tournament: singles/doubles, age categories, gender)
+CREATE TABLE events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id   UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    name            VARCHAR(200),
+    discipline      VARCHAR(30),               -- TENNIS / BEACH_TENNIS / WHEELCHAIR
+    event_type      VARCHAR(20),               -- SINGLES / DOUBLES / TEAM
+    gender          VARCHAR(10),               -- MALE / FEMALE / MIXED / OPEN
+    age_category    VARCHAR(30),               -- OPEN / U18 / U14 / SENIOR
+    draw_size       INTEGER
 );
 
------- Insertar Datos de Ejemplo
--- 1. Insertar Roles
-INSERT INTO roles (name) VALUES ('Organizer'), ('Player'), ('Referee');
+-- STAGES (phases within an event: qualifying, main draw, etc.)
+CREATE TABLE stages (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id        UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    stage_number    INTEGER NOT NULL,
+    stage_type      VARCHAR(30)                 -- QUALIFYING / MAIN / CONSOLATION / PLAYOFF
+);
 
--- 2. Insertar Categorías
-INSERT INTO categories (name, genre, mode) VALUES
-   ('Absoluto Individual Masculino', 'H', 'single'),
-   ('Absoluto Individual Femenino', 'M', 'single'),
-   ('Absoluto Dobles Masculino', 'H', 'doubles'),
-   ('Absoluto Dobles Femenino', 'M', 'doubles'),
-   ('Absoluto Dobles Mixto', 'X', 'doubles');
+-- DRAWS (structure inside a stage)
+CREATE TABLE draws (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    stage_id        UUID NOT NULL REFERENCES stages(id) ON DELETE CASCADE,
+    draw_type       VARCHAR(30) NOT NULL,      -- ELIMINATION / ROUND_ROBIN
+    draw_name       VARCHAR(100)
+);
 
--- 3. Insertar Miembros (6 jugadores)
-INSERT INTO members (email, username, password, gender, tier) VALUES
-    ('rafa@example.com', 'RafaNadal', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',  'H', 'advanced'),
-    ('roger@example.com', 'RogerF', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',  'H', 'advanced'),
-    ('serena@example.com', 'SerenaW', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',  'M', 'advanced'),
-    ('iga@example.com', 'IgaS', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',  'M', 'advanced'),
-    ('novak@example.com', 'Djoko', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',  'H', 'advanced'),
-    ('coco@example.com', 'CocoG', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',  'M', 'intermediate');
--- password
+-- MATCHUPS (individual matches)
+CREATE TABLE matchups (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    draw_id         UUID NOT NULL REFERENCES draws(id) ON DELETE CASCADE,
+    round_number    INTEGER,
+    match_number    INTEGER,
+    match_format    VARCHAR(50),               -- format string e.g. SET3-S:6/TB7
+    status          VARCHAR(20),               -- UPCOMING / IN_PROGRESS / COMPLETED / ABANDONED
+    scheduled_at    TIMESTAMPTZ,
+    court           VARCHAR(50),
+    winner_side     SMALLINT                   -- 1 or 2
+);
 
--- 4. Insertar un Torneo
-INSERT INTO tournaments (name, description, start_date, end_date, max_players, location, state, created_by) VALUES
-    ('Open de Primavera 202', 'Torneo inaugural de la temporada', '2026-05-01', '2026-05-15', 32, 'Club de Tenis Principal', 'inscription', 1);
+-- MATCHUP SIDES (side 1 and side 2, referencing participants)
+CREATE TABLE matchup_sides (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    matchup_id      UUID NOT NULL REFERENCES matchups(id) ON DELETE CASCADE,
+    side_number     SMALLINT NOT NULL,         -- 1 or 2
+    participant_id  UUID REFERENCES participants(id) ON DELETE SET NULL,
+    UNIQUE (matchup_id, side_number)
+);
 
--- 5. Insertar Categorías para ese Torneo
-INSERT INTO tournament_categories (tournament_id, category_id) VALUES
-                                                                   (1, 1), -- Single Masculino
-                                                                   (1, 5); -- Dobles Mixto
+-- SETS (per-set results for a matchup)
+CREATE TABLE sets (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    matchup_id      UUID NOT NULL REFERENCES matchups(id) ON DELETE CASCADE,
+    set_number      SMALLINT NOT NULL,
+    side1_games     SMALLINT,
+    side2_games     SMALLINT,
+    side1_tiebreak  SMALLINT,
+    side2_tiebreak  SMALLINT,
+    UNIQUE (matchup_id, set_number)
+);
 
--- 6. Insertar Inscripciones
--- Inscripción Individual (Rafa en Single Masculino)
-INSERT INTO inscriptions (tournament_id, category_id, member_id, partner_id, role_id)
-VALUES (1, 1, 1, NULL, 2);
-
--- Inscripción en Pareja (Roger e Iga en Dobles Mixto)
-INSERT INTO inscriptions (tournament_id, category_id, member_id, partner_id, role_id)
-VALUES (1, 5, 2, 4, 2);
-
--- 7. Insertar un Partido de ejemplo (Rafa vs Novak)
--- Primero inscribimos a Novak para que pueda jugar
-INSERT INTO inscriptions (tournament_id, category_id, member_id, partner_id, role_id)
-VALUES (1, 1, 5, NULL, 2);
-
--- Ahora el partido (Asumiendo que Rafa es Inscripción 1 y Novak es Inscripción 3)
-INSERT INTO matches (tournament_id, category_id, first_inscription_id, second_inscription_id, round_number, scheduled_at, court, result)
-VALUES (1, 1, 1, 3, 1, '2024-05-10 10:00:00', 'Pista Central', '6-4 / 6-4');
+-- RANKINGS (historical ranking snapshots per player)
+CREATE TABLE rankings (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    person_id       UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    ranking_date    DATE NOT NULL,
+    ranking_type    VARCHAR(50),               -- ITF / ATP / WTA / NATIONAL
+    rank_position   INTEGER,
+    ranking_points  NUMERIC(10,2),
+    UNIQUE (person_id, ranking_date, ranking_type)
+);

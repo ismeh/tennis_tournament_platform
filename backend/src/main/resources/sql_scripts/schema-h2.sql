@@ -1,80 +1,139 @@
--- Tablas Principales
-CREATE TABLE members (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    username VARCHAR(100) NOT NULL,
-    password VARCHAR(255),
-    gender CHAR(1) NOT NULL CHECK (gender IN ('H', 'M')),
-    tier VARCHAR(20) DEFAULT 'free' CHECK (tier IN ('free', 'intermediate', 'advanced')),
-    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- Database Schema for Tennis Tournament Platform (H2 Compatible)
+
+DROP TABLE IF EXISTS rankings;
+DROP TABLE IF EXISTS sets;
+DROP TABLE IF EXISTS matchup_sides;
+DROP TABLE IF EXISTS matchups;
+DROP TABLE IF EXISTS draws;
+DROP TABLE IF EXISTS stages;
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS participant_members;
+DROP TABLE IF EXISTS participants;
+DROP TABLE IF EXISTS tournaments;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS persons;
+
+CREATE TABLE persons (
+    id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tennis_id     VARCHAR(50) UNIQUE,
+    first_name    VARCHAR(100) NOT NULL,
+    last_name     VARCHAR(100) NOT NULL,
+    nationality   CHAR(3),
+    birth_date    DATE,
+    gender        VARCHAR(20)
 );
 
-CREATE TABLE roles (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL
-);
-
-CREATE TABLE categories (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    genre CHAR(1) NOT NULL CHECK (genre IN ('H', 'M', 'X')),
-    mode VARCHAR(10) NOT NULL CHECK (mode IN ('single', 'doubles'))
+CREATE TABLE users (
+    id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    tier          VARCHAR(20) DEFAULT 'FREE',
+    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    person_id     BIGINT,
+    FOREIGN KEY (person_id) REFERENCES persons(id)
 );
 
 CREATE TABLE tournaments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    description CLOB, -- CLOB es el equivalente a TEXT en H2
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    max_players INTEGER NOT NULL,
-    location VARCHAR(255),
-    state VARCHAR(20) DEFAULT 'soon' CHECK (state IN ('soon', 'inscription', 'playing', 'finished')),
-    created_by INTEGER,
-    CONSTRAINT fk_tournament_creator FOREIGN KEY (created_by) REFERENCES members(id)
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name            VARCHAR(255) NOT NULL,
+    start_date      DATE NOT NULL,
+    end_date        DATE NOT NULL,
+    venue           VARCHAR(255),
+    country         CHAR(3),
+    surface         VARCHAR(20),
+    category        VARCHAR(50),
+    status          VARCHAR(20)
 );
 
--- Tablas Relacionales e Inscripciones
-CREATE TABLE tournament_categories (
-     id INT AUTO_INCREMENT PRIMARY KEY,
-     tournament_id INTEGER NOT NULL,
-     category_id INTEGER NOT NULL,
-     CONSTRAINT fk_tc_tournament FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
-     CONSTRAINT fk_tc_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+CREATE TABLE participants (
+    id               BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tournament_id    BIGINT NOT NULL,
+    person_id        BIGINT,
+    participant_type VARCHAR(20) NOT NULL,
+    entry_status     VARCHAR(30),
+    seed             INTEGER,
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(id),
+    FOREIGN KEY (person_id) REFERENCES persons(id)
 );
 
-CREATE TABLE inscriptions (
-     id INT AUTO_INCREMENT PRIMARY KEY,
-     tournament_id INTEGER NOT NULL,
-     category_id INTEGER NOT NULL,
-     member_id INTEGER NOT NULL,
-     partner_id INTEGER, -- NULL si es single
-     role_id INTEGER,
-     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-     CONSTRAINT fk_ins_tournament FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
-     CONSTRAINT fk_ins_category FOREIGN KEY (category_id) REFERENCES categories(id),
-     CONSTRAINT fk_ins_member FOREIGN KEY (member_id) REFERENCES members(id),
-     CONSTRAINT fk_ins_partner FOREIGN KEY (partner_id) REFERENCES members(id),
-     CONSTRAINT fk_ins_role FOREIGN KEY (role_id) REFERENCES roles(id)
+CREATE TABLE participant_members (
+    participant_id  BIGINT NOT NULL,
+    person_id       BIGINT NOT NULL,
+    PRIMARY KEY (participant_id, person_id),
+    FOREIGN KEY (participant_id) REFERENCES participants(id),
+    FOREIGN KEY (person_id) REFERENCES persons(id)
 );
 
--- Partidos e Historial
-CREATE TABLE matches (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    tournament_id INTEGER NOT NULL,
-    category_id INTEGER NOT NULL,
-    first_inscription_id INTEGER,
-    second_inscription_id INTEGER,
-    winner_id INTEGER,
-    round_number INTEGER NOT NULL,
-    next_match_id INTEGER,
-    scheduled_at TIMESTAMP,
-    court VARCHAR(50),
-    result VARCHAR(100),
-    CONSTRAINT fk_match_tournament FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
-    CONSTRAINT fk_match_category FOREIGN KEY (category_id) REFERENCES categories(id),
-    CONSTRAINT fk_match_ins1 FOREIGN KEY (first_inscription_id) REFERENCES inscriptions(id),
-    CONSTRAINT fk_match_ins2 FOREIGN KEY (second_inscription_id) REFERENCES inscriptions(id),
-    CONSTRAINT fk_match_winner FOREIGN KEY (winner_id) REFERENCES inscriptions(id),
-    CONSTRAINT fk_match_next FOREIGN KEY (next_match_id) REFERENCES matches(id)
+CREATE TABLE events (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tournament_id   BIGINT NOT NULL,
+    name            VARCHAR(255),
+    discipline      VARCHAR(50),
+    event_type      VARCHAR(20),
+    gender          VARCHAR(20),
+    age_category    VARCHAR(30),
+    draw_size       INTEGER,
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(id)
+);
+
+CREATE TABLE stages (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    event_id        BIGINT NOT NULL,
+    stage_number    INTEGER NOT NULL,
+    stage_type      VARCHAR(30),
+    FOREIGN KEY (event_id) REFERENCES events(id)
+);
+
+CREATE TABLE draws (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    stage_id        BIGINT NOT NULL,
+    draw_type       VARCHAR(30) NOT NULL,
+    draw_name       VARCHAR(100),
+    FOREIGN KEY (stage_id) REFERENCES stages(id)
+);
+
+CREATE TABLE matchups (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    draw_id         BIGINT NOT NULL,
+    round_number    INTEGER,
+    match_number    INTEGER,
+    match_format    VARCHAR(100),
+    status          VARCHAR(20),
+    scheduled_at    TIMESTAMP,
+    court           VARCHAR(100),
+    winner_side     SMALLINT,
+    FOREIGN KEY (draw_id) REFERENCES draws(id)
+);
+
+CREATE TABLE matchup_sides (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    matchup_id      BIGINT NOT NULL,
+    side_number     SMALLINT NOT NULL,
+    participant_id  BIGINT,
+    UNIQUE (matchup_id, side_number),
+    FOREIGN KEY (matchup_id) REFERENCES matchups(id),
+    FOREIGN KEY (participant_id) REFERENCES participants(id)
+);
+
+CREATE TABLE sets (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    matchup_id      BIGINT NOT NULL,
+    set_number      SMALLINT NOT NULL,
+    side1_games     SMALLINT,
+    side2_games     SMALLINT,
+    side1_tiebreak  SMALLINT,
+    side2_tiebreak  SMALLINT,
+    UNIQUE (matchup_id, set_number),
+    FOREIGN KEY (matchup_id) REFERENCES matchups(id)
+);
+
+CREATE TABLE rankings (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    person_id       BIGINT NOT NULL,
+    ranking_date    DATE NOT NULL,
+    ranking_type    VARCHAR(50),
+    rank_position   INTEGER,
+    ranking_points  NUMERIC(10,2),
+    UNIQUE (person_id, ranking_date, ranking_type),
+    FOREIGN KEY (person_id) REFERENCES persons(id)
 );

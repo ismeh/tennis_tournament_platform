@@ -1,6 +1,7 @@
 .env.dev
 .env
 .env.prod
+logs
 
 HELP.md
 target/
