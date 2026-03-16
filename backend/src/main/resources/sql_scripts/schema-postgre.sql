@@ -4,7 +4,6 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TYPE user_gender AS ENUM ('H', 'M');
 CREATE TYPE category_genre AS ENUM ('H', 'M', 'X');
 CREATE TYPE category_mode AS ENUM ('SINGLE', 'DOUBLES');
-CREATE TYPE member_tier AS ENUM ('FREE', 'INTERMEDIATE', 'ADVANCED');
 CREATE TYPE tournament_state AS ENUM ('SOON', 'INSCRIPTION', 'PLAYING', 'FINISHED');
 
 -- PERSONS (base entity, aligned with international tennis IDs)
@@ -22,7 +21,7 @@ CREATE TABLE users (
    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
    email         VARCHAR(255) UNIQUE NOT NULL,
    password_hash VARCHAR(255) NOT NULL,
-   tier          member_tier DEFAULT 'FREE',
+   tier          VARCHAR(32) DEFAULT 'FREE',
    registered_at TIMESTAMPTZ DEFAULT NOW(),
    person_id     UUID REFERENCES persons(id) ON DELETE SET NULL  -- vínculo opcional
 );
