@@ -30,7 +30,7 @@ public class MemberDetailsService implements UserDetailsService {
         return new User(
                 user.getEmail(),
                 user.getPasswordHash(),
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getTier().toUpperCase()))
+                List.of(new SimpleGrantedAuthority("ROLE_" + user.getTier()))
         );
     }
 
