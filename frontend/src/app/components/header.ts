@@ -44,10 +44,10 @@ import { AppSettings } from '../shared/constants';
 
           <!-- Auth Buttons -->
           <div class="flex items-center gap-2 sm:gap-3">
-            <a routerLink="/iniciar-sesion" class="px-4 py-2 text-primary-600 font-medium text-sm hover:text-primary-700 transition-colors">
+            <a routerLink="/iniciar" class="px-4 py-2 text-primary-600 font-medium text-sm hover:text-primary-700 transition-colors">
               Iniciar Sesión
             </a>
-            <a routerLink="/registrarse" class="px-4 py-2 sm:px-6 py-2 bg-primary-500 text-white font-medium text-sm rounded-lg hover:bg-primary-600 transition-colors">
+            <a routerLink="/registrarse" class="px-4 py-2 sm:px-6 bg-primary-500 text-white font-medium text-sm rounded-lg hover:bg-primary-600 transition-colors">
               Registrarse
             </a>
           </div>
@@ -58,5 +58,5 @@ import { AppSettings } from '../shared/constants';
   styles: []
 })
 export class HeaderComponent {
-  AppSettings: any = AppSettings;
+  AppSettings: typeof AppSettings = AppSettings;
 }

@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
-import { HomeComponent } from './pages/home';
-import { PlaceholderComponent } from './pages/placeholder';
+import { HomeComponent } from './features/home';
+import { PlaceholderPage } from './features/placeholder';
+import { LoginComponent } from './features/auth/login';
+import { RegisterComponent } from './features/auth/register';
 
 export const routes: Routes = [
   {
@@ -9,27 +11,27 @@ export const routes: Routes = [
   },
   {
     path: 'torneos',
-    component: PlaceholderComponent,
+    component: PlaceholderPage,
     data: { title: 'Torneos' }
   },
   {
     path: 'como-funciona',
-    component: PlaceholderComponent,
+    component: PlaceholderPage,
     data: { title: 'Cómo Funciona' }
   },
   {
     path: 'contacto',
-    component: PlaceholderComponent,
+    component: PlaceholderPage,
     data: { title: 'Contáctenos' }
   },
   {
-    path: 'iniciar-sesion',
-    component: PlaceholderComponent,
+    path: 'iniciar',
+    component: LoginComponent,
     data: { title: 'Iniciar Sesión' }
   },
   {
     path: 'registrarse',
-    component: PlaceholderComponent,
+    component: RegisterComponent,
     data: { title: 'Registrarse' }
   },
   {
