@@ -13,7 +13,6 @@ services:
       POSTGRES_DB: demo-tfm
     volumes:
       - ./src/main/resources/sql_scripts/schema-postgre.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./src/main/resources/sql_scripts/00test-postgree.sql:/docker-entrypoint-initdb.d/00-schema.sql
       - ./src/main/resources/sql_scripts/data-postgre.sql:/docker-entrypoint-initdb.d/02-data.sql
       - postgres_data:/var/lib/postgresql # Persistencia de datos
   #https://docs.docker.com/guides/pgadmin/?uuid=8E733685-75E6-42D3-AF38-81DF0CF12C54
