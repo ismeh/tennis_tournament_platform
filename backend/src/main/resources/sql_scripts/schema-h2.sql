@@ -27,6 +27,7 @@ CREATE TABLE users (
     id            BIGINT PRIMARY KEY AUTO_INCREMENT,
     email         VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    token_hash    VARCHAR(128),
     tier          VARCHAR(20) DEFAULT 'FREE',
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     person_id     BIGINT,

@@ -28,6 +28,9 @@ public class MemberEntity {
     @Column(name = "password_hash", updatable = false)
     private String passwordHash;
 
+    @Column(name = "token_hash", length = 128)
+    private String tokenHash;
+
     @Enumerated(EnumType.STRING)
     private MemberTier tier;
 

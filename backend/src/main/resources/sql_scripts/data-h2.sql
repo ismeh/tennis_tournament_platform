@@ -10,13 +10,13 @@ SET MODE PostgreSQL;
         ( 'IPIN006', 'Coco', 'Gauff', 'USA', '2004-03-13', 'FEMALE');
 
     -- 2. Insert sample users (linked to persons)
-    INSERT INTO users (email, password_hash, tier, person_id) VALUES
-        ( 'rafa@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN001')),
-        ( 'roger@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN002')),
-        ( 'serena@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN003')),
-        ( 'iga@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN004')),
-        ( 'novak@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN005')),
-        ( 'coco@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', 'INTERMEDIATE', (SELECT id FROM persons WHERE tennis_id = 'IPIN006'));
+    INSERT INTO users (email, password_hash, token_hash, tier, person_id) VALUES
+        ( 'rafa@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN001')),
+        ( 'roger@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN002')),
+        ( 'serena@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN003')),
+        ( 'iga@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN004')),
+        ( 'novak@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN005')),
+        ( 'coco@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'INTERMEDIATE', (SELECT id FROM persons WHERE tennis_id = 'IPIN006'));
 
     -- 3. Insert a tournament
     INSERT INTO tournaments (name, start_date, end_date, venue, country, surface, category, status) VALUES

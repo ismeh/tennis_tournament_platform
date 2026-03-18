@@ -8,23 +8,23 @@ INSERT INTO persons (tennis_id, first_name, last_name, nationality, birth_date, 
                                                                                             ('IPIN006','Coco','Gauff','USA', DATE '2004-03-13','FEMALE');
 
 -- 2. Insert sample users
-INSERT INTO users (email, password_hash, tier, person_id) VALUES
-                                                              ('rafa@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna','ADVANCED',
+INSERT INTO users (email, password_hash, token_hash, tier, person_id) VALUES
+                                                              ('rafa@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',NULL,'ADVANCED',
                                                                (SELECT id FROM persons WHERE tennis_id='IPIN001' LIMIT 1)),
 
-                                                              ('roger@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna','ADVANCED',
+                                                              ('roger@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',NULL,'ADVANCED',
                                                                (SELECT id FROM persons WHERE tennis_id='IPIN002' LIMIT 1)),
 
-                                                              ('serena@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna','ADVANCED',
+                                                              ('serena@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',NULL,'ADVANCED',
                                                                (SELECT id FROM persons WHERE tennis_id='IPIN003' LIMIT 1)),
 
-                                                              ('iga@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna','ADVANCED',
+                                                              ('iga@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',NULL,'ADVANCED',
                                                                (SELECT id FROM persons WHERE tennis_id='IPIN004' LIMIT 1)),
 
-                                                              ('novak@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna','ADVANCED',
+                                                              ('novak@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',NULL,'ADVANCED',
                                                                (SELECT id FROM persons WHERE tennis_id='IPIN005' LIMIT 1)),
 
-                                                              ('coco@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna','INTERMEDIATE',
+                                                              ('coco@example.com','$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',NULL,'INTERMEDIATE',
                                                                (SELECT id FROM persons WHERE tennis_id='IPIN006' LIMIT 1));
 
 -- 3. Insert tournament

@@ -21,6 +21,7 @@ CREATE TABLE users (
    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
    email         VARCHAR(255) UNIQUE NOT NULL,
    password_hash VARCHAR(255) NOT NULL,
+    token_hash    VARCHAR(128),
    tier          VARCHAR(32) DEFAULT 'FREE',
    registered_at TIMESTAMPTZ DEFAULT NOW(),
    person_id     UUID REFERENCES persons(id) ON DELETE SET NULL  -- vínculo opcional
