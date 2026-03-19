@@ -41,7 +41,6 @@ import { AppSettings } from '../shared/constants';
               <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Sobre Nosotros</a></li>
               <li><a routerLink="/contact" class="text-neutral-400 hover:text-primary-400 transition-colors">Contacto</a></li>
               <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Blog</a></li>
-              <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Carreras</a></li>
             </ul>
           </div>
 
@@ -62,7 +61,7 @@ import { AppSettings } from '../shared/constants';
 
         <!-- Bottom Section -->
         <div class="flex flex-col md:flex-row justify-between items-center pt-8 text-sm text-neutral-400">
-          <p>&copy; 2024 {{ AppSettings.PROJECT_NAME }}. Todos los derechos reservados.</p>
+          <p>&copy; 2026 {{ AppSettings.PROJECT_NAME }}. Todos los derechos reservados.</p>
           <div class="flex gap-4 mt-4 md:mt-0">
             <a href="#" class="hover:text-primary-400 transition-colors">Twitter</a>
             <a href="#" class="hover:text-primary-400 transition-colors">LinkedIn</a>
@@ -75,5 +74,5 @@ import { AppSettings } from '../shared/constants';
   styles: []
 })
 export class FooterComponent {
-  AppSettings = AppSettings;
+  AppSettings: typeof AppSettings = AppSettings;
 }

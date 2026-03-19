@@ -1,5 +1,6 @@
 export interface LoginResponse {
   token: string;
+  refreshToken?: string;
 }
 
 export interface LoginRequest {
@@ -15,4 +16,14 @@ export interface RegisterRequest {
 
 export interface RegisterResponse {
   token: string;
+  refreshToken?: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken: string;
+  refreshToken?: string;
 }

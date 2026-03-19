@@ -33,9 +33,10 @@ describe('AuthService', () => {
 
     const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/login`);
     expect(req.request.method).toBe('POST');
-    req.flush({ token: 'jwt-token' });
+    req.flush({ token: 'jwt-token', refreshToken: 'refresh-token' });
 
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('jwt-token');
+    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('refresh-token');
   });
 
   it('stores token after register', () => {
@@ -43,8 +44,24 @@ describe('AuthService', () => {
 
     const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/register`);
     expect(req.request.method).toBe('POST');
-    req.flush({ token: 'registered-token' });
+    req.flush({ token: 'registered-token', refreshToken: 'register-refresh-token' });
 
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('registered-token');
+    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('register-refresh-token');
+  });
+
+  it('refreshes token when refresh token is available', () => {
+    localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'old-refresh-token');
+
+    service.refreshToken().subscribe();
+
+    const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/refresh`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ refreshToken: 'old-refresh-token' });
+
+    req.flush({ accessToken: 'new-access-token', refreshToken: 'new-refresh-token' });
+
+    expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('new-access-token');
+    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('new-refresh-token');
   });
 });

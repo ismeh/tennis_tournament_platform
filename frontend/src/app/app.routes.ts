@@ -25,12 +25,12 @@ export const routes: Routes = [
     data: { title: 'Contáctenos' }
   },
   {
-    path: 'iniciar',
+    path: 'login',
     component: LoginComponent,
     data: { title: 'Iniciar Sesión' }
   },
   {
-    path: 'registrarse',
+    path: 'register',
     component: RegisterComponent,
     data: { title: 'Registrarse' }
   },
