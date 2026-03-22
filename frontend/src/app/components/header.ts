@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { AppSettings } from '../shared/constants';
 
@@ -51,6 +51,13 @@ import { AppSettings } from '../shared/constants';
                   {{ getUserInitial(displayName$ | async) }}
                 </div>
                 <span class="text-sm font-medium text-neutral-700">Hi {{ (displayName$ | async) ?? 'Player' }}</span>
+                <button
+                  type="button"
+                  (click)="onLogout()"
+                  class="px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                >
+                  Cerrar sesión
+                </button>
               </div>
             } @else {
               <a routerLink="/login" class="px-4 py-2 text-primary-600 font-medium text-sm hover:text-primary-700 transition-colors">
@@ -70,6 +77,7 @@ import { AppSettings } from '../shared/constants';
 export class HeaderComponent {
   AppSettings: typeof AppSettings = AppSettings;
   private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
 
   readonly isLoggedIn$ = this.authService.isLoggedIn$;
   readonly displayName$ = this.authService.displayName$;
@@ -80,5 +88,11 @@ export class HeaderComponent {
     }
 
     return displayName.charAt(0).toUpperCase();
+  }
+
+  onLogout(): void {
+    this.authService.logout().subscribe(() => {
+      this.router.navigateByUrl('/');
+    });
   }
 }

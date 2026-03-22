@@ -1,7 +1,7 @@
 import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { BehaviorSubject, Observable, throwError, tap } from 'rxjs';
+import { BehaviorSubject, Observable, of, throwError, catchError, tap, finalize } from 'rxjs';
 import {
   LoginRequest,
   LoginResponse,
@@ -66,14 +66,18 @@ export class AuthService {
       );
   }
 
-  logout(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      localStorage.removeItem(this.TOKEN_KEY);
-      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-      localStorage.removeItem(this.USER_NAME_KEY);
-    }
-    this.authStatus$.next(false);
-    this.userDisplayName$.next(null);
+  logout(): Observable<void> {
+    const refreshToken = this.getRefreshToken();
+    const logoutRequest$: Observable<void> = refreshToken
+      ? this.http.post<void>(`${this.API_URL}/logout`, { refreshToken })
+      : of(void 0);
+
+    return logoutRequest$.pipe(
+      catchError(() => of(void 0)),
+      finalize(() => {
+        this.clearSession();
+      })
+    );
   }
 
   private setSession(token: string, refreshToken?: string, fallbackName?: string): void {
@@ -179,5 +183,16 @@ export class AuthService {
     }
 
     return trimmed;
+  }
+
+  private clearSession(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      localStorage.removeItem(this.USER_NAME_KEY);
+    }
+
+    this.authStatus$.next(false);
+    this.userDisplayName$.next(null);
   }
 }

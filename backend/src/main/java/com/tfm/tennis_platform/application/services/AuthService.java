@@ -101,6 +101,23 @@ public class AuthService {
         return issueTokens(userDetails, member.getId());
     }
 
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+
+        final String userEmail;
+        try {
+            userEmail = jwtService.extractUsername(refreshToken);
+        } catch (RuntimeException ex) {
+            return;
+        }
+
+        memberRepository.findByEmail(userEmail)
+                .map(Member::getId)
+                .ifPresent(memberId -> memberRepository.updateTokenHash(memberId, null));
+    }
+
     private AuthTokens issueTokens(UserDetails userDetails, UUID memberId) {
         String accessToken = jwtService.generateAccessToken(userDetails);
         String refreshToken = jwtService.generateRefreshToken(userDetails);

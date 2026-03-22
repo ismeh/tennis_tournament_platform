@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class LoginController {
     private final AuthService authService;
 
-    @PostMapping({"/api/login", "/api/auth/login"})
+    @PostMapping({"/api/auth/login"})
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         AuthService.AuthTokens tokens = authService.login(loginRequest.email(), loginRequest.password());
         log.info("User logged in: {}", loginRequest.email());
@@ -45,6 +45,12 @@ public class LoginController {
     public ResponseEntity<RefreshTokenResponse> refresh(@RequestBody RefreshTokenRequest request) {
         AuthService.AuthTokens tokens = authService.refresh(request.refreshToken());
         return ResponseEntity.ok(new RefreshTokenResponse(tokens.accessToken(), tokens.refreshToken()));
+    }
+
+    @PostMapping("/api/auth/logout")
+    public ResponseEntity<Void> logout(@RequestBody(required = false) RefreshTokenRequest request) {
+        authService.logout(request != null ? request.refreshToken() : null);
+        return ResponseEntity.noContent().build();
     }
 
     @ExceptionHandler(IllegalStateException.class)
