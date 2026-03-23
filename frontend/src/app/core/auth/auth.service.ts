@@ -36,7 +36,7 @@ export class AuthService {
   login(credentials: LoginRequest): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.API_URL}/login`, credentials).pipe(
       tap(response => {
-        this.setSession(response.token, response.refreshToken);
+        this.setSession(response.accessToken, response.refreshToken);
       })
     );
   }
@@ -44,7 +44,7 @@ export class AuthService {
   register(payload: RegisterRequest): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${this.API_URL}/register`, payload).pipe(
       tap(response => {
-        this.setSession(response.token, response.refreshToken, payload.name);
+        this.setSession(response.accessToken, response.refreshToken, payload.name);
       })
     );
   }

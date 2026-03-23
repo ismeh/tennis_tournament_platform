@@ -63,7 +63,7 @@ import { AuthService } from '../../core/auth/auth.service';
 
 				<p class="mt-6 text-sm text-neutral-600">
 					Ya tienes cuenta?
-					<a routerLink="/iniciar" class="font-medium text-primary-600 hover:text-primary-700">Inicia sesion</a>
+					<a routerLink="/login" class="font-medium text-primary-600 hover:text-primary-700">Inicia sesion</a>
 				</p>
 			</div>
 		</section>

@@ -52,7 +52,7 @@ import { AuthService } from '../../core/auth/auth.service';
 
 				<p class="mt-6 text-sm text-neutral-600">
 					Aun no tienes cuenta?
-					<a routerLink="/registrarse" class="font-medium text-primary-600 hover:text-primary-700">Registrate</a>
+					<a routerLink="/register" class="font-medium text-primary-600 hover:text-primary-700">Registrate</a>
 				</p>
 			</div>
 		</section>
