@@ -1,11 +1,10 @@
 package com.tfm.tennis_platform.application.services;
 
-import com.tfm.tennis_platform.domain.contracts.MemberRepository;
+import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 

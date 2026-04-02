@@ -1,6 +1,6 @@
 package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 
-import com.tfm.tennis_platform.domain.contracts.MemberRepository;
+import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.infrastructure.persistence.mapper.MemberMapper;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMemberRepository;

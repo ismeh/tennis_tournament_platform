@@ -1,6 +1,6 @@
 package com.tfm.tennis_platform.application.services;
 
-import com.tfm.tennis_platform.domain.contracts.MemberRepository;
+import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
 import com.tfm.tennis_platform.infrastructure.security.JwtService;
