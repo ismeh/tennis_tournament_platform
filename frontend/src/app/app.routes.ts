@@ -3,6 +3,7 @@ import { HomeComponent } from './features/home';
 import { PlaceholderPage } from './features/placeholder';
 import { LoginComponent } from './features/auth/login';
 import { RegisterComponent } from './features/auth/register';
+import { CreateTournamentComponent } from './features/tournaments/create';
 
 export const routes: Routes = [
   {
@@ -11,8 +12,8 @@ export const routes: Routes = [
   },
   {
     path: 'torneos',
-    component: PlaceholderPage,
-    data: { title: 'Torneos' }
+    component: CreateTournamentComponent,
+    data: { title: 'Crear Torneo' }
   },
   {
     path: 'como-funciona',

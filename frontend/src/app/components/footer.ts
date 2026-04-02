@@ -27,8 +27,8 @@ import { AppSettings } from '../shared/constants';
           <div>
             <h3 class="font-semibold text-white mb-4">Producto</h3>
             <ul class="space-y-2 text-sm">
-              <li><a routerLink="/tournaments" class="text-neutral-400 hover:text-primary-400 transition-colors">Explorar Torneos</a></li>
-              <li><a routerLink="/how-it-works" class="text-neutral-400 hover:text-primary-400 transition-colors">Cómo Funciona</a></li>
+              <li><a routerLink="/torneos" class="text-neutral-400 hover:text-primary-400 transition-colors">Crear torneo</a></li>
+              <li><a routerLink="/como-funciona" class="text-neutral-400 hover:text-primary-400 transition-colors">Cómo Funciona</a></li>
               <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Precios</a></li>
               <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Características</a></li>
             </ul>
@@ -39,7 +39,7 @@ import { AppSettings } from '../shared/constants';
             <h3 class="font-semibold text-white mb-4">Empresa</h3>
             <ul class="space-y-2 text-sm">
               <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Sobre Nosotros</a></li>
-              <li><a routerLink="/contact" class="text-neutral-400 hover:text-primary-400 transition-colors">Contacto</a></li>
+              <li><a routerLink="/contacto" class="text-neutral-400 hover:text-primary-400 transition-colors">Contacto</a></li>
               <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Blog</a></li>
             </ul>
           </div>
