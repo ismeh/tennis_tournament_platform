@@ -1,5 +1,27 @@
 # TfmFront
 
+app/
+├── core/                    <--- NUEVO: Lógica global y seguridad (invisible para el usuario)
+│   ├── auth/
+│   │   ├── auth.service.ts
+│   │   ├── auth.guard.ts
+│   │   └── jwt.interceptor.ts
+│   └── services/            <--- Servicios que duran toda la vida de la app
+├── data/                    <--- NUEVO: Modelos de datos y llamadas HTTP (Repositories)
+│   ├── interfaces/
+│   └── services/
+├── features/                <--- EVOLUCIÓN: Tus "pages" ahora son "features"
+│   ├── auth/                <--- Aquí va el Login y Registro
+│   │   ├── login/
+│   │   └── register/
+│   ├── home/                <--- Tu página Home actual
+│   └── dashboard/
+├── components/              <--- Componentes globales (Header, Footer)
+├── layout/                  <--- Layouts (AppLayout)
+├── shared/                  <--- Cosas reutilizables (Pipes, Directivas, Constantes)
+├── app.config.ts            <--- Aquí configurarás los Interceptores
+└── app.routes.ts            <--- Aquí aplicarás los Guards
+
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.6.
 
 ## Development server
