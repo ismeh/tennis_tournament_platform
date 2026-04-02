@@ -1,0 +1,101 @@
+package com.tfm.tennis_platform.application.services;
+
+import com.tfm.tennis_platform.domain.models.Member;
+import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.domain.models.TournamentPeriod;
+import com.tfm.tennis_platform.domain.models.enums.Surface;
+import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
+import com.tfm.tennis_platform.domain.port.out.MemberRepository;
+import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class TournamentServiceTest {
+
+    @Mock
+    private TournamentRepository tournamentRepository;
+
+    @Mock
+    private MemberRepository memberRepository;
+
+    @InjectMocks
+    private TournamentService tournamentService;
+
+    @Test
+    void should_create_tournament_with_authenticated_creator() {
+        UUID creatorId = UUID.randomUUID();
+        Member creator = Member.builder()
+                .id(creatorId)
+                .email("organizer@example.com")
+                .build();
+        Tournament incomingTournament = Tournament.builder()
+                .name("Open de Primavera")
+                .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
+                .surface(Surface.CLAY)
+                .maxPlayers(32)
+                .location("Club Central")
+                .build();
+        Tournament persistedTournament = Tournament.builder()
+                .id(UUID.randomUUID())
+                .name("Open de Primavera")
+                .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
+                .surface(Surface.CLAY)
+                .maxPlayers(32)
+                .location("Club Central")
+                .state(TournamentStatus.DRAFT)
+                .createdBy(creatorId)
+                .eventIds(List.of())
+                .build();
+
+        when(memberRepository.findByEmail("organizer@example.com")).thenReturn(Optional.of(creator));
+        when(tournamentRepository.save(any(Tournament.class))).thenReturn(persistedTournament);
+
+        Tournament result = tournamentService.create(incomingTournament, "organizer@example.com");
+
+        ArgumentCaptor<Tournament> tournamentCaptor = ArgumentCaptor.forClass(Tournament.class);
+        verify(tournamentRepository).save(tournamentCaptor.capture());
+
+        assertEquals(creatorId, tournamentCaptor.getValue().getCreatedBy());
+        assertEquals("Open de Primavera", result.getName());
+        assertEquals(creatorId, result.getCreatedBy());
+    }
+
+    @Test
+    void should_throw_when_creator_email_is_unknown() {
+        Tournament incomingTournament = Tournament.builder()
+                .name("Open de Primavera")
+                .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
+                .surface(Surface.CLAY)
+                .maxPlayers(32)
+                .location("Club Central")
+                .build();
+
+        when(memberRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> tournamentService.create(incomingTournament, "missing@example.com")
+        );
+
+        assertEquals("Member not found with email: missing@example.com", exception.getMessage());
+    }
+}
