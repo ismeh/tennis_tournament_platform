@@ -33,7 +33,7 @@ describe('AuthService', () => {
 
     const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/login`);
     expect(req.request.method).toBe('POST');
-    req.flush({ token: 'jwt-token', refreshToken: 'refresh-token' });
+    req.flush({ accessToken: 'jwt-token', refreshToken: 'refresh-token' });
 
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('jwt-token');
     expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('refresh-token');
@@ -44,7 +44,7 @@ describe('AuthService', () => {
 
     const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/register`);
     expect(req.request.method).toBe('POST');
-    req.flush({ token: 'registered-token', refreshToken: 'register-refresh-token' });
+    req.flush({ accessToken: 'registered-token', refreshToken: 'register-refresh-token' });
 
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('registered-token');
     expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('register-refresh-token');

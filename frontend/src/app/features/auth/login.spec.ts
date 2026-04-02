@@ -29,7 +29,7 @@ describe('LoginComponent', () => {
   });
 
   it('calls login and navigates to home on success', () => {
-    authServiceSpy.login.and.returnValue(of({ token: 'jwt-token' }));
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token' }));
 
     component.form.setValue({ email: 'test@example.com', password: 'secret123' });
     component.submit();

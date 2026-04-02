@@ -29,7 +29,7 @@ describe('RegisterComponent', () => {
   });
 
   it('calls register and navigates to home on success', () => {
-    authServiceSpy.register.and.returnValue(of({ token: 'registered-token' }));
+    authServiceSpy.register.and.returnValue(of({ accessToken: 'registered-token' }));
 
     component.form.setValue({
       name: 'New User',
