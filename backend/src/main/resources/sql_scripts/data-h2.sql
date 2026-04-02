@@ -19,8 +19,8 @@ SET MODE PostgreSQL;
         ( 'coco@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'INTERMEDIATE', (SELECT id FROM persons WHERE tennis_id = 'IPIN006'));
 
     -- 3. Insert a tournament
-    INSERT INTO tournaments (name, start_date, end_date, venue, country, surface, category, status) VALUES
-        ( 'Open de Primavera 2026', '2026-05-01', '2026-05-15', 'Club de Tenis Principal', 'ESP', 'CLAY', 'NATIONAL', 'ACTIVE');
+    INSERT INTO tournaments (name, start_date, end_date, venue, country, surface, category, state) VALUES
+        ( 'Open de Primavera 2026', '2026-05-01', '2026-05-15', 'Club de Tenis Principal', 'ESP', 'CLAY', 'NATIONAL', 'OPEN');
 
     -- 4. Insert events (categories)
     INSERT INTO events (tournament_id, name, discipline, event_type, gender, age_category, draw_size) VALUES

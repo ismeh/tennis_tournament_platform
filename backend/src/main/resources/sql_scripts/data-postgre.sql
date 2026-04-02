@@ -28,7 +28,7 @@ INSERT INTO users (email, password_hash, token_hash, tier, person_id) VALUES
                                                                (SELECT id FROM persons WHERE tennis_id='IPIN006' LIMIT 1));
 
 -- 3. Insert tournament
-INSERT INTO tournaments (name, start_date, end_date, venue, country, surface, category, status)
+INSERT INTO tournaments (name, start_date, end_date, venue, country, surface, category, state)
 VALUES (
            'Open de Primavera 2026',
            DATE '2026-05-01',
@@ -37,7 +37,7 @@ VALUES (
            'ESP',
            'CLAY',
            'NATIONAL',
-           'ACTIVE'
+           'OPEN'
        );
 
 -- 4. Insert events

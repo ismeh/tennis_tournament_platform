@@ -7,6 +7,8 @@ DROP TABLE IF EXISTS matchups;
 DROP TABLE IF EXISTS draws;
 DROP TABLE IF EXISTS stages;
 DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS tournament_categories;
+DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS participant_members;
 DROP TABLE IF EXISTS participants;
 DROP TABLE IF EXISTS tournaments;
@@ -14,7 +16,7 @@ DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS persons;
 
 CREATE TABLE persons (
-    id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id            UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     tennis_id     VARCHAR(50) UNIQUE,
     first_name    VARCHAR(100) NOT NULL,
     last_name     VARCHAR(100) NOT NULL,
@@ -24,32 +26,53 @@ CREATE TABLE persons (
 );
 
 CREATE TABLE users (
-    id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+    id            UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     email         VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     token_hash    VARCHAR(128),
     tier          VARCHAR(20) DEFAULT 'FREE',
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    person_id     BIGINT,
+    person_id     UUID,
     FOREIGN KEY (person_id) REFERENCES persons(id)
 );
 
+CREATE TABLE categories (
+    id      UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    name    VARCHAR(255),
+    genre   VARCHAR(1),
+    mode    VARCHAR(20)
+);
+
 CREATE TABLE tournaments (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    name            VARCHAR(255) NOT NULL,
-    start_date      DATE NOT NULL,
-    end_date        DATE NOT NULL,
-    venue           VARCHAR(255),
-    country         CHAR(3),
-    surface         VARCHAR(20),
-    category        VARCHAR(50),
-    status          VARCHAR(20)
+    id                      UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    name                    VARCHAR(255) NOT NULL,
+    start_date              DATE NOT NULL,
+    end_date                DATE NOT NULL,
+    inscription_start_date  DATE,
+    inscription_end_date    DATE,
+    surface                 VARCHAR(20),
+    max_players             INTEGER,
+    location                VARCHAR(255),
+    state                   VARCHAR(20) DEFAULT 'DRAFT',
+    created_by              UUID,
+    venue                   VARCHAR(255),
+    country                 CHAR(3),
+    category                VARCHAR(50),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE tournament_categories (
+    tournament_id   UUID NOT NULL,
+    category_id     UUID NOT NULL,
+    PRIMARY KEY (tournament_id, category_id),
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(id),
+    FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
 CREATE TABLE participants (
-    id               BIGINT PRIMARY KEY AUTO_INCREMENT,
-    tournament_id    BIGINT NOT NULL,
-    person_id        BIGINT,
+    id               UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    tournament_id    UUID NOT NULL,
+    person_id        UUID,
     participant_type VARCHAR(20) NOT NULL,
     entry_status     VARCHAR(30),
     seed             INTEGER,
@@ -58,16 +81,16 @@ CREATE TABLE participants (
 );
 
 CREATE TABLE participant_members (
-    participant_id  BIGINT NOT NULL,
-    person_id       BIGINT NOT NULL,
+    participant_id  UUID NOT NULL,
+    person_id       UUID NOT NULL,
     PRIMARY KEY (participant_id, person_id),
     FOREIGN KEY (participant_id) REFERENCES participants(id),
     FOREIGN KEY (person_id) REFERENCES persons(id)
 );
 
 CREATE TABLE events (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    tournament_id   BIGINT NOT NULL,
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    tournament_id   UUID NOT NULL,
     name            VARCHAR(255),
     discipline      VARCHAR(50),
     event_type      VARCHAR(20),
@@ -78,24 +101,24 @@ CREATE TABLE events (
 );
 
 CREATE TABLE stages (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    event_id        BIGINT NOT NULL,
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    event_id        UUID NOT NULL,
     stage_number    INTEGER NOT NULL,
     stage_type      VARCHAR(30),
     FOREIGN KEY (event_id) REFERENCES events(id)
 );
 
 CREATE TABLE draws (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    stage_id        BIGINT NOT NULL,
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    stage_id        UUID NOT NULL,
     draw_type       VARCHAR(30) NOT NULL,
     draw_name       VARCHAR(100),
     FOREIGN KEY (stage_id) REFERENCES stages(id)
 );
 
 CREATE TABLE matchups (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    draw_id         BIGINT NOT NULL,
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    draw_id         UUID NOT NULL,
     round_number    INTEGER,
     match_number    INTEGER,
     match_format    VARCHAR(100),
@@ -107,18 +130,18 @@ CREATE TABLE matchups (
 );
 
 CREATE TABLE matchup_sides (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    matchup_id      BIGINT NOT NULL,
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    matchup_id      UUID NOT NULL,
     side_number     SMALLINT NOT NULL,
-    participant_id  BIGINT,
+    participant_id  UUID,
     UNIQUE (matchup_id, side_number),
     FOREIGN KEY (matchup_id) REFERENCES matchups(id),
     FOREIGN KEY (participant_id) REFERENCES participants(id)
 );
 
 CREATE TABLE sets (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    matchup_id      BIGINT NOT NULL,
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    matchup_id      UUID NOT NULL,
     set_number      SMALLINT NOT NULL,
     side1_games     SMALLINT,
     side2_games     SMALLINT,
@@ -129,8 +152,8 @@ CREATE TABLE sets (
 );
 
 CREATE TABLE rankings (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    person_id       BIGINT NOT NULL,
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    person_id       UUID NOT NULL,
     ranking_date    DATE NOT NULL,
     ranking_type    VARCHAR(50),
     rank_position   INTEGER,
