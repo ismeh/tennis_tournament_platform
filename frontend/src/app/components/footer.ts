@@ -27,7 +27,7 @@ import { AppSettings } from '../shared/constants';
           <div>
             <h3 class="font-semibold text-white mb-4">Producto</h3>
             <ul class="space-y-2 text-sm">
-              <li><a routerLink="/torneos" class="text-neutral-400 hover:text-primary-400 transition-colors">Crear torneo</a></li>
+              <li><a routerLink="/torneos" class="text-neutral-400 hover:text-primary-400 transition-colors">Torneos</a></li>
               <li><a routerLink="/como-funciona" class="text-neutral-400 hover:text-primary-400 transition-colors">Cómo Funciona</a></li>
               <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Precios</a></li>
               <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Características</a></li>

@@ -4,6 +4,7 @@ import { PlaceholderPage } from './features/placeholder';
 import { LoginComponent } from './features/auth/login';
 import { RegisterComponent } from './features/auth/register';
 import { CreateTournamentComponent } from './features/tournaments/create';
+import { TournamentsListComponent } from './features/tournaments/list';
 
 export const routes: Routes = [
   {
@@ -12,6 +13,11 @@ export const routes: Routes = [
   },
   {
     path: 'torneos',
+    component: TournamentsListComponent,
+    data: { title: 'Torneos' }
+  },
+  {
+    path: 'torneos/crear',
     component: CreateTournamentComponent,
     data: { title: 'Crear Torneo' }
   },

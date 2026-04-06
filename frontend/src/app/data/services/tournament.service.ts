@@ -11,6 +11,10 @@ export class TournamentService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = `${AppSettings.API_URL}/tournaments`;
 
+  getTournaments(): Observable<TournamentResponse[]> {
+    return this.http.get<TournamentResponse[]>(this.apiUrl);
+  }
+
   createTournament(payload: TournamentCreateRequest): Observable<TournamentResponse> {
     return this.http.post<TournamentResponse>(this.apiUrl, payload);
   }

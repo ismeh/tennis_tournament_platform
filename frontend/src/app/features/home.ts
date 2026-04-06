@@ -30,7 +30,7 @@ import { AppSettings } from '../shared/constants';
 
             <div class="flex flex-col sm:flex-row gap-4">
               <a routerLink="/torneos" class="px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:shadow-lg hover:from-primary-600 hover:to-primary-700 transition-all transform hover:scale-105 text-center">
-                Crear torneo
+                Ver torneos
               </a>
               <a routerLink="/como-funciona" class="px-8 py-4 bg-white text-primary-600 font-semibold rounded-lg border-2 border-primary-200 hover:border-primary-400 hover:bg-primary-50 transition-all text-center">
                 Cómo funciona

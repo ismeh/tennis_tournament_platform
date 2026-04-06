@@ -3,7 +3,12 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TournamentService } from '../../data/services/tournament.service';
-import { TournamentCreateRequest, TournamentResponse, TournamentSurfaceCategory } from '../../data/interfaces/tournament.model';
+import {
+  getTournamentSurfaceCategoryLabel,
+  TournamentCreateRequest,
+  TournamentResponse,
+  TournamentSurfaceCategory
+} from '../../data/interfaces/tournament.model';
 
 @Component({
   selector: 'app-create-tournament-page',
@@ -48,7 +53,7 @@ import { TournamentCreateRequest, TournamentResponse, TournamentSurfaceCategory 
               <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Formulario</p>
               <h2 class="mt-2 text-2xl font-bold text-neutral-900">Datos del torneo</h2>
             </div>
-            <a routerLink="/" class="rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:border-primary-300 hover:text-primary-700">
+            <a routerLink="/torneos" class="rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:border-primary-300 hover:text-primary-700">
               Cancelar
             </a>
           </div>
@@ -75,7 +80,7 @@ import { TournamentCreateRequest, TournamentResponse, TournamentSurfaceCategory 
                   class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
                 >
                   @for (surface of surfaceOptions; track surface) {
-                    <option [value]="surface">{{ surface }}</option>
+                    <option [value]="surface">{{ getSurfaceLabel(surface) }}</option>
                   }
                 </select>
               </label>
@@ -190,6 +195,10 @@ import { TournamentCreateRequest, TournamentResponse, TournamentSurfaceCategory 
                   <p class="font-semibold text-neutral-900">{{ createdTournament()?.status }}</p>
                 </div>
                 <div>
+                  <p class="text-xs uppercase tracking-widest text-neutral-500">Superficie</p>
+                  <p class="font-semibold text-neutral-900">{{ createdTournament() ? getSurfaceLabel(createdTournament()!.surfaceCategory) : '' }}</p>
+                </div>
+                <div>
                   <p class="text-xs uppercase tracking-widest text-neutral-500">Ubicación</p>
                   <p class="font-semibold text-neutral-900">{{ createdTournament()?.location }}</p>
                 </div>
@@ -210,6 +219,7 @@ export class CreateTournamentComponent {
   private readonly tournamentService = inject(TournamentService);
 
   readonly surfaceOptions: TournamentSurfaceCategory[] = ['CLAY', 'HARD', 'GRASS', 'CARPET'];
+  readonly getSurfaceLabel = getTournamentSurfaceCategoryLabel;
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
