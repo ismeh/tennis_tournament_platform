@@ -3,6 +3,8 @@ package com.tfm.tennis_platform.application.services;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
+import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
+import com.tfm.tennis_platform.domain.exceptions.UnauthorizedException;
 import com.tfm.tennis_platform.infrastructure.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -38,18 +40,18 @@ public class AuthService {
         Authentication authenticationResponse = authenticationManager.authenticate(authenticationRequest);
 
         if (!authenticationResponse.isAuthenticated()) {
-            throw new IllegalArgumentException("Invalid credentials");
+            throw new UnauthorizedException("Credenciales inválidas");
         }
 
         UserDetails userDetails = (UserDetails) authenticationResponse.getPrincipal();
         Member member = memberRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
         return issueTokens(userDetails, member.getId());
     }
 
     public AuthTokens register(String email, String password, String name) {
         memberRepository.findByEmail(email).ifPresent(existing -> {
-            throw new IllegalStateException("Email already registered");
+            throw new DuplicateResourceException("Member", "email", email);
         });
 
         MemberTier tier = MemberTier.FREE;
@@ -71,7 +73,7 @@ public class AuthService {
         );
 
         if (savedMember.getId() == null) {
-            throw new IllegalArgumentException("Invalid credentials");
+            throw new UnauthorizedException("No se pudo registrar el usuario");
         }
 
         return issueTokens(registeredUser, savedMember.getId());
@@ -82,20 +84,20 @@ public class AuthService {
         try {
             userEmail = jwtService.extractUsername(refreshToken);
         } catch (RuntimeException ex) {
-            throw new IllegalArgumentException("Invalid refresh token", ex);
+            throw new UnauthorizedException("Token de actualización inválido", ex);
         }
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
 
         if (!jwtService.isRefreshTokenValid(refreshToken, userDetails)) {
-            throw new IllegalArgumentException("Invalid refresh token");
+            throw new UnauthorizedException("Token de actualización inválido");
         }
 
         Member member = memberRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+            .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
         String refreshTokenHash = hashToken(refreshToken);
         if (!refreshTokenHash.equals(member.getTokenHash())) {
-            throw new IllegalArgumentException("Invalid refresh token");
+            throw new UnauthorizedException("Token de actualización inválido");
         }
 
         return issueTokens(userDetails, member.getId());
@@ -138,7 +140,7 @@ public class AuthService {
             byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("Token hash algorithm is unavailable", ex);
+            throw new UnauthorizedException("Algoritmo de hash de token no disponible", ex);
         }
     }
 
