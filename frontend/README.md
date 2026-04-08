@@ -1,81 +1,138 @@
-# TfmFront
+# Frontend - Tennis Tournament Platform
 
-app/
-├── core/                    <--- NUEVO: Lógica global y seguridad (invisible para el usuario)
-│   ├── auth/
-│   │   ├── auth.service.ts
-│   │   ├── auth.guard.ts
-│   │   └── jwt.interceptor.ts
-│   └── services/            <--- Servicios que duran toda la vida de la app
-├── data/                    <--- NUEVO: Modelos de datos y llamadas HTTP (Repositories)
-│   ├── interfaces/
-│   └── services/
-├── features/                <--- EVOLUCIÓN: Tus "pages" ahora son "features"
-│   ├── auth/                <--- Aquí va el Login y Registro
-│   │   ├── login/
-│   │   └── register/
-│   ├── home/                <--- Tu página Home actual
-│   └── dashboard/
-├── components/              <--- Componentes globales (Header, Footer)
-├── layout/                  <--- Layouts (AppLayout)
-├── shared/                  <--- Cosas reutilizables (Pipes, Directivas, Constantes)
-├── app.config.ts            <--- Aquí configurarás los Interceptores
-└── app.routes.ts            <--- Aquí aplicarás los Guards
+Aplicación web en Angular 20 con SSR (Server-Side Rendering) para la plataforma de torneos de tenis.
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.6.
+## Requisitos
 
-## Development server
+- Node.js 20+
+- npm 10+
 
-To start a local development server, run:
+Comprobar versiones:
 
 ```bash
-ng serve
+node -v
+npm -v
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Instalación
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Desde la carpeta `frontend/`:
 
 ```bash
-ng generate component component-name
+npm install
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Puesta en marcha en desarrollo
+
+1. Arrancar el frontend:
 
 ```bash
-ng generate --help
+npm run start
 ```
 
-## Building
+2. Abrir en navegador:
 
-To build the project run:
+- `http://localhost:4200`
+
+Notas:
+
+- `start` usa la configuración `development` (definida en `angular.json`).
+- Si también levantas backend en local, la API actual está en `http://localhost:8085/api` (ver `src/app/shared/constants.ts`).
+
+## Build y ejecución en producción
+
+### 1) Generar build de producción
 
 ```bash
-ng build
+npm run build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Esto genera los artefactos en `dist/tfm_front/`.
 
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+### 2) Ejecutar servidor SSR de producción
 
 ```bash
-ng test
+npm run serve:ssr:tfm_front
 ```
 
-## Running end-to-end tests
+Por defecto escucha en `http://localhost:4000`.
 
-For end-to-end (e2e) testing, run:
+Para cambiar el puerto:
 
 ```bash
-ng e2e
+PORT=8080 npm run serve:ssr:tfm_front
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Entornos y configuración de logs
 
-## Additional Resources
+Se usa el enfoque nativo de Angular con archivos de entorno:
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- Producción: `src/environments/environment.ts`
+- Desarrollo: `src/environments/environment.development.ts`
+
+Configuración actual del logger:
+
+- Desarrollo:
+	- `enableConsole: true`
+	- `minLogLevel: INFO`
+- Producción:
+	- `enableConsole: false`
+	- `minLogLevel: ERROR`
+
+El reemplazo de archivos por entorno está configurado en `angular.json` con `fileReplacements` para `development`.
+
+## Scripts útiles
+
+```bash
+# Servidor de desarrollo
+npm run start
+
+# Build de producción
+npm run build
+
+# Build en modo desarrollo (watch)
+npm run watch
+
+# Tests unitarios
+npm run test
+```
+
+## Estructura principal
+
+```text
+src/app/
+	core/         # Auth, interceptores y servicios globales
+	data/         # Interfaces y servicios HTTP
+	features/     # Páginas funcionales
+	components/   # Componentes compartidos de UI
+	layout/       # Layout base
+	shared/       # Constantes y utilidades reutilizables
+```
+
+## Diagrama de arquitectura frontend
+
+![arquitectura-front](docs/images/frontend-data-flow.png)
+
+Resumen del flujo:
+
+1. El router carga la feature según la ruta activa.
+2. La feature usa servicios de la capa data para solicitar datos.
+3. El interceptor añade token JWT a las peticiones HTTP.
+4. La API responde y los datos vuelven al componente para renderizar UI.
+
+## Troubleshooting rápido
+
+- `EADDRINUSE: address already in use`
+	- El puerto está ocupado. Cambia el puerto o cierra el proceso previo.
+- Errores CORS o llamadas API fallando
+	- Verifica que el backend esté activo en el puerto esperado (`8085` en dev).
+- Build funciona pero no arranca SSR
+	- Ejecuta primero `npm run build` y después `npm run serve:ssr:tfm_front`.
+
+## Mejoras recomendadas para este README
+
+1. Añadir diagrama simple de arquitectura frontend (routing, auth interceptor, capa data).
+2. Incluir una sección "Primer flujo funcional" (login -> listado torneos -> detalle).
+3. Documentar estrategia de despliegue (PM2, Docker o reverse proxy) para producción real.
+4. Añadir tabla de compatibilidad de versiones (Node, Angular CLI, npm).
+5. Incluir checklist de validación antes de PR (`npm run build` y `npm run test`).

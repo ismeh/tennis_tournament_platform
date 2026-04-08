@@ -12,7 +12,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { requestLoggingInterceptor } from './core/logging/request-logging.interceptor';
 import { RequestLoggerService } from './core/logging/request-logger.service';
-import { LogLevel } from './core/logging/log.model';
+import { environment } from '../environments/environment';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -27,8 +27,8 @@ export const appConfig: ApplicationConfig = {
       provide: APP_INITIALIZER,
       useFactory: (logger: RequestLoggerService) => () =>
         logger.configure({
-          enableConsole: true,
-          minLogLevel: LogLevel.INFO,
+          enableConsole: environment.logger.enableConsole,
+          minLogLevel: environment.logger.minLogLevel,
           logRequestBody: false,
           logResponseBody: true,
           logHeaders: false
