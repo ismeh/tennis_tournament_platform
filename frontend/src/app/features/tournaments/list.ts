@@ -47,7 +47,10 @@ import { TournamentService } from '../../data/services/tournament.service';
         } @else {
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             @for (tournament of tournaments(); track tournament.id) {
-              <article class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+              <a
+                [routerLink]="['/torneos', tournament.id]"
+                class="group block rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md"
+              >
                 <p class="text-xs font-semibold uppercase tracking-widest text-primary-600">{{ tournament.status }}</p>
                 <h3 class="mt-2 text-lg font-bold text-neutral-900">{{ tournament.formalName }}</h3>
                 <p class="mt-1 text-sm text-neutral-600">{{ tournament.location }}</p>
@@ -57,7 +60,9 @@ import { TournamentService } from '../../data/services/tournament.service';
                   <p><span class="font-medium">Jugadores max:</span> {{ tournament.maxPlayers }}</p>
                   <p><span class="font-medium">Juego:</span> {{ tournament.playStartDate }} - {{ tournament.playEndDate }}</p>
                 </div>
-              </article>
+
+                <p class="mt-4 text-sm font-semibold text-primary-700 transition-colors group-hover:text-primary-800">Ver detalle del torneo -></p>
+              </a>
             }
           </div>
         }

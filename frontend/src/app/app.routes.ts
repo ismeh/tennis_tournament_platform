@@ -4,6 +4,7 @@ import { PlaceholderPage } from './features/placeholder';
 import { LoginComponent } from './features/auth/login';
 import { RegisterComponent } from './features/auth/register';
 import { CreateTournamentComponent } from './features/tournaments/create';
+import { TournamentDetailComponent } from './features/tournaments/detail';
 import { TournamentsListComponent } from './features/tournaments/list';
 
 export const routes: Routes = [
@@ -20,6 +21,11 @@ export const routes: Routes = [
     path: 'torneos/crear',
     component: CreateTournamentComponent,
     data: { title: 'Crear Torneo' }
+  },
+  {
+    path: 'torneos/:id',
+    component: TournamentDetailComponent,
+    data: { title: 'Detalle Torneo' }
   },
   {
     path: 'como-funciona',
