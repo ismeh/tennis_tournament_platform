@@ -116,6 +116,26 @@ export class AuthService {
     return localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
+  getCurrentUserEmail(): string | null {
+    const token = this.getToken();
+    if (!token) {
+      return null;
+    }
+
+    const payload = this.decodeJwtPayload(token);
+    if (!payload) {
+      return null;
+    }
+
+    const rawEmail = payload['sub'] ?? payload['email'] ?? payload['preferred_username'];
+    if (typeof rawEmail !== 'string') {
+      return null;
+    }
+
+    const normalizedEmail = rawEmail.trim().toLowerCase();
+    return normalizedEmail.includes('@') ? normalizedEmail : null;
+  }
+
   private checkToken(): boolean {
     if (!isPlatformBrowser(this.platformId)) {
       return false;
