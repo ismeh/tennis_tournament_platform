@@ -15,7 +15,15 @@ export class TournamentService {
     return this.http.get<TournamentResponse[]>(this.apiUrl);
   }
 
+  getTournamentById(id: string): Observable<TournamentResponse> {
+    return this.http.get<TournamentResponse>(`${this.apiUrl}/${id}`);
+  }
+
   createTournament(payload: TournamentCreateRequest): Observable<TournamentResponse> {
     return this.http.post<TournamentResponse>(this.apiUrl, payload);
+  }
+
+  requestInscription(tournamentId: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${tournamentId}/inscriptions`, {});
   }
 }
