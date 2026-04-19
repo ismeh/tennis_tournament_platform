@@ -2,7 +2,18 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { TournamentResponse, getTournamentSurfaceCategoryLabel } from '../../data/interfaces/tournament.model';
+import {
+  TournamentEventCategoryGender,
+  TournamentEventCatalogItem,
+  TournamentEventGender,
+  TournamentEventSelection,
+  TournamentEventsConfigRequest,
+  TournamentProviderSummary,
+  TournamentStatus,
+  TournamentResponse,
+  getTournamentEventGenderLabel,
+  getTournamentSurfaceCategoryLabel
+} from '../../data/interfaces/tournament.model';
 import { MemberService } from '../../data/services/member.service';
 import { TournamentService } from '../../data/services/tournament.service';
 
@@ -101,6 +112,154 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions';
                 <h2 class="text-xl font-bold text-neutral-900">Panel de configuracion del creador</h2>
                 <p class="mt-2 text-neutral-600">Gestiona el torneo antes de abrir o durante el proceso de inscripcion.</p>
 
+                <div class="mt-6 rounded-3xl border border-neutral-200 bg-neutral-50 p-5 sm:p-6">
+                  <div class="rounded-2xl border border-neutral-200 bg-white p-4">
+                    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Estado del torneo</p>
+                    <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                      <label class="block min-w-56">
+                        <span class="mb-1 block text-sm font-medium text-neutral-700">Nuevo estado</span>
+                        <select
+                          class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                          [disabled]="isUpdatingStatus() || allowedStatusTransitions().length === 0"
+                          [value]="selectedStatus() ?? ''"
+                          (change)="onSelectedStatusChange($any($event.target).value)"
+                        >
+                          @for (status of allowedStatusTransitions(); track status) {
+                            <option [value]="status">{{ status }}</option>
+                          }
+                        </select>
+                      </label>
+
+                      <button
+                        type="button"
+                        (click)="updateTournamentStatus()"
+                        class="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-800 ring-1 ring-neutral-300 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        [disabled]="!canUpdateStatus()"
+                      >
+                        {{ isUpdatingStatus() ? 'Actualizando estado...' : 'Actualizar estado' }}
+                      </button>
+                    </div>
+                    @if (allowedStatusTransitions().length === 0) {
+                      <p class="mt-2 text-xs text-neutral-500">No hay transiciones de estado disponibles para el estado actual.</p>
+                    }
+                  </div>
+
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Eventos del torneo</p>
+                      <h3 class="mt-2 text-xl font-bold text-neutral-900">Configura la lista de eventos aquí mismo</h3>
+                      <p class="mt-2 text-sm text-neutral-600">Selecciona varios eventos del catálogo, marca uno o varios géneros y guarda la configuración sin salir del detalle.</p>
+                    </div>
+                    <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-neutral-600">
+                      {{ selectedEvents().length }} seleccionados
+                    </span>
+                  </div>
+
+                  @if (isLoadingEvents()) {
+                    <div class="mt-4 rounded-2xl border border-dashed border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-600">
+                      Cargando catálogo de eventos...
+                    </div>
+                  }
+
+                  @if (eventCatalogError()) {
+                    <div class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {{ eventCatalogError() }}
+                    </div>
+                  }
+
+                  <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_1.15fr]">
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Catálogo disponible</span>
+                      <div class="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-neutral-300 bg-white p-3">
+                        @for (event of eventCatalog(); track event.id) {
+                          <label class="flex cursor-pointer items-center gap-3 rounded-xl bg-neutral-50 px-3 py-2 hover:bg-primary-50">
+                            <input
+                              type="checkbox"
+                              class="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                              [checked]="isEventSelected(event.id)"
+                              (change)="toggleCatalogEvent(event, $any($event.target).checked)"
+                            />
+                            <span class="text-sm text-neutral-800">{{ event.category }}</span>
+                          </label>
+                        }
+                      </div>
+                    </label>
+
+                    <div class="rounded-2xl border border-dashed border-neutral-300 bg-white p-4">
+                      @if (selectedEvents().length === 0) {
+                        <p class="text-sm text-neutral-500">No hay eventos seleccionados todavía.</p>
+                      } @else {
+                        <div class="space-y-3">
+                          @for (event of selectedEvents(); track event.categoryId) {
+                            <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                              <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                                <div>
+                                  <p class="text-sm font-semibold text-neutral-900">{{ getEventLabelById(event.categoryId) }}</p>
+                                </div>
+                                <div class="min-w-52">
+                                  <div class="mb-2 flex items-center gap-2">
+                                    <span class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Géneros</span>
+                                    <span
+                                      class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-bold text-neutral-500"
+                                      title="Por cada género seleccionado se creará un evento extra."
+                                      aria-label="Información sobre géneros"
+                                    >
+                                      i
+                                    </span>
+                                  </div>
+                                  <div class="flex flex-wrap gap-2">
+                                    @for (gender of eventGenderOptions; track gender) {
+                                      <label class="inline-flex cursor-pointer items-center gap-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-primary-400">
+                                        <input
+                                          type="checkbox"
+                                          class="h-3.5 w-3.5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                                          [checked]="hasEventGender(event.categoryId, gender)"
+                                          (change)="toggleEventGender(event.categoryId, gender, $any($event.target).checked)"
+                                        />
+                                        <span>{{ getGenderLabel(gender) }}</span>
+                                      </label>
+                                    }
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  @if (eventsSuccessMessage()) {
+                    <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      {{ eventsSuccessMessage() }}
+                    </div>
+                  }
+
+                  @if (eventsErrorMessage()) {
+                    <div class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {{ eventsErrorMessage() }}
+                    </div>
+                  }
+
+                  <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      (click)="clearSelectedEvents()"
+                      class="rounded-2xl border border-neutral-300 px-5 py-3 font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-white"
+                    >
+                      Limpiar eventos
+                    </button>
+                    <button
+                      type="button"
+                      (click)="saveTournamentEvents()"
+                      class="rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-3 font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                      [disabled]="isSavingEvents() || isLoadingEvents() || selectedEvents().length === 0"
+                    >
+                      {{ isSavingEvents() ? 'Guardando eventos...' : 'Guardar eventos del torneo' }}
+                    </button>
+                  </div>
+                </div>
+
                 <div class="mt-5 grid gap-3">
                   <div class="rounded-2xl border border-primary-100 bg-primary-50 p-4 text-sm text-neutral-700">
                     Verifica fechas de juego e inscripcion para evitar solapes.
@@ -174,6 +333,7 @@ export class TournamentDetailComponent implements OnInit {
   private readonly memberService = inject(MemberService);
   private readonly authService = inject(AuthService);
 
+  readonly eventGenderOptions: TournamentEventGender[] = ['MALE', 'FEMALE', 'MIXED'];
   readonly tournament = signal<TournamentResponse | null>(null);
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -182,16 +342,26 @@ export class TournamentDetailComponent implements OnInit {
   readonly isSubmittingInscription = signal(false);
   readonly activeSection = signal<TournamentDetailSection>('overview');
   readonly currentMemberId = signal<string | null>(null);
+  readonly isLoadingEvents = signal(true);
+  readonly isSavingEvents = signal(false);
+  readonly eventCatalog = signal<TournamentEventCatalogItem[]>([]);
+  readonly selectedEvents = signal<TournamentEventSelection[]>([]);
+  readonly eventsSuccessMessage = signal<string | null>(null);
+  readonly eventsErrorMessage = signal<string | null>(null);
+  readonly eventCatalogError = signal<string | null>(null);
+  readonly selectedStatus = signal<TournamentStatus | null>(null);
+  readonly isUpdatingStatus = signal(false);
 
   readonly isCreator = computed(() => {
     const tournament = this.tournament();
     const memberId = this.currentMemberId();
+    const providerOrganisationId = this.getProviderOrganisationId(tournament?.providerOrganisationId);
 
-    if (!tournament?.providerOrganisationId || !memberId) {
+    if (!providerOrganisationId || !memberId) {
       return false;
     }
 
-    return tournament.providerOrganisationId === memberId;
+    return providerOrganisationId === memberId;
   });
 
   readonly canRequestInscription = computed(() => {
@@ -203,7 +373,31 @@ export class TournamentDetailComponent implements OnInit {
     return currentTournament.status === 'OPEN' || currentTournament.status === 'ACTIVE';
   });
 
+  readonly allowedStatusTransitions = computed<TournamentStatus[]>(() => {
+    const currentTournament = this.tournament();
+    if (!currentTournament) {
+      return [];
+    }
+
+    const transitionsByStatus: Record<TournamentStatus, TournamentStatus[]> = {
+      DRAFT: ['OPEN', 'CANCELLED'],
+      OPEN: ['CLOSED', 'CANCELLED'],
+      ACTIVE: ['CLOSED', 'CANCELLED'],
+      CLOSED: ['IN_PROGRESS', 'CANCELLED'],
+      IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+      COMPLETED: [],
+      CANCELLED: []
+    };
+
+    return transitionsByStatus[currentTournament.status] ?? [];
+  });
+
   readonly getSurfaceLabel = getTournamentSurfaceCategoryLabel;
+  readonly getGenderLabel = getTournamentEventGenderLabel;
+
+  constructor() {
+    this.loadEventCatalog();
+  }
 
   ngOnInit(): void {
     const tournamentId = this.route.snapshot.paramMap.get('id');
@@ -221,6 +415,149 @@ export class TournamentDetailComponent implements OnInit {
     this.activeSection.set(section);
     this.actionMessage.set(null);
     this.actionError.set(null);
+  }
+
+  toggleCatalogEvent(catalogEvent: TournamentEventCatalogItem, checked: boolean): void {
+    if (checked) {
+      if (this.isEventSelected(catalogEvent.id)) {
+        return;
+      }
+
+      this.selectedEvents.update(events => [
+        ...events,
+        {
+          categoryId: catalogEvent.id,
+          eventCategory: catalogEvent.category,
+          genders: []
+        }
+      ]);
+      return;
+    }
+
+    this.selectedEvents.update(events => events.filter(event => event.categoryId !== catalogEvent.id));
+  }
+
+  toggleEventGender(categoryId: number, gender: TournamentEventGender, checked: boolean): void {
+    this.selectedEvents.update(events =>
+      events.map(event =>
+        event.categoryId === categoryId
+          ? {
+            ...event,
+            genders: checked
+              ? Array.from(new Set([...event.genders, gender]))
+              : event.genders.filter(currentGender => currentGender !== gender)
+          }
+          : event
+      )
+    );
+  }
+
+  hasEventGender(categoryId: number, gender: TournamentEventGender): boolean {
+    return this.selectedEvents()
+      .find(event => event.categoryId === categoryId)
+      ?.genders.includes(gender) ?? false;
+  }
+
+  clearSelectedEvents(): void {
+    this.selectedEvents.set([]);
+    this.eventsSuccessMessage.set(null);
+    this.eventsErrorMessage.set(null);
+  }
+
+  isEventSelected(categoryId: number): boolean {
+    return this.selectedEvents().some(event => event.categoryId === categoryId);
+  }
+
+  getEventLabelById(categoryId: number): string {
+    return this.eventCatalog().find(event => event.id === categoryId)?.category ?? String(categoryId);
+  }
+
+  onSelectedStatusChange(nextStatus: string): void {
+    this.selectedStatus.set(nextStatus as TournamentStatus);
+  }
+
+  canUpdateStatus(): boolean {
+    const tournament = this.tournament();
+    const selectedStatus = this.selectedStatus();
+    if (!tournament || !selectedStatus || this.isUpdatingStatus()) {
+      return false;
+    }
+
+    return this.allowedStatusTransitions().includes(selectedStatus);
+  }
+
+  updateTournamentStatus(): void {
+    const currentTournament = this.tournament();
+    const nextStatus = this.selectedStatus();
+
+    if (!currentTournament || !nextStatus) {
+      return;
+    }
+
+    if (!this.allowedStatusTransitions().includes(nextStatus)) {
+      this.actionError.set('No se puede realizar la transición de estado seleccionada.');
+      return;
+    }
+
+    this.isUpdatingStatus.set(true);
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+
+    this.tournamentService.updateTournamentStatus(currentTournament.id, { status: nextStatus }).subscribe({
+      next: updatedTournament => {
+        this.tournament.set(updatedTournament);
+        this.selectedStatus.set(this.allowedStatusTransitions()[0] ?? null);
+        this.actionMessage.set('Estado del torneo actualizado correctamente.');
+        this.isUpdatingStatus.set(false);
+      },
+      error: () => {
+        this.actionError.set('No se pudo actualizar el estado del torneo.');
+        this.isUpdatingStatus.set(false);
+      }
+    });
+  }
+
+  saveTournamentEvents(): void {
+    const currentTournament = this.tournament();
+    const selectedEvents = this.selectedEvents();
+
+    if (!currentTournament) {
+      return;
+    }
+
+    if (selectedEvents.length === 0) {
+      this.eventsErrorMessage.set('Selecciona al menos un evento antes de guardar.');
+      return;
+    }
+
+    if (selectedEvents.some(event => event.genders.length === 0)) {
+      this.eventsErrorMessage.set('Debes seleccionar al menos un género en cada evento antes de guardar.');
+      return;
+    }
+
+    const payload: TournamentEventsConfigRequest = {
+      events: selectedEvents.flatMap(event =>
+        event.genders.map(gender => ({
+          categoryId: event.categoryId,
+          gender
+        }))
+      )
+    };
+
+    this.isSavingEvents.set(true);
+    this.eventsErrorMessage.set(null);
+    this.eventsSuccessMessage.set(null);
+
+    this.tournamentService.saveTournamentEvents(currentTournament.id, payload).subscribe({
+      next: () => {
+        this.isSavingEvents.set(false);
+        this.eventsSuccessMessage.set('Eventos del torneo guardados correctamente.');
+      },
+      error: () => {
+        this.isSavingEvents.set(false);
+        this.eventsErrorMessage.set('No se pudieron guardar los eventos del torneo.');
+      }
+    });
   }
 
   requestInscription(): void {
@@ -257,12 +594,31 @@ export class TournamentDetailComponent implements OnInit {
     this.tournamentService.getTournamentById(tournamentId).subscribe({
       next: tournament => {
         this.tournament.set(tournament);
+        this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
+        this.selectedStatus.set(this.getDefaultStatusSelection(tournament.status));
         this.isLoading.set(false);
         this.activeSection.set(this.isCreator() ? 'setup' : 'overview');
       },
       error: () => {
         this.errorMessage.set('No se pudo cargar el detalle del torneo.');
         this.isLoading.set(false);
+      }
+    });
+  }
+
+  private loadEventCatalog(): void {
+    this.isLoadingEvents.set(true);
+    this.eventCatalogError.set(null);
+
+    this.tournamentService.getEventCatalog().subscribe({
+      next: catalog => {
+        this.eventCatalog.set(catalog);
+        this.isLoadingEvents.set(false);
+      },
+      error: () => {
+        this.eventCatalog.set([]);
+        this.eventCatalogError.set('No se pudo cargar el catálogo de eventos desde backend.');
+        this.isLoadingEvents.set(false);
       }
     });
   }
@@ -281,5 +637,54 @@ export class TournamentDetailComponent implements OnInit {
         this.currentMemberId.set(null);
       }
     });
+  }
+
+  private hydrateSelectedEventsFromTournament(events: TournamentEventCategoryGender[]): void {
+    const groupedEvents = new Map<number, Set<TournamentEventGender>>();
+
+    events.forEach(event => {
+      const normalizedGender = event.gender.toUpperCase() as TournamentEventGender;
+      if (!this.eventGenderOptions.includes(normalizedGender)) {
+        return;
+      }
+
+      const currentGenders = groupedEvents.get(event.categoryId) ?? new Set<TournamentEventGender>();
+      currentGenders.add(normalizedGender);
+      groupedEvents.set(event.categoryId, currentGenders);
+    });
+
+    const selections: TournamentEventSelection[] = Array.from(groupedEvents.entries()).map(([categoryId, genders]) => ({
+      categoryId,
+      eventCategory: this.getEventLabelById(categoryId),
+      genders: Array.from(genders)
+    }));
+
+    this.selectedEvents.set(selections);
+  }
+
+  private getDefaultStatusSelection(currentStatus: TournamentStatus): TournamentStatus | null {
+    const transitionsByStatus: Record<TournamentStatus, TournamentStatus[]> = {
+      DRAFT: ['OPEN', 'CANCELLED'],
+      OPEN: ['CLOSED', 'CANCELLED'],
+      ACTIVE: ['CLOSED', 'CANCELLED'],
+      CLOSED: ['IN_PROGRESS', 'CANCELLED'],
+      IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+      COMPLETED: [],
+      CANCELLED: []
+    };
+
+    return transitionsByStatus[currentStatus]?.[0] ?? null;
+  }
+
+  private getProviderOrganisationId(providerOrganisation: string | TournamentProviderSummary | null | undefined): string | null {
+    if (!providerOrganisation) {
+      return null;
+    }
+
+    if (typeof providerOrganisation === 'string') {
+      return providerOrganisation;
+    }
+
+    return providerOrganisation.id ?? null;
   }
 }
