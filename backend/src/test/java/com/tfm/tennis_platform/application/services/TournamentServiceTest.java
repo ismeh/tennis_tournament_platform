@@ -61,8 +61,8 @@ class TournamentServiceTest {
                 .maxPlayers(32)
                 .location("Club Central")
                 .state(TournamentStatus.DRAFT)
-                .createdBy(creatorId)
-                .eventIds(List.of())
+                .createdBy(creator)
+                .events(List.of())
                 .build();
 
         when(memberRepository.findByEmail("organizer@example.com")).thenReturn(Optional.of(creator));
@@ -73,9 +73,9 @@ class TournamentServiceTest {
         ArgumentCaptor<Tournament> tournamentCaptor = ArgumentCaptor.forClass(Tournament.class);
         verify(tournamentRepository).save(tournamentCaptor.capture());
 
-        assertEquals(creatorId, tournamentCaptor.getValue().getCreatedBy());
+                assertEquals(creator, tournamentCaptor.getValue().getCreatedBy());
         assertEquals("Open de Primavera", result.getName());
-        assertEquals(creatorId, result.getCreatedBy());
+                assertEquals(creator, result.getCreatedBy());
     }
 
     @Test
