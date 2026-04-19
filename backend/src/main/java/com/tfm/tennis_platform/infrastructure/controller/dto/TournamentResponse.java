@@ -1,9 +1,11 @@
 package com.tfm.tennis_platform.infrastructure.controller.dto;
 
+import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public record TournamentResponse(
@@ -17,5 +19,6 @@ public record TournamentResponse(
     Integer maxPlayers,
     String location,
     TournamentStatus status,
-    UUID providerOrganisationId
+    Member providerOrganisationId,
+    List<TournamentEventResponse> events
 ) {}

@@ -3,20 +3,21 @@ package com.tfm.tennis_platform.infrastructure.controller.mapper;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentEventResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
-import com.tfm.tennis_platform.infrastructure.persistence.entity.TournamentEntity;
-import com.tfm.tennis_platform.domain.models.Event;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.EventEntity;
+import com.tfm.tennis_platform.domain.models.Event;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.RefAgeCategoryEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.TournamentEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
-public interface TournamentEntityMapper {
-    TournamentEntityMapper INSTANCE = Mappers.getMapper(TournamentEntityMapper.class);
+public interface TournamentWebMapper {
+    TournamentWebMapper INSTANCE = Mappers.getMapper(TournamentWebMapper.class);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -36,6 +37,7 @@ public interface TournamentEntityMapper {
     @Mapping(target = "surfaceCategory", source = "surface")
     @Mapping(target = "status", source = "state")
     @Mapping(target = "providerOrganisationId", source = "createdBy")
+    @Mapping(target = "events", expression = "java(toEventResponses(domain.getEvents()))")
     TournamentResponse toResponse(Tournament domain);
 
     @Mapping(target = "events", ignore = true)
@@ -46,7 +48,7 @@ public interface TournamentEntityMapper {
 
     default Tournament toDomain(TournamentEntity entity, List<EventEntity> eventEntities) {
         Tournament t = toDomain(entity);
-        List<Event> events = eventEntities != null ? eventEntities.stream().map(this::toDomain).collect(Collectors.toList()) : List.of();
+        List<Event> events = eventEntities != null ? eventEntities.stream().map(this::toDomain).toList() : List.of();
         return Tournament.builder()
                 .id(t.getId())
                 .name(t.getName())
@@ -61,19 +63,36 @@ public interface TournamentEntityMapper {
                 .build();
     }
 
-    // Métodos para eventos (pueden ser delegados a otro mapper si existe)
     default Event toDomain(EventEntity entity) {
         return Event.builder()
-                .categoryId(entity.getId())
+                .categoryId(entity.getAgeCategory() != null ? entity.getAgeCategory().getId() : null)
                 .gender(entity.getGender())
                 .build();
     }
 
     default EventEntity toEntity(Event domain) {
         return EventEntity.builder()
-                .id(domain.getCategoryId())
+                .ageCategory(mapRefAgeCategory(domain.getCategoryId()))
                 .gender(domain.getGender())
                 .build();
+    }
+
+    default List<TournamentEventResponse> toEventResponses(List<Event> events) {
+        if (events == null) {
+            return List.of();
+        }
+
+        return events.stream()
+                .map(event -> new TournamentEventResponse(event.getCategoryId(), event.getGender()))
+                .toList();
+    }
+
+    default RefAgeCategoryEntity mapRefAgeCategory(Integer ageCategoryId) {
+        if (ageCategoryId == null) {
+            return null;
+        }
+
+        return RefAgeCategoryEntity.builder().id(ageCategoryId).build();
     }
 
     default TournamentPeriod toPeriod(java.time.LocalDate startDate, java.time.LocalDate endDate) {

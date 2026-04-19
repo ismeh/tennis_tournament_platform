@@ -1,9 +1,12 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
 import com.tfm.tennis_platform.application.services.TournamentService;
+import com.tfm.tennis_platform.application.service.EventService;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentStatusUpdateRequest;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.TournamentWebMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,26 +23,39 @@ import java.util.UUID;
 public class TournamentController {
 
     private final TournamentService tournamentService;
-    private final TournamentWebMapper tournamentMapper;
+    private final TournamentWebMapper tournamentWebMapper;
+    private final EventService eventService;
 
     @PostMapping
     public ResponseEntity<TournamentResponse> create(@RequestBody TournamentRequest request, Principal principal) {
-        Tournament tournament = tournamentMapper.toDomain(request);
+        Tournament tournament = tournamentWebMapper.toDomain(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(tournamentMapper.toResponse(tournamentService.create(tournament, principal.getName())));
+                .body(tournamentWebMapper.toResponse(tournamentService.create(tournament, principal.getName())));
     }
 
     @GetMapping
     public ResponseEntity<List<TournamentResponse>> getAll() {
         return ResponseEntity.ok(tournamentService.findAll().stream()
-                .map(tournamentMapper::toResponse)
+                .map(tournamentWebMapper::toResponse)
                 .toList());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<TournamentResponse> getById(@PathVariable UUID id) {
         return tournamentService.findById(id)
-                .map(t -> ResponseEntity.ok(tournamentMapper.toResponse(t)))
+                .map(t -> ResponseEntity.ok(tournamentWebMapper.toResponse(t)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{tournamentId}/events")
+    public ResponseEntity<TournamentResponse> addEventsToTournament(@PathVariable("tournamentId") UUID tournamentId, @RequestBody EventRequest eventRequest) {
+        Tournament updatedTournament = eventService.addEventsToTournament(tournamentId, eventRequest);
+        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<TournamentResponse> updateStatus(@PathVariable UUID id, @RequestBody TournamentStatusUpdateRequest request) {
+        Tournament updatedTournament = tournamentService.updateStatus(id, request.status());
+        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
     }
 }
