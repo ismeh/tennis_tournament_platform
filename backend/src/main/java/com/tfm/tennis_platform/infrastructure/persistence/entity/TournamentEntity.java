@@ -16,9 +16,9 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Setter(AccessLevel.PROTECTED)
 public class TournamentEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(name = "name", nullable = false)
@@ -30,7 +30,7 @@ public class TournamentEntity {
     @Column(name = "end_date", nullable = false)
     private LocalDate playEndDate;
 
-    @Column(name = "inscription_start_date")
+    @Column(name = "inscription_start_date")    
     private LocalDate inscriptionStartDate;
 
     @Column(name = "inscription_end_date")
@@ -51,13 +51,6 @@ public class TournamentEntity {
     @ManyToOne
     @JoinColumn(name = "created_by")
     private MemberEntity createdBy;
-
-    @ManyToMany
-    @JoinTable(
-            name = "tournament_categories",
-            joinColumns = @JoinColumn(name = "tournament_id"),
-            inverseJoinColumns = @JoinColumn(name = "category_id"))
-    private List<CategoryEntity> categories;
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -1,5 +1,6 @@
 package com.tfm.tennis_platform.infrastructure.persistence.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,11 +18,11 @@ import java.util.UUID;
 @AllArgsConstructor
 public class DrawEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "stage_id", nullable = false)
+    @JsonIgnore
     private StageEntity stage;
 
     @Column(name = "draw_type", nullable = false)
