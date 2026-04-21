@@ -1,4 +1,4 @@
 package com.tfm.tennis_platform.infrastructure.controller.dto;
 
-public record RegisterResponse(String token, String refreshToken) {
+public record RegisterResponse(String accessToken, String refreshToken) {
 }
