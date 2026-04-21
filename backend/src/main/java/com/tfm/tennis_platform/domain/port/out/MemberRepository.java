@@ -1,4 +1,4 @@
-package com.tfm.tennis_platform.domain.contracts;
+package com.tfm.tennis_platform.domain.port.out;
 
 import com.tfm.tennis_platform.domain.models.Member;
 import java.util.Optional;

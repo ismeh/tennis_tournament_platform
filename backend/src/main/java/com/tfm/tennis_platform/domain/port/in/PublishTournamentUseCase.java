@@ -1,4 +1,4 @@
 package com.tfm.tennis_platform.domain.port.in;
 
-public class CreateTournamentUseCase {
+public class PublishTournamentUseCase {
 }

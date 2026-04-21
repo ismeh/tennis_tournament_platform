@@ -4,12 +4,22 @@ import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
+import lombok.EqualsAndHashCode;
+import lombok.Singular;
+
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @Getter
-@Builder
+@Builder(builderClassName = "TournamentBuilder", buildMethodName = "buildInternal")
+@ToString(exclude = "events")
+@EqualsAndHashCode(exclude = "events")
 public class Tournament {
     private final UUID id;
     private final String name;
@@ -19,8 +29,9 @@ public class Tournament {
     private final Integer maxPlayers;
     private final String location;
     private final TournamentStatus state; // 'soon', 'inscription', 'playing', 'finished'
-    private final UUID createdBy; // ID of the member who created the tournament
-    private final List<UUID> eventIds; // List of event IDs associated with this tournament
+    private final Member createdBy;
+    @Singular
+    private final List<Event> events;
 
     public static class TournamentBuilder {
         public Tournament build() {
@@ -36,15 +47,71 @@ public class Tournament {
                 throw new IllegalArgumentException("maxPlayers must be greater than 0");
             }
             Objects.requireNonNull(location, "location must not be null");
-
             if (this.state == null) {
                 this.state = TournamentStatus.DRAFT;
             }
-            if (this.eventIds == null) {
-                this.eventIds = List.of();
+            if (this.events == null) {
+                this.events = new ArrayList<>();
             }
 
-            return new Tournament(id, name, playPeriod, inscriptionPeriod, surface, maxPlayers, location, state, createdBy, eventIds);
+            // Validate there are no duplicated events by \(categoryId, gender\)
+            var seen = new HashSet<String>();
+            for (Event e : this.events) {
+                String key = e.getCategoryId() + "|" + e.getGender();
+                if (!seen.add(key)) {
+                    throw new IllegalArgumentException("Duplicate event tuple (categoryId + gender)");
+                }
+            }
+            return buildInternal();
         }
+    }
+
+    public Tournament addEvent(Event event) {
+        Objects.requireNonNull(event, "event must not be null");
+        if (this.events.stream().anyMatch(e -> e.getCategoryId().equals(event.getCategoryId()))) {
+            throw new IllegalArgumentException("Event with categoryId " + event.getCategoryId() + " already exists in tournament");
+        }
+        List<Event> newEvents = new ArrayList<>(this.events);
+        newEvents.add(event);
+        return Tournament.builder()
+                .id(this.id)
+                .name(this.name)
+                .playPeriod(this.playPeriod)
+                .inscriptionPeriod(this.inscriptionPeriod)
+                .surface(this.surface)
+                .maxPlayers(this.maxPlayers)
+                .location(this.location)
+                .state(this.state)
+                .createdBy(this.createdBy)
+                .events(newEvents)
+                .build();
+    }
+
+    /**
+     * Añade una lista de eventos al torneo, ignorando los que tengan un categoryId duplicado con los ya existentes en el torneo.
+     * Devuelve un nuevo objeto Tournament con la lista de eventos actualizada.
+     */
+    public Tournament addEvent(List<Event> newEvents) {
+        Objects.requireNonNull(newEvents, "newEvents must not be null");
+        Set<Integer> existingIds = this.events.stream()
+                .map(Event::getCategoryId)
+                .collect(Collectors.toSet());
+        List<Event> filteredNewEvents = newEvents.stream()
+                .filter(e -> !existingIds.contains(e.getCategoryId()))
+                .collect(Collectors.toList());
+        List<Event> updatedEvents = new java.util.ArrayList<>(this.events);
+        updatedEvents.addAll(filteredNewEvents);
+        return Tournament.builder()
+                .id(this.id)
+                .name(this.name)
+                .playPeriod(this.playPeriod)
+                .inscriptionPeriod(this.inscriptionPeriod)
+                .surface(this.surface)
+                .maxPlayers(this.maxPlayers)
+                .location(this.location)
+                .state(this.state)
+                .createdBy(this.createdBy)
+                .events(updatedEvents)
+                .build();
     }
 }
