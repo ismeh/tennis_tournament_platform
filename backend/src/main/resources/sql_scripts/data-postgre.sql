@@ -49,24 +49,41 @@ VALUES (
     (SELECT id FROM users WHERE email='rafa@example.com' LIMIT 1)
        );
 
+-- 3.5. Insertar categorías de edad de referencia
+INSERT INTO ref_age_category (category, description) VALUES
+    ('Pre-Benjamin', '8 años'),
+    ('Benjamines', '9-10 años'),
+    ('Alevines', '11-12 años'),
+    ('Infantiles', '13-14 años'),
+    ('Cadetes', '15-16 años'),
+    ('Juniors', '17-18 años'),
+    ('ABSOLUTA', NULL),
+    ('Veteranos+30', '30-34 años'),
+    ('Veteranos+35', '35-39 años'),
+    ('Veteranos+40', '40-44 años'),
+    ('Veteranos+45', '45-49 años'),
+    ('Veteranos+50', '50-54 años'),
+    ('Veteranos+55', '55-59 años'),
+    ('Veteranos+60', '60-64 años');
+
 -- 4. Insert events
-INSERT INTO events (tournament_id, name, discipline, event_type, gender, age_category, draw_size) VALUES
+INSERT INTO events (tournament_id, age_category_id, name, discipline, event_type, gender, draw_size) VALUES
                                                                                                       (
                                                                                                           (SELECT id FROM tournaments WHERE name='Open de Primavera 2026' LIMIT 1),
+                                                                                                          (SELECT id FROM ref_age_category WHERE category = 'ABSOLUTA' LIMIT 1),
                                                                                                           'Absoluto Individual Masculino',
                                                                                                           'TENNIS',
                                                                                                           'SINGLES',
                                                                                                           'MALE',
-                                                                                                          'OPEN',
                                                                                                           32
                                                                                                       ),
                                                                                                       (
                                                                                                           (SELECT id FROM tournaments WHERE name='Open de Primavera 2026' LIMIT 1),
+                                                                                                          (SELECT id FROM ref_age_category WHERE category = 'ABSOLUTA' LIMIT 1),
                                                                                                           'Absoluto Dobles Mixto',
                                                                                                           'TENNIS',
                                                                                                           'DOUBLES',
                                                                                                           'MIXED',
-                                                                                                          'OPEN',
                                                                                                           16
                                                                                                       );
 

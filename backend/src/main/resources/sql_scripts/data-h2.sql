@@ -22,10 +22,43 @@ SET MODE PostgreSQL;
     INSERT INTO tournaments (name, start_date, end_date, venue, country, surface, category, state) VALUES
         ( 'Open de Primavera 2026', '2026-05-01', '2026-05-15', 'Club de Tenis Principal', 'ESP', 'CLAY', 'NATIONAL', 'OPEN');
 
+    -- 3.5. Insert age category references
+    INSERT INTO ref_age_category (category, description) VALUES
+        ('Pre-Benjamin', '8 anos'),
+        ('Benjamines', '9-10 anos'),
+        ('Alevines', '11-12 anos'),
+        ('Infantiles', '13-14 anos'),
+        ('Cadetes', '15-16 anos'),
+        ('Juniors', '17-18 anos'),
+        ('ABSOLUTA', NULL),
+        ('Veteranos+30', '30-34 anos'),
+        ('Veteranos+35', '35-39 anos'),
+        ('Veteranos+40', '40-44 anos'),
+        ('Veteranos+45', '45-49 anos'),
+        ('Veteranos+50', '50-54 anos'),
+        ('Veteranos+55', '55-59 anos'),
+        ('Veteranos+60', '60-64 anos');
+
     -- 4. Insert events (categories)
-    INSERT INTO events (tournament_id, name, discipline, event_type, gender, age_category, draw_size) VALUES
-        ( (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026'), 'Absoluto Individual Masculino', 'TENNIS', 'SINGLES', 'MALE', 'OPEN', 32),
-        ( (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026'), 'Absoluto Dobles Mixto', 'TENNIS', 'DOUBLES', 'MIXED', 'OPEN', 16);
+    INSERT INTO events (tournament_id, age_category_id, name, discipline, event_type, gender, draw_size) VALUES
+        (
+            (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026'),
+            (SELECT id FROM ref_age_category WHERE category = 'ABSOLUTA'),
+            'Absoluto Individual Masculino',
+            'TENNIS',
+            'SINGLES',
+            'MALE',
+            32
+        ),
+        (
+            (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026'),
+            (SELECT id FROM ref_age_category WHERE category = 'ABSOLUTA'),
+            'Absoluto Dobles Mixto',
+            'TENNIS',
+            'DOUBLES',
+            'MIXED',
+            16
+        );
 
     -- 5. Insert participants (individuals)
     INSERT INTO participants (tournament_id, person_id, participant_type, entry_status, seed) VALUES

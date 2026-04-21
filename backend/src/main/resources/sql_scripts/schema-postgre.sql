@@ -75,15 +75,25 @@ CREATE TABLE participant_members (
     PRIMARY KEY (participant_id, person_id)
 );
 
+-- REFERENCIA DE CATEGORÍAS DE EDAD
+CREATE TABLE ref_age_category (
+    id SERIAL PRIMARY KEY,
+    category VARCHAR(20) NOT NULL,
+    description VARCHAR(15)
+);
+
+COMMENT ON COLUMN ref_age_category.category IS 'Nombre de la categoría';
+COMMENT ON COLUMN ref_age_category.description IS 'Comentario de la categoría';
+
 -- EVENTS (within a tournament: singles/doubles, age categories, gender)
 CREATE TABLE events (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tournament_id   UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    age_category_id INTEGER REFERENCES ref_age_category(id),
     name            VARCHAR(200),
     discipline      VARCHAR(30),               -- TENNIS / BEACH_TENNIS / WHEELCHAIR
     event_type      VARCHAR(20),               -- SINGLES / DOUBLES / TEAM
     gender          VARCHAR(10),               -- MALE / FEMALE / MIXED / OPEN
-    age_category    VARCHAR(30),               -- OPEN / U18 / U14 / SENIOR
     draw_size       INTEGER
 );
 
