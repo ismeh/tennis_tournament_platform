@@ -22,4 +22,9 @@ public interface JpaMemberRepository extends JpaRepository<MemberEntity, UUID> {
     @Query("UPDATE MemberEntity m SET m.tokenHash = :tokenHash WHERE m.id = :id")
     int updateTokenHash(@Param("id") UUID id, @Param("tokenHash") String tokenHash);
 
+    @Modifying
+    @Transactional
+    @Query("UPDATE MemberEntity m SET m.personId = :personId WHERE m.id = :id")
+    int updatePersonId(@Param("id") UUID id, @Param("personId") UUID personId);
+
 }

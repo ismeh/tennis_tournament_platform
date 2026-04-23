@@ -18,5 +18,6 @@ public class Member {
     private final String gender; // 'H' or 'M'
     private final MemberTier tier;
     private final LocalDateTime registeredAt;
+    private final UUID personId;
 
 }

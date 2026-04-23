@@ -9,4 +9,6 @@ public interface MemberRepository {
     Optional<Member> findByEmail(String email);
     Optional<Member> findById(UUID id);
     void updateTokenHash(UUID id, String tokenHash);
+    void updatePersonId(UUID id, UUID personId);
+    Optional<Member> findByEmailWithPersonId(String email);
 }
