@@ -11,7 +11,7 @@ CREATE TABLE persons (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tennis_id     VARCHAR(20) UNIQUE,           -- IPIN / ITF global ID
     first_name    VARCHAR(100) NOT NULL,
-    last_name     VARCHAR(100) NOT NULL,
+    last_name     VARCHAR(100),
     nationality   CHAR(3),                      -- ISO 3166-1 alpha-3
     birth_date    DATE,
     gender        VARCHAR(10)                   -- MALE / FEMALE
@@ -69,7 +69,7 @@ CREATE TABLE participants (
 );
 
 -- PAIR / TEAM MEMBERS mapping (many-to-many between participants and persons)
-CREATE TABLE participant_members (
+CREATE TABLE participant_persons (
     participant_id  UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
     person_id       UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     PRIMARY KEY (participant_id, person_id)
@@ -96,6 +96,20 @@ CREATE TABLE events (
     gender          VARCHAR(10),               -- MALE / FEMALE / MIXED / OPEN
     draw_size       INTEGER
 );
+
+CREATE TABLE inscriptions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id        UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    participant_id  UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+    status          VARCHAR(20) DEFAULT 'PENDING',
+    payment_status  VARCHAR(20) DEFAULT 'UNPAID',
+    registered_at   TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE (event_id, participant_id)
+);
+
+CREATE INDEX idx_inscriptions_event ON inscriptions (event_id);
+CREATE INDEX idx_inscriptions_member ON inscriptions (member_id);
 
 -- STAGES (phases within an event: qualifying, main draw, etc.)
 CREATE TABLE stages (
