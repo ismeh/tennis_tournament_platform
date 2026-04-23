@@ -109,7 +109,7 @@ CREATE TABLE inscriptions (
 );
 
 CREATE INDEX idx_inscriptions_event ON inscriptions (event_id);
-CREATE INDEX idx_inscriptions_member ON inscriptions (member_id);
+CREATE INDEX idx_inscriptions_member ON inscriptions (participant_id);
 
 -- STAGES (phases within an event: qualifying, main draw, etc.)
 CREATE TABLE stages (
