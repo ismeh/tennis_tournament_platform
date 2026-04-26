@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Getter
-@Builder(builderClassName = "TournamentBuilder", buildMethodName = "buildInternal")
+@Builder(toBuilder = true, builderClassName = "TournamentBuilder", buildMethodName = "buildInternal")
 @ToString(exclude = "events")
 @EqualsAndHashCode(exclude = "events")
 public class Tournament {
@@ -66,27 +66,6 @@ public class Tournament {
         }
     }
 
-    public Tournament addEvent(Event event) {
-        Objects.requireNonNull(event, "event must not be null");
-        if (this.events.stream().anyMatch(e -> e.getCategoryId().equals(event.getCategoryId()))) {
-            throw new IllegalArgumentException("Event with categoryId " + event.getCategoryId() + " already exists in tournament");
-        }
-        List<Event> newEvents = new ArrayList<>(this.events);
-        newEvents.add(event);
-        return Tournament.builder()
-                .id(this.id)
-                .name(this.name)
-                .playPeriod(this.playPeriod)
-                .inscriptionPeriod(this.inscriptionPeriod)
-                .surface(this.surface)
-                .maxPlayers(this.maxPlayers)
-                .location(this.location)
-                .state(this.state)
-                .createdBy(this.createdBy)
-                .events(newEvents)
-                .build();
-    }
-
     /**
      * Añade una lista de eventos al torneo, ignorando los que tengan un categoryId duplicado con los ya existentes en el torneo.
      * Devuelve un nuevo objeto Tournament con la lista de eventos actualizada.
@@ -98,19 +77,11 @@ public class Tournament {
                 .collect(Collectors.toSet());
         List<Event> filteredNewEvents = newEvents.stream()
                 .filter(e -> !existingIds.contains(e.getCategoryId()))
-                .collect(Collectors.toList());
+                .toList();
         List<Event> updatedEvents = new java.util.ArrayList<>(this.events);
         updatedEvents.addAll(filteredNewEvents);
-        return Tournament.builder()
-                .id(this.id)
-                .name(this.name)
-                .playPeriod(this.playPeriod)
-                .inscriptionPeriod(this.inscriptionPeriod)
-                .surface(this.surface)
-                .maxPlayers(this.maxPlayers)
-                .location(this.location)
-                .state(this.state)
-                .createdBy(this.createdBy)
+        return this.toBuilder()
+            .clearEvents()
                 .events(updatedEvents)
                 .build();
     }
