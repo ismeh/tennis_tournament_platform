@@ -1,8 +1,11 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
 import com.tfm.tennis_platform.application.services.TournamentService;
+import com.tfm.tennis_platform.application.services.InscriptionService;
 import com.tfm.tennis_platform.application.service.EventService;
 import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
@@ -25,6 +28,7 @@ public class TournamentController {
     private final TournamentService tournamentService;
     private final TournamentWebMapper tournamentWebMapper;
     private final EventService eventService;
+    private final InscriptionService inscriptionService;
 
     @PostMapping
     public ResponseEntity<TournamentResponse> create(@RequestBody TournamentRequest request, Principal principal) {
@@ -53,9 +57,37 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
     }
 
+    @DeleteMapping("/{tournamentId}/events/{eventId}")
+    public ResponseEntity<TournamentResponse> removeEventFromTournament(
+            @PathVariable("tournamentId") UUID tournamentId,
+            @PathVariable("eventId") UUID eventId
+    ) {
+        Tournament updatedTournament = eventService.removeEventFromTournament(tournamentId, eventId);
+        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<TournamentResponse> updateStatus(@PathVariable UUID id, @RequestBody TournamentStatusUpdateRequest request) {
         Tournament updatedTournament = tournamentService.updateStatus(id, request.status());
         return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+    }
+
+    @PostMapping("/{tournamentId}/events/{eventId}/inscriptions")
+    public ResponseEntity<EventInscriptionResponse> createInscription(
+            @PathVariable UUID tournamentId,
+            @PathVariable UUID eventId,
+                @RequestBody EventInscriptionRequest request,
+            Principal principal
+    ) {
+        EventInscriptionResponse response = inscriptionService.register(tournamentId, eventId, request, principal.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/{tournamentId}/events/{eventId}/inscriptions")
+    public ResponseEntity<List<EventInscriptionResponse>> getInscriptionsByEvent(
+            @PathVariable UUID tournamentId,
+            @PathVariable UUID eventId
+    ) {
+        return ResponseEntity.ok(inscriptionService.findByEvent(tournamentId, eventId));
     }
 }

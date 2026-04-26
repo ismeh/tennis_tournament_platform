@@ -65,6 +65,8 @@ public interface TournamentWebMapper {
 
     default Event toDomain(EventEntity entity) {
         return Event.builder()
+                .id(entity.getId())
+                .tournamentId(entity.getTournament() != null ? entity.getTournament().getId() : null)
                 .categoryId(entity.getAgeCategory() != null ? entity.getAgeCategory().getId() : null)
                 .gender(entity.getGender())
                 .build();
@@ -83,7 +85,7 @@ public interface TournamentWebMapper {
         }
 
         return events.stream()
-                .map(event -> new TournamentEventResponse(event.getCategoryId(), event.getGender()))
+            .map(event -> new TournamentEventResponse(event.getId(), event.getCategoryId(), event.getGender()))
                 .toList();
     }
 

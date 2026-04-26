@@ -7,6 +7,7 @@ import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -92,6 +93,25 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
             .status(HttpStatus.NOT_FOUND)
+            .body(errorResponse);
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(
+            ObjectOptimisticLockingFailureException ex,
+            WebRequest request) {
+        log.warn("Conflicto de concurrencia al modificar entidad: {}", ex.getPersistentClassName());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+            "CONCURRENT_MODIFICATION",
+            "El torneo fue modificado por otro usuario. Recarga y vuelve a intentarlo.",
+            HttpStatus.CONFLICT.value(),
+            LocalDateTime.now(),
+            extractPath(request)
+        );
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
             .body(errorResponse);
     }
 
