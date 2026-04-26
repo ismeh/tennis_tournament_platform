@@ -54,6 +54,10 @@ public interface TournamentEntityMapper {
     }
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "events", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target= "status", source = "state")
     void updateEntityFromDomain(Tournament domain, @MappingTarget TournamentEntity entity);
 
     default List<Event> toDomainEvents(List<EventEntity> entities) {

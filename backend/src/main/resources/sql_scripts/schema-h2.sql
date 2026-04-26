@@ -56,6 +56,7 @@ CREATE TABLE tournaments (
     max_players             INTEGER,
     location                VARCHAR(255),
     state                   VARCHAR(20) DEFAULT 'DRAFT',
+    version                 BIGINT NOT NULL DEFAULT 0,
     created_by              UUID,
     venue                   VARCHAR(255),
     country                 CHAR(3),

@@ -46,6 +46,7 @@ CREATE TABLE tournaments (
     max_players             INTEGER,
     location                VARCHAR(200),
     state                   VARCHAR(20) DEFAULT 'DRAFT', -- DRAFT / OPEN / CLOSED / IN_PROGRESS / COMPLETED / CANCELLED
+    version                 BIGINT NOT NULL DEFAULT 0,
     created_by              UUID REFERENCES users(id) ON DELETE SET NULL,
     venue                   VARCHAR(200),
     country                 CHAR(3),  --TO DELETE
