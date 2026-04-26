@@ -1,0 +1,11 @@
+{
+  "id": 1,
+  "name": "Wimbledon 2026",
+  "startDate": "2026-07-06",
+  "endDate": "2026-07-19",
+  "venue": "All England Lawn Tennis and Croquet Club",
+  "country": "GBR",
+  "surface": "GRASS",
+  "category": "ATP",
+  "status": "OPEN"
+}

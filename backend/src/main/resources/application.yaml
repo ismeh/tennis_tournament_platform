@@ -3,3 +3,7 @@ spring:
     name: tennis_platform
   profiles:
     active: dev
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET_KEY:my_very_secret_and_long_key_for_tennis_platform_tfm_project}

@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService } from '../core/auth/auth.service';
 import { AppSettings } from '../shared/constants';
 
 @Component({
@@ -44,12 +45,34 @@ import { AppSettings } from '../shared/constants';
 
           <!-- Auth Buttons -->
           <div class="flex items-center gap-2 sm:gap-3">
-            <a routerLink="/iniciar-sesion" class="px-4 py-2 text-primary-600 font-medium text-sm hover:text-primary-700 transition-colors">
-              Iniciar Sesión
-            </a>
-            <a routerLink="/registrarse" class="px-4 py-2 sm:px-6 py-2 bg-primary-500 text-white font-medium text-sm rounded-lg hover:bg-primary-600 transition-colors">
-              Registrarse
-            </a>
+            @if (isLoggedIn$ | async) {
+              <div class="flex items-center gap-2 sm:gap-3">
+                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
+                  {{ getUserInitial(displayName$ | async) }}
+                </div>
+                <span class="text-sm font-medium text-neutral-700">Hi {{ (displayName$ | async) ?? 'Player' }}</span>
+                <a
+                  routerLink="/perfil"
+                  class="px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                >
+                  Mi perfil
+                </a>
+                <button
+                  type="button"
+                  (click)="onLogout()"
+                  class="px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            } @else {
+              <a routerLink="/login" class="px-4 py-2 text-primary-600 font-medium text-sm hover:text-primary-700 transition-colors">
+                Iniciar Sesión
+              </a>
+              <a routerLink="/register" class="px-4 py-2 sm:px-6 bg-primary-500 text-white font-medium text-sm rounded-lg hover:bg-primary-600 transition-colors">
+                Registrarse
+              </a>
+            }
           </div>
         </div>
       </div>
@@ -58,5 +81,24 @@ import { AppSettings } from '../shared/constants';
   styles: []
 })
 export class HeaderComponent {
-  AppSettings: any = AppSettings;
+  AppSettings: typeof AppSettings = AppSettings;
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
+  readonly isLoggedIn$ = this.authService.isLoggedIn$;
+  readonly displayName$ = this.authService.displayName$;
+
+  getUserInitial(displayName: string | null): string {
+    if (!displayName) {
+      return '?';
+    }
+
+    return displayName.charAt(0).toUpperCase();
+  }
+
+  onLogout(): void {
+    this.authService.logout().subscribe(() => {
+      this.router.navigateByUrl('/');
+    });
+  }
 }

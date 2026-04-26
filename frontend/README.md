@@ -1,59 +1,138 @@
-# TfmFront
+# Frontend - Tennis Tournament Platform
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.6.
+Aplicación web en Angular 20 con SSR (Server-Side Rendering) para la plataforma de torneos de tenis.
 
-## Development server
+## Requisitos
 
-To start a local development server, run:
+- Node.js 20+
+- npm 10+
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Comprobar versiones:
 
 ```bash
-ng generate component component-name
+node -v
+npm -v
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Instalación
+
+Desde la carpeta `frontend/`:
 
 ```bash
-ng generate --help
+npm install
 ```
 
-## Building
+## Puesta en marcha en desarrollo
 
-To build the project run:
+1. Arrancar el frontend:
 
 ```bash
-ng build
+npm run start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+2. Abrir en navegador:
 
-## Running unit tests
+- `http://localhost:4200`
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+Notas:
+
+- `start` usa la configuración `development` (definida en `angular.json`).
+- Si también levantas backend en local, la API actual está en `http://localhost:8085/api` (ver `src/app/shared/constants.ts`).
+
+## Build y ejecución en producción
+
+### 1) Generar build de producción
 
 ```bash
-ng test
+npm run build
 ```
 
-## Running end-to-end tests
+Esto genera los artefactos en `dist/tfm_front/`.
 
-For end-to-end (e2e) testing, run:
+### 2) Ejecutar servidor SSR de producción
 
 ```bash
-ng e2e
+npm run serve:ssr:tfm_front
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Por defecto escucha en `http://localhost:4000`.
 
-## Additional Resources
+Para cambiar el puerto:
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+```bash
+PORT=8080 npm run serve:ssr:tfm_front
+```
+
+## Entornos y configuración de logs
+
+Se usa el enfoque nativo de Angular con archivos de entorno:
+
+- Producción: `src/environments/environment.ts`
+- Desarrollo: `src/environments/environment.development.ts`
+
+Configuración actual del logger:
+
+- Desarrollo:
+	- `enableConsole: true`
+	- `minLogLevel: INFO`
+- Producción:
+	- `enableConsole: false`
+	- `minLogLevel: ERROR`
+
+El reemplazo de archivos por entorno está configurado en `angular.json` con `fileReplacements` para `development`.
+
+## Scripts útiles
+
+```bash
+# Servidor de desarrollo
+npm run start
+
+# Build de producción
+npm run build
+
+# Build en modo desarrollo (watch)
+npm run watch
+
+# Tests unitarios
+npm run test
+```
+
+## Estructura principal
+
+```text
+src/app/
+	core/         # Auth, interceptores y servicios globales
+	data/         # Interfaces y servicios HTTP
+	features/     # Páginas funcionales
+	components/   # Componentes compartidos de UI
+	layout/       # Layout base
+	shared/       # Constantes y utilidades reutilizables
+```
+
+## Diagrama de arquitectura frontend
+
+![arquitectura-front](docs/images/frontend-data-flow.png)
+
+Resumen del flujo:
+
+1. El router carga la feature según la ruta activa.
+2. La feature usa servicios de la capa data para solicitar datos.
+3. El interceptor añade token JWT a las peticiones HTTP.
+4. La API responde y los datos vuelven al componente para renderizar UI.
+
+## Troubleshooting rápido
+
+- `EADDRINUSE: address already in use`
+	- El puerto está ocupado. Cambia el puerto o cierra el proceso previo.
+- Errores CORS o llamadas API fallando
+	- Verifica que el backend esté activo en el puerto esperado (`8085` en dev).
+- Build funciona pero no arranca SSR
+	- Ejecuta primero `npm run build` y después `npm run serve:ssr:tfm_front`.
+
+## Mejoras recomendadas para este README
+
+1. Añadir diagrama simple de arquitectura frontend (routing, auth interceptor, capa data).
+2. Incluir una sección "Primer flujo funcional" (login -> listado torneos -> detalle).
+3. Documentar estrategia de despliegue (PM2, Docker o reverse proxy) para producción real.
+4. Añadir tabla de compatibilidad de versiones (Node, Angular CLI, npm).
+5. Incluir checklist de validación antes de PR (`npm run build` y `npm run test`).
