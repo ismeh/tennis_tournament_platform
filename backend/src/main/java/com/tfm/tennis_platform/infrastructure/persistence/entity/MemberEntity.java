@@ -19,7 +19,7 @@ public class MemberEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "person_id", updatable = false)
+    @Column(name = "person_id")
     private UUID personId;
 
     @Column(unique = true, nullable = false)

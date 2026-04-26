@@ -3,6 +3,8 @@ package com.tfm.tennis_platform.infrastructure.controller;
 import com.tfm.tennis_platform.application.services.AuthService;
 import com.tfm.tennis_platform.infrastructure.controller.dto.LoginRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.LoginResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ProfileRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ProfileResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.RefreshTokenRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.RefreshTokenResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.RegisterRequest;
@@ -12,9 +14,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.Principal;
 
 @RestController
 @RequiredArgsConstructor
@@ -53,6 +59,18 @@ public class LoginController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/api/auth/profile")
+    public ResponseEntity<ProfileResponse> getProfile(Principal principal) {
+        AuthService.UserProfile profile = authService.getProfile(principal.getName());
+        return ResponseEntity.ok(toProfileResponse(profile));
+    }
+
+    @PutMapping("/api/auth/profile")
+    public ResponseEntity<ProfileResponse> completeProfile(Principal principal, @RequestBody ProfileRequest request) {
+        AuthService.UserProfile profile = authService.completeProfile(principal.getName(), request);
+        return ResponseEntity.ok(toProfileResponse(profile));
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<String> handleConflict(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
@@ -60,6 +78,22 @@ public class LoginController {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleUnauthorized(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    private ProfileResponse toProfileResponse(AuthService.UserProfile profile) {
+        return new ProfileResponse(
+                profile.memberId(),
+                profile.email(),
+                profile.tier(),
+                profile.registeredAt(),
+                profile.personId(),
+                profile.firstName(),
+                profile.lastName(),
+                profile.gender(),
+                profile.birthDate(),
+                profile.nationality(),
+                profile.federationLicense()
+        );
     }
 }

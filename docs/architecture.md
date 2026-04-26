@@ -104,7 +104,7 @@ JwtAuthenticationFilter
       │
       ▼
 SecurityFilterChain (SecurityConfig)
-  /api/login → public
+   /api/auth/login → public
   all other paths → authenticated
       │
       ▼

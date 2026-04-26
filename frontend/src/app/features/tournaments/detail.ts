@@ -299,6 +299,43 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions';
                   Estado actual del torneo: <span class="font-semibold text-neutral-900">{{ tournament()!.status }}</span>
                 </div>
 
+                @if (!isProfileComplete()) {
+                  <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    Debes completar tu perfil para inscribirte.
+                    <a routerLink="/perfil" class="ml-2 font-semibold underline">Ir a completar perfil</a>
+                  </div>
+                }
+
+                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-neutral-700">Categoria</span>
+                    <select
+                      class="w-full rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:border-primary-500"
+                      [value]="selectedInscriptionCategoryId() ?? ''"
+                      (change)="onInscriptionCategoryChange($any($event.target).value)"
+                    >
+                      <option value="">Selecciona categoria</option>
+                      @for (category of inscriptionCategories(); track category.categoryId) {
+                        <option [value]="category.categoryId">{{ category.eventCategory }}</option>
+                      }
+                    </select>
+                  </label>
+
+                  <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-neutral-700">Genero del evento</span>
+                    <select
+                      class="w-full rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:border-primary-500"
+                      [value]="selectedInscriptionGender() ?? ''"
+                      (change)="onInscriptionGenderChange($any($event.target).value)"
+                    >
+                      <option value="">Selecciona genero</option>
+                      @for (gender of inscriptionGenderOptions(); track gender) {
+                        <option [value]="gender">{{ getGenderLabel(gender) }}</option>
+                      }
+                    </select>
+                  </label>
+                </div>
+
                 <button
                   type="button"
                   class="mt-4 rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-3 font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
@@ -351,6 +388,9 @@ export class TournamentDetailComponent implements OnInit {
   readonly eventCatalogError = signal<string | null>(null);
   readonly selectedStatus = signal<TournamentStatus | null>(null);
   readonly isUpdatingStatus = signal(false);
+  readonly isProfileComplete = signal(false);
+  readonly selectedInscriptionCategoryId = signal<number | null>(null);
+  readonly selectedInscriptionGender = signal<TournamentEventGender | null>(null);
 
   readonly isCreator = computed(() => {
     const tournament = this.tournament();
@@ -370,7 +410,55 @@ export class TournamentDetailComponent implements OnInit {
       return false;
     }
 
-    return currentTournament.status === 'OPEN' || currentTournament.status === 'ACTIVE';
+    if (!this.isProfileComplete()) {
+      return false;
+    }
+
+    return currentTournament.status === 'OPEN' && !!this.selectedEventId();
+  });
+
+  readonly inscriptionCategories = computed<TournamentEventSelection[]>(() => {
+    const groupedEvents = new Map<number, Set<TournamentEventGender>>();
+    const events = this.tournament()?.events ?? [];
+
+    events.forEach(event => {
+      const normalizedGender = event.gender.toUpperCase() as TournamentEventGender;
+      if (!this.eventGenderOptions.includes(normalizedGender)) {
+        return;
+      }
+
+      const currentGenders = groupedEvents.get(event.categoryId) ?? new Set<TournamentEventGender>();
+      currentGenders.add(normalizedGender);
+      groupedEvents.set(event.categoryId, currentGenders);
+    });
+
+    return Array.from(groupedEvents.entries()).map(([categoryId, genders]) => ({
+      categoryId,
+      eventCategory: this.getEventLabelById(categoryId),
+      genders: Array.from(genders)
+    }));
+  });
+
+  readonly inscriptionGenderOptions = computed<TournamentEventGender[]>(() => {
+    const selectedCategoryId = this.selectedInscriptionCategoryId();
+    if (!selectedCategoryId) {
+      return [];
+    }
+
+    return this.inscriptionCategories().find(event => event.categoryId === selectedCategoryId)?.genders ?? [];
+  });
+
+  readonly selectedEventId = computed<string | null>(() => {
+    const selectedCategoryId = this.selectedInscriptionCategoryId();
+    const selectedGender = this.selectedInscriptionGender();
+    const events = this.tournament()?.events ?? [];
+
+    if (!selectedCategoryId || !selectedGender) {
+      return null;
+    }
+
+    const matchedEvent = events.find(event => event.categoryId === selectedCategoryId && event.gender.toUpperCase() === selectedGender);
+    return matchedEvent?.eventId ?? null;
   });
 
   readonly allowedStatusTransitions = computed<TournamentStatus[]>(() => {
@@ -562,12 +650,20 @@ export class TournamentDetailComponent implements OnInit {
 
   requestInscription(): void {
     const currentTournament = this.tournament();
+    const eventId = this.selectedEventId();
+    const categoryId = this.selectedInscriptionCategoryId();
+
     if (!currentTournament) {
       return;
     }
 
+    if (!eventId || !categoryId) {
+      this.actionError.set('Selecciona categoria y genero antes de solicitar la inscripcion.');
+      return;
+    }
+
     if (!this.canRequestInscription()) {
-      this.actionError.set('Las inscripciones aun no estan habilitadas para este torneo.');
+      this.actionError.set('No cumples los requisitos para inscribirte en este evento.');
       return;
     }
 
@@ -575,16 +671,37 @@ export class TournamentDetailComponent implements OnInit {
     this.actionError.set(null);
     this.actionMessage.set(null);
 
-    this.tournamentService.requestInscription(currentTournament.id).subscribe({
+    this.tournamentService.requestInscription(currentTournament.id, eventId, { categoryId, partnerId: null }).subscribe({
       next: () => {
         this.isSubmittingInscription.set(false);
-        this.actionMessage.set('Inscripcion realizada correctamente.');
+        this.actionMessage.set('Inscripcion realizada correctamente para el evento seleccionado.');
       },
       error: () => {
         this.isSubmittingInscription.set(false);
-        this.actionError.set('No se pudo completar la inscripcion para este torneo.');
+        this.actionError.set('No se pudo completar la inscripcion para este evento.');
       }
     });
+  }
+
+  onInscriptionCategoryChange(rawCategoryId: string): void {
+    if (!rawCategoryId) {
+      this.selectedInscriptionCategoryId.set(null);
+      this.selectedInscriptionGender.set(null);
+      return;
+    }
+
+    const categoryId = Number(rawCategoryId);
+    this.selectedInscriptionCategoryId.set(Number.isNaN(categoryId) ? null : categoryId);
+    this.selectedInscriptionGender.set(null);
+  }
+
+  onInscriptionGenderChange(rawGender: string): void {
+    if (!rawGender) {
+      this.selectedInscriptionGender.set(null);
+      return;
+    }
+
+    this.selectedInscriptionGender.set(rawGender as TournamentEventGender);
   }
 
   private loadTournament(tournamentId: string): void {
@@ -595,6 +712,7 @@ export class TournamentDetailComponent implements OnInit {
       next: tournament => {
         this.tournament.set(tournament);
         this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
+        this.initializeInscriptionSelection();
         this.selectedStatus.set(this.getDefaultStatusSelection(tournament.status));
         this.isLoading.set(false);
         this.activeSection.set(this.isCreator() ? 'setup' : 'overview');
@@ -635,6 +753,16 @@ export class TournamentDetailComponent implements OnInit {
       },
       error: () => {
         this.currentMemberId.set(null);
+      }
+    });
+
+    this.memberService.getMyProfile().subscribe({
+      next: profile => {
+        const complete = !!profile.firstName && !!profile.gender && !!profile.birthDate;
+        this.isProfileComplete.set(complete);
+      },
+      error: () => {
+        this.isProfileComplete.set(false);
       }
     });
   }
@@ -686,5 +814,17 @@ export class TournamentDetailComponent implements OnInit {
     }
 
     return providerOrganisation.id ?? null;
+  }
+
+  private initializeInscriptionSelection(): void {
+    const firstCategory = this.inscriptionCategories()[0];
+    if (!firstCategory) {
+      this.selectedInscriptionCategoryId.set(null);
+      this.selectedInscriptionGender.set(null);
+      return;
+    }
+
+    this.selectedInscriptionCategoryId.set(firstCategory.categoryId);
+    this.selectedInscriptionGender.set(firstCategory.genders[0] ?? null);
   }
 }

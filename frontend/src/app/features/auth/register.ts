@@ -94,7 +94,7 @@ export class RegisterComponent {
     this.authService.register(this.form.getRawValue()).subscribe({
       next: () => {
         this.isSubmitting.set(false);
-        this.router.navigateByUrl('/');
+				this.router.navigateByUrl('/perfil');
       },
       error: () => {
         this.isSubmitting.set(false);

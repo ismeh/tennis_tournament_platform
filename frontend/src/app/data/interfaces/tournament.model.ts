@@ -68,12 +68,28 @@ export interface TournamentEventSelection {
 }
 
 export interface TournamentEventCategoryGender {
+  eventId?: string;
   categoryId: number;
   gender: string;
 }
 
 export interface TournamentEventsConfigRequest {
   events: TournamentEventCategoryGender[];
+}
+
+export interface EventInscriptionRequest {
+  categoryId: number;
+  partnerId?: string | null;
+}
+
+export interface EventInscriptionResponse {
+  id: string;
+  tournamentId: string;
+  eventId: string;
+  categoryId: number;
+  memberId: string;
+  partnerId?: string | null;
+  registeredAt: string;
 }
 
 export interface TournamentStatusUpdateRequest {

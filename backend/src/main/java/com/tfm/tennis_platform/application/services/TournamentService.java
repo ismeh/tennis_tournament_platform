@@ -70,17 +70,8 @@ public class TournamentService {
             throw new IllegalArgumentException("Invalid status transition: " + currentStatus + " -> " + newStatus);
         }
 
-        Tournament updatedTournament = Tournament.builder()
-                .id(currentTournament.getId())
-                .name(currentTournament.getName())
-                .playPeriod(currentTournament.getPlayPeriod())
-                .inscriptionPeriod(currentTournament.getInscriptionPeriod())
-                .surface(currentTournament.getSurface())
-                .maxPlayers(currentTournament.getMaxPlayers())
-                .location(currentTournament.getLocation())
+        Tournament updatedTournament = currentTournament.toBuilder()
                 .state(newStatus)
-                .createdBy(currentTournament.getCreatedBy())
-                .events(currentTournament.getEvents())
                 .build();
 
         return tournamentRepository.save(updatedTournament);

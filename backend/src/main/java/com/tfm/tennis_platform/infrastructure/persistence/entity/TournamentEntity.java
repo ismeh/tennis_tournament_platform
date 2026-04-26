@@ -16,7 +16,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter(AccessLevel.PROTECTED)
+@Setter
 public class TournamentEntity {
     @Id
     private UUID id;
@@ -46,6 +46,7 @@ public class TournamentEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "state", nullable = false)
+    @Setter
     private TournamentStatus status;
 
     @ManyToOne
@@ -55,4 +56,7 @@ public class TournamentEntity {
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<EventEntity> events = new ArrayList<>();
+
+    @Version
+    private Long version;
 }

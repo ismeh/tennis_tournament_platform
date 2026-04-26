@@ -36,4 +36,14 @@ public class MemberRepositoryAdapter implements MemberRepository {
     public void updateTokenHash(UUID id, String tokenHash) {
         memberRepository.updateTokenHash(id, tokenHash);
     }
+
+    @Override
+    public void updatePersonId(UUID id, UUID personId) {
+        memberRepository.updatePersonId(id, personId);
+    }
+
+    @Override
+    public Optional<Member> findByEmailWithPersonId(String email) {
+        return memberRepository.findByEmail(email).map(mapper::toDomain);
+    }
 }

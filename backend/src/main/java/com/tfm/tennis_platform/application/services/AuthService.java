@@ -1,10 +1,13 @@
 package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
+import com.tfm.tennis_platform.domain.port.out.PersonRepository;
 import com.tfm.tennis_platform.domain.models.Member;
+import com.tfm.tennis_platform.domain.models.Person;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
 import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
 import com.tfm.tennis_platform.domain.exceptions.UnauthorizedException;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ProfileRequest;
 import com.tfm.tennis_platform.infrastructure.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,12 +19,15 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -31,6 +37,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final MemberRepository memberRepository;
+    private final PersonRepository personRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserDetailsService userDetailsService;
 
@@ -94,7 +101,7 @@ public class AuthService {
         }
 
         Member member = memberRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
         String refreshTokenHash = hashToken(refreshToken);
         if (!refreshTokenHash.equals(member.getTokenHash())) {
             throw new UnauthorizedException("Token de actualización inválido");
@@ -118,6 +125,54 @@ public class AuthService {
         memberRepository.findByEmail(userEmail)
                 .map(Member::getId)
                 .ifPresent(memberId -> memberRepository.updateTokenHash(memberId, null));
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfile getProfile(String email) {
+        Member member = memberRepository.findByEmailWithPersonId(email)
+                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+
+        Person person = null;
+        if (member.getPersonId() != null) {
+            person = personRepository.findById(member.getPersonId()).orElse(null);
+        }
+
+        return toUserProfile(member, person);
+    }
+
+    @Transactional
+    public UserProfile completeProfile(String email, ProfileRequest request) {
+        Member member = memberRepository.findByEmailWithPersonId(email)
+                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+
+        Person existing = null;
+        if (member.getPersonId() != null) {
+            existing = personRepository.findById(member.getPersonId()).orElse(null);
+        }
+
+        Person toSave = Person.builder()
+                .id(existing != null ? existing.getId() : null)
+            .tennisId(existing != null ? existing.getTennisId() : null)
+            .firstName(normalizeOptional(request.firstName()))
+            .lastName(normalizeOptional(request.lastName()))
+            .gender(normalizeGender(request.gender()))
+            .birthDate(request.birthDate())
+            .nationality(normalizeNationality(request.nationality()))
+                .build();
+
+        if (request.federationLicense() != null) {
+            toSave = toSave.toBuilder()
+                .tennisId(normalizeOptional(request.federationLicense()))
+                .build();
+        }
+
+        Person savedPerson = personRepository.save(toSave);
+        memberRepository.updatePersonId(member.getId(), savedPerson.getId());
+
+        Member updatedMember = memberRepository.findByEmailWithPersonId(email)
+                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+
+        return toUserProfile(updatedMember, savedPerson);
     }
 
     private AuthTokens issueTokens(UserDetails userDetails, UUID memberId) {
@@ -144,6 +199,58 @@ public class AuthService {
         }
     }
 
+    private String normalizeGender(String gender) {
+        String normalized = gender.trim().toUpperCase(Locale.ROOT);
+        if (!normalized.equals("MALE") && !normalized.equals("FEMALE") && !normalized.equals("MIXED")) {
+            throw new IllegalArgumentException("gender debe ser MALE, FEMALE o MIXED");
+        }
+        return normalized;
+    }
+
+    private String normalizeNationality(String nationality) {
+        String value = normalizeOptional(nationality);
+        return value == null ? null : value.toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private UserProfile toUserProfile(Member member, Person person) {
+        return new UserProfile(
+                member.getId(),
+                member.getEmail(),
+                member.getTier(),
+                member.getRegisteredAt(),
+                person != null ? person.getId() : null,
+                person != null ? person.getFirstName() : null,
+                person != null ? person.getLastName() : null,
+                person != null ? person.getGender() : null,
+                person != null ? person.getBirthDate() : null,
+                person != null ? person.getNationality() : null,
+                person != null ? person.getTennisId() : null
+        );
+    }
+
     public record AuthTokens(String accessToken, String refreshToken) {
+    }
+
+    public record UserProfile(
+            UUID memberId,
+            String email,
+            MemberTier tier,
+            java.time.LocalDateTime registeredAt,
+            UUID personId,
+            String firstName,
+            String lastName,
+            String gender,
+            LocalDate birthDate,
+            String nationality,
+            String federationLicense
+    ) {
     }
 }

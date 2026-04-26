@@ -3,6 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AppSettings } from '../../shared/constants';
 import {
+  EventInscriptionRequest,
+  EventInscriptionResponse,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
   TournamentEventsConfigRequest,
@@ -42,7 +44,7 @@ export class TournamentService {
     return this.http.patch<TournamentResponse>(`${this.apiUrl}/${tournamentId}/status`, payload);
   }
 
-  requestInscription(tournamentId: string): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/${tournamentId}/inscriptions`, {});
+  requestInscription(tournamentId: string, eventId: string, payload: EventInscriptionRequest): Observable<EventInscriptionResponse> {
+    return this.http.post<EventInscriptionResponse>(`${this.apiUrl}/${tournamentId}/events/${eventId}/inscriptions`, payload);
   }
 }

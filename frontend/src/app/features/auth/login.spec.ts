@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { LoginComponent } from './login';
 import { AuthService } from '../../core/auth/auth.service';
 
@@ -8,23 +8,23 @@ describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
   let component: LoginComponent;
   let authServiceSpy: jasmine.SpyObj<AuthService>;
-  let routerSpy: jasmine.SpyObj<Router>;
+  let router: Router;
 
   beforeEach(async () => {
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['login']);
-    routerSpy = jasmine.createSpyObj<Router>('Router', ['navigateByUrl']);
-    routerSpy.navigateByUrl.and.resolveTo(true);
 
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
       providers: [
-        { provide: AuthService, useValue: authServiceSpy },
-        { provide: Router, useValue: routerSpy }
+        provideRouter([]),
+        { provide: AuthService, useValue: authServiceSpy }
       ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginComponent);
     component = fixture.componentInstance;
+    router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
     fixture.detectChanges();
   });
 
@@ -35,7 +35,7 @@ describe('LoginComponent', () => {
     component.submit();
 
     expect(authServiceSpy.login).toHaveBeenCalledWith({ email: 'test@example.com', password: 'secret123' });
-    expect(routerSpy.navigateByUrl).toHaveBeenCalledWith('/');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/');
     expect(component.errorMessage()).toBeNull();
   });
 

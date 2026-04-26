@@ -10,8 +10,9 @@ DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS ref_age_category;
 DROP TABLE IF EXISTS tournament_categories;
 DROP TABLE IF EXISTS categories;
-DROP TABLE IF EXISTS participant_members;
+DROP TABLE IF EXISTS participant_persons;
 DROP TABLE IF EXISTS participants;
+DROP TABLE IF EXISTS inscriptions;
 DROP TABLE IF EXISTS tournaments;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS persons;
@@ -20,7 +21,7 @@ CREATE TABLE persons (
     id            UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     tennis_id     VARCHAR(50) UNIQUE,
     first_name    VARCHAR(100) NOT NULL,
-    last_name     VARCHAR(100) NOT NULL,
+    last_name     VARCHAR(100),
     nationality   CHAR(3),
     birth_date    DATE,
     gender        VARCHAR(20)
@@ -55,6 +56,7 @@ CREATE TABLE tournaments (
     max_players             INTEGER,
     location                VARCHAR(255),
     state                   VARCHAR(20) DEFAULT 'DRAFT',
+    version                 BIGINT NOT NULL DEFAULT 0,
     created_by              UUID,
     venue                   VARCHAR(255),
     country                 CHAR(3),
@@ -81,7 +83,7 @@ CREATE TABLE participants (
     FOREIGN KEY (person_id) REFERENCES persons(id)
 );
 
-CREATE TABLE participant_members (
+CREATE TABLE participant_persons (
     participant_id  UUID NOT NULL,
     person_id       UUID NOT NULL,
     PRIMARY KEY (participant_id, person_id),
@@ -107,6 +109,21 @@ CREATE TABLE events (
     FOREIGN KEY (tournament_id) REFERENCES tournaments(id),
     FOREIGN KEY (age_category_id) REFERENCES ref_age_category(id)
 );
+
+CREATE TABLE inscriptions (
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    event_id        UUID NOT NULL,
+    participant_id  UUID NOT NULL,
+    status          VARCHAR(20) DEFAULT 'PENDING',
+    payment_status  VARCHAR(20) DEFAULT 'UNPAID',
+    registered_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    FOREIGN KEY (participant_id) REFERENCES participants(id) ON DELETE CASCADE,
+    UNIQUE (event_id, participant_id)
+);
+
+CREATE INDEX idx_inscriptions_event ON inscriptions(event_id);
+CREATE INDEX idx_inscriptions_participant ON inscriptions(participant_id);
 
 CREATE TABLE stages (
     id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
