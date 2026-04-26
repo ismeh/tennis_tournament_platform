@@ -1,7 +1,8 @@
-.env.dev
-.env
-.env.prod
+.env*
+!.env.example
 logs
+
+backend/src/main/resources/*
 
 HELP.md
 target/

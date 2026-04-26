@@ -3,7 +3,7 @@
 Base URL (dev): `http://localhost:8085`
 Base URL (prod): `http://localhost:8080`
 
-Authentication: `Authorization: Bearer <JWT token>` (required on all endpoints except `/api/login`)
+Authentication: `Authorization: Bearer <JWT token>` (required on all endpoints except `/api/auth/login`, `/api/auth/register`, `/api/auth/refresh`, `/api/auth/logout`)
 
 Content-Type: `application/json`
 
@@ -11,7 +11,7 @@ Content-Type: `application/json`
 
 ## Authentication
 
-### POST /api/login
+### POST /api/auth/login
 
 Authenticate a member and receive a JWT token.
 
@@ -28,7 +28,8 @@ Authenticate a member and receive a JWT token.
 **Response — 201 Created**
 ```json
 {
-  "token": "string"
+  "accessToken": "string",
+  "refreshToken": "string"
 }
 ```
 
