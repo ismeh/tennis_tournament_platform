@@ -5,11 +5,17 @@ import com.tfm.tennis_platform.domain.models.enums.ParticipantType;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionCategoryCountResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionEventResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionGenderCountResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionPlayerResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionsResponse;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.EventEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.InscriptionEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MemberEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.ParticipantEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.PersonEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.RefAgeCategoryEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.TournamentEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaEventRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaInscriptionRepository;
@@ -21,8 +27,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -137,6 +147,40 @@ public class InscriptionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public TournamentInscriptionsResponse findByTournament(UUID tournamentId, UUID eventId) {
+        if (!tournamentRepository.existsById(tournamentId)) {
+            throw new IllegalArgumentException("Tournament not found");
+        }
+
+        if (eventId != null) {
+            eventRepository.findByIdAndTournament_Id(eventId, tournamentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Event not found for tournament"));
+        }
+
+        List<EventEntity> tournamentEvents = eventRepository.findAllByTournamentId(tournamentId);
+        List<TournamentInscriptionEventResponse> eventCatalog = tournamentEvents.stream()
+                .map(this::toTournamentEventResponse)
+                .toList();
+
+        Map<Integer, CategoryCounterAccumulator> countersByCategory = initializeCategoryCounters(tournamentEvents, eventId);
+        List<InscriptionEntity> inscriptions = eventId == null
+                ? inscriptionRepository.findDetailedByTournamentId(tournamentId)
+                : inscriptionRepository.findDetailedByTournamentIdAndEventId(tournamentId, eventId);
+
+        List<TournamentInscriptionPlayerResponse> players = inscriptions.stream()
+                .sorted(Comparator.comparing(InscriptionEntity::getRegisteredAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .flatMap(inscription -> toPlayers(inscription).stream())
+                .peek(player -> accumulateCounter(countersByCategory, player))
+                .toList();
+
+        List<TournamentInscriptionCategoryCountResponse> categoryCounts = countersByCategory.values().stream()
+                .map(CategoryCounterAccumulator::toResponse)
+                .toList();
+
+        return new TournamentInscriptionsResponse(tournamentId, eventId, eventCatalog, categoryCounts, players);
+    }
+
     private EventInscriptionResponse toResponse(InscriptionEntity entity) {
         return new EventInscriptionResponse(
                 entity.getId(),
@@ -146,6 +190,160 @@ public class InscriptionService {
                 entity.getPaymentStatus(),
                 entity.getRegisteredAt()
         );
+    }
+
+    private TournamentInscriptionEventResponse toTournamentEventResponse(EventEntity event) {
+        return new TournamentInscriptionEventResponse(
+                event.getId(),
+                event.getAgeCategory() != null ? event.getAgeCategory().getId() : null,
+                getCategoryLabel(event.getAgeCategory()),
+                getEventName(event),
+                normalizeGender(event.getGender())
+        );
+    }
+
+    private List<TournamentInscriptionPlayerResponse> toPlayers(InscriptionEntity inscription) {
+        EventEntity event = inscription.getEvent();
+        ParticipantEntity participant = inscription.getParticipant();
+        List<PersonEntity> people = getVisiblePeople(participant);
+
+        return people.stream()
+                .map(person -> new TournamentInscriptionPlayerResponse(
+                        inscription.getId(),
+                        event != null ? event.getId() : null,
+                        event != null && event.getAgeCategory() != null ? event.getAgeCategory().getId() : null,
+                        event != null ? getCategoryLabel(event.getAgeCategory()) : null,
+                        event != null ? getEventName(event) : null,
+                        event != null ? normalizeGender(event.getGender()) : null,
+                        person.getFirstName(),
+                        person.getLastName(),
+                        normalizeGender(person.getGender())
+                ))
+                .toList();
+    }
+
+    private List<PersonEntity> getVisiblePeople(ParticipantEntity participant) {
+        if (participant == null) {
+            return List.of();
+        }
+
+        if (participant.getParticipantType() == ParticipantType.INDIVIDUAL && participant.getIndividualPerson() != null) {
+            return List.of(participant.getIndividualPerson());
+        }
+
+        if (participant.getMembers() == null || participant.getMembers().isEmpty()) {
+            return List.of();
+        }
+
+        return participant.getMembers();
+    }
+
+    private Map<Integer, CategoryCounterAccumulator> initializeCategoryCounters(List<EventEntity> events, UUID eventId) {
+        Map<Integer, CategoryCounterAccumulator> counters = new LinkedHashMap<>();
+
+        for (EventEntity event : events) {
+            if (eventId != null && !eventId.equals(event.getId())) {
+                continue;
+            }
+
+            RefAgeCategoryEntity ageCategory = event.getAgeCategory();
+            if (ageCategory == null || ageCategory.getId() == null) {
+                continue;
+            }
+
+            counters.putIfAbsent(
+                    ageCategory.getId(),
+                    new CategoryCounterAccumulator(ageCategory.getId(), getCategoryLabel(ageCategory))
+            );
+        }
+
+        return counters;
+    }
+
+    private void accumulateCounter(
+            Map<Integer, CategoryCounterAccumulator> countersByCategory,
+            TournamentInscriptionPlayerResponse player
+    ) {
+        if (player.categoryId() == null) {
+            return;
+        }
+
+        countersByCategory
+                .computeIfAbsent(player.categoryId(), categoryId -> new CategoryCounterAccumulator(categoryId, player.category()))
+                .addPlayer(player.gender());
+    }
+
+    private String getCategoryLabel(RefAgeCategoryEntity ageCategory) {
+        return ageCategory != null ? ageCategory.getCategory() : null;
+    }
+
+    private String getEventName(EventEntity event) {
+        if (event == null) {
+            return null;
+        }
+
+        if (!isBlank(event.getName())) {
+            return event.getName();
+        }
+
+        String category = getCategoryLabel(event.getAgeCategory());
+        String gender = toGenderLabel(event.getGender());
+        if (category == null) {
+            return gender;
+        }
+        if (gender == null) {
+            return category;
+        }
+
+        return category + " - " + gender;
+    }
+
+    private String normalizeGender(String gender) {
+        if (isBlank(gender)) {
+            return "UNKNOWN";
+        }
+
+        return gender.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String toGenderLabel(String gender) {
+        return switch (normalizeGender(gender)) {
+            case "MALE" -> "Masculino";
+            case "FEMALE" -> "Femenino";
+            case "MIXED" -> "Mixto";
+            default -> null;
+        };
+    }
+
+    private static final class CategoryCounterAccumulator {
+        private final Integer categoryId;
+        private final String category;
+        private long totalPlayers;
+        private final Map<String, Long> totalsByGender = new LinkedHashMap<>();
+
+        private CategoryCounterAccumulator(Integer categoryId, String category) {
+            this.categoryId = categoryId;
+            this.category = category;
+            this.totalsByGender.put("MALE", 0L);
+            this.totalsByGender.put("FEMALE", 0L);
+            this.totalsByGender.put("MIXED", 0L);
+            this.totalsByGender.put("UNKNOWN", 0L);
+        }
+
+        private void addPlayer(String gender) {
+            String normalizedGender = gender == null ? "UNKNOWN" : gender;
+            this.totalPlayers += 1;
+            this.totalsByGender.compute(normalizedGender, (key, current) -> current == null ? 1L : current + 1L);
+        }
+
+        private TournamentInscriptionCategoryCountResponse toResponse() {
+            List<TournamentInscriptionGenderCountResponse> genders = new ArrayList<>();
+            this.totalsByGender.forEach((gender, totalPlayersByGender) ->
+                    genders.add(new TournamentInscriptionGenderCountResponse(gender, totalPlayersByGender))
+            );
+
+            return new TournamentInscriptionCategoryCountResponse(categoryId, category, totalPlayers, genders);
+        }
     }
 
     private void validateProfileComplete(MemberEntity member) {

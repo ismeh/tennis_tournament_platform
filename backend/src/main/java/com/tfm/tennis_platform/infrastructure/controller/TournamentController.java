@@ -9,6 +9,7 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionRes
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionsResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentStatusUpdateRequest;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.TournamentWebMapper;
 import lombok.RequiredArgsConstructor;
@@ -89,5 +90,13 @@ public class TournamentController {
             @PathVariable UUID eventId
     ) {
         return ResponseEntity.ok(inscriptionService.findByEvent(tournamentId, eventId));
+    }
+
+    @GetMapping("/{tournamentId}/inscriptions")
+    public ResponseEntity<TournamentInscriptionsResponse> getTournamentInscriptions(
+            @PathVariable UUID tournamentId,
+            @RequestParam(required = false) UUID eventId
+    ) {
+        return ResponseEntity.ok(inscriptionService.findByTournament(tournamentId, eventId));
     }
 }

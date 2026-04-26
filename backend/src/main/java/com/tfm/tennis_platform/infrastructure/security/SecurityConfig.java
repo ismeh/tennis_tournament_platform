@@ -40,6 +40,7 @@ public class SecurityConfig {
                 // Needed for CORS preflight requests (OPTIONS) to succeed.
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/tournaments/*/inscriptions").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
