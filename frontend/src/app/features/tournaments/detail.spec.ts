@@ -21,7 +21,7 @@ describe('TournamentDetailComponent', () => {
       'requestInscription',
       'updateTournamentStatus'
     ]);
-    memberServiceSpy = jasmine.createSpyObj<MemberService>('MemberService', ['getMemberByEmail']);
+    memberServiceSpy = jasmine.createSpyObj<MemberService>('MemberService', ['getMemberByEmail', 'getMyProfile']);
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUserEmail']);
 
     tournamentServiceSpy.getEventCatalog.and.returnValue(of([
@@ -50,10 +50,12 @@ describe('TournamentDetailComponent', () => {
       providerOrganisationId: 'member-id',
       events: [
         {
+          eventId: 'event-1',
           categoryId: 1,
           gender: 'MALE'
         },
         {
+          eventId: 'event-2',
           categoryId: 1,
           gender: 'MIXED'
         }
@@ -74,10 +76,12 @@ describe('TournamentDetailComponent', () => {
       providerOrganisationId: 'member-id',
       events: [
         {
+          eventId: 'event-1',
           categoryId: 1,
           gender: 'MALE'
         },
         {
+          eventId: 'event-2',
           categoryId: 1,
           gender: 'MIXED'
         }
@@ -92,6 +96,19 @@ describe('TournamentDetailComponent', () => {
       gender: 'MALE',
       tier: 'PRO',
       registeredAt: '2025-01-01T00:00:00Z'
+    }));
+    memberServiceSpy.getMyProfile.and.returnValue(of({
+      memberId: 'member-id',
+      email: 'organizer@example.com',
+      tier: 'ADVANCED',
+      registeredAt: '2025-01-01T00:00:00Z',
+      personId: 'person-id',
+      firstName: 'Organizer',
+      lastName: 'User',
+      gender: 'MALE',
+      birthDate: '1990-01-01',
+      nationality: 'ESP',
+      federationLicense: 'LIC-01'
     }));
 
     await TestBed.configureTestingModule({
@@ -145,6 +162,7 @@ describe('TournamentDetailComponent', () => {
   });
 
   it('should save selected tournament events', () => {
+    component.clearSelectedEvents();
     component.toggleCatalogEvent(
       { id: 2, category: 'Absoluto Dobles Mixto', description: 'Dobles mixto open' },
       true
@@ -165,6 +183,7 @@ describe('TournamentDetailComponent', () => {
   });
 
   it('should show validation error when saving with no selected events', () => {
+    component.clearSelectedEvents();
     component.saveTournamentEvents();
 
     expect(tournamentServiceSpy.saveTournamentEvents).not.toHaveBeenCalled();
@@ -172,6 +191,7 @@ describe('TournamentDetailComponent', () => {
   });
 
   it('should require at least one gender per selected event before saving', () => {
+    component.clearSelectedEvents();
     component.toggleCatalogEvent(
       { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open' },
       true

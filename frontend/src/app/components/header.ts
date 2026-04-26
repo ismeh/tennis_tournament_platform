@@ -51,6 +51,12 @@ import { AppSettings } from '../shared/constants';
                   {{ getUserInitial(displayName$ | async) }}
                 </div>
                 <span class="text-sm font-medium text-neutral-700">Hi {{ (displayName$ | async) ?? 'Player' }}</span>
+                <a
+                  routerLink="/perfil"
+                  class="px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                >
+                  Mi perfil
+                </a>
                 <button
                   type="button"
                   (click)="onLogout()"
