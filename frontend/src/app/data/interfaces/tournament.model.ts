@@ -92,6 +92,46 @@ export interface EventInscriptionResponse {
   registeredAt: string;
 }
 
+export interface TournamentInscriptionsResponse {
+  tournamentId: string;
+  selectedEventId?: string | null;
+  events: TournamentInscriptionEvent[];
+  categoryCounts: TournamentInscriptionCategoryCount[];
+  inscriptions: TournamentInscriptionPlayer[];
+}
+
+export interface TournamentInscriptionEvent {
+  eventId: string;
+  categoryId: number;
+  category: string;
+  eventName: string;
+  eventGender: string;
+}
+
+export interface TournamentInscriptionCategoryCount {
+  categoryId: number;
+  category: string;
+  totalPlayers: number;
+  genders: TournamentInscriptionGenderCount[];
+}
+
+export interface TournamentInscriptionGenderCount {
+  gender: string;
+  totalPlayers: number;
+}
+
+export interface TournamentInscriptionPlayer {
+  inscriptionId: string;
+  eventId: string;
+  categoryId: number;
+  category: string;
+  eventName: string;
+  eventGender: string;
+  firstName: string;
+  lastName: string;
+  gender: string;
+}
+
 export interface TournamentStatusUpdateRequest {
   status: TournamentStatus;
 }

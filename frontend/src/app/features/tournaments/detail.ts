@@ -3,6 +3,9 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import {
+  TournamentInscriptionCategoryCount,
+  TournamentInscriptionEvent,
+  TournamentInscriptionsResponse,
   TournamentEventCategoryGender,
   TournamentEventCatalogItem,
   TournamentEventGender,
@@ -17,7 +20,7 @@ import {
 import { MemberService } from '../../data/services/member.service';
 import { TournamentService } from '../../data/services/tournament.service';
 
-type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions';
+type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'registeredPlayers';
 
 @Component({
   selector: 'app-tournament-detail-page',
@@ -73,6 +76,14 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions';
                   [class]="activeSection() === 'inscriptions' ? 'rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary-700 shadow-sm' : 'rounded-xl px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-white/70'"
                 >
                   Inscripciones
+                </button>
+
+                <button
+                  type="button"
+                  (click)="setActiveSection('registeredPlayers')"
+                  [class]="activeSection() === 'registeredPlayers' ? 'rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary-700 shadow-sm' : 'rounded-xl px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-white/70'"
+                >
+                  Jugadores inscritos
                 </button>
               </div>
             </div>
@@ -359,6 +370,95 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions';
               }
             </section>
           }
+
+          @if (activeSection() === 'registeredPlayers') {
+            <section class="mt-6 rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 class="text-xl font-bold text-neutral-900">Jugadores inscritos</h2>
+                  <p class="mt-2 text-neutral-600">Consulta los inscritos del torneo, filtra por evento y revisa los contadores por categoria y genero.</p>
+                </div>
+
+                <label class="block min-w-72">
+                  <span class="mb-1 block text-sm font-medium text-neutral-700">Filtrar por evento</span>
+                  <select
+                    class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                    [disabled]="isLoadingTournamentInscriptions()"
+                    [value]="selectedTournamentInscriptionEventId() ?? ''"
+                    (change)="onTournamentInscriptionEventChange($any($event.target).value)"
+                  >
+                    <option value="">Todos los eventos</option>
+                    @for (event of tournamentInscriptionEvents(); track event.eventId) {
+                      <option [value]="event.eventId">{{ event.eventName }}</option>
+                    }
+                  </select>
+                </label>
+              </div>
+
+              @if (isLoadingTournamentInscriptions()) {
+                <div class="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                  Cargando jugadores inscritos...
+                </div>
+              } @else if (tournamentInscriptionsError()) {
+                <div class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {{ tournamentInscriptionsError() }}
+                </div>
+              } @else {
+                <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  @for (counter of tournamentInscriptionCategoryCounts(); track counter.categoryId) {
+                    <article class="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                      <div class="flex items-start justify-between gap-3">
+                        <div>
+                          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Categoria</p>
+                          <h3 class="mt-2 text-lg font-bold text-neutral-900">{{ counter.category }}</h3>
+                        </div>
+                        <div class="rounded-2xl bg-white px-3 py-2 text-right shadow-sm">
+                          <p class="text-xs uppercase tracking-widest text-neutral-500">Total</p>
+                          <p class="text-2xl font-black text-neutral-900">{{ counter.totalPlayers }}</p>
+                        </div>
+                      </div>
+
+                      <div class="mt-4 flex flex-wrap gap-2">
+                        @for (genderCount of counter.genders; track genderCount.gender) {
+                          <span class="inline-flex rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700">
+                            {{ getInscriptionGenderLabel(genderCount.gender) }}: {{ genderCount.totalPlayers }}
+                          </span>
+                        }
+                      </div>
+                    </article>
+                  }
+                </div>
+
+                @if (!hasTournamentInscriptionsResults()) {
+                  <div class="mt-5 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-sm text-neutral-600">
+                    No hay jugadores inscritos para el filtro seleccionado.
+                  </div>
+                } @else {
+                  <div class="mt-6 overflow-hidden rounded-3xl border border-neutral-200">
+                    <div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                      <span>Nombre y apellidos</span>
+                      <span>Evento / categoria</span>
+                    </div>
+
+                    <div class="divide-y divide-neutral-200 bg-white">
+                      @for (player of tournamentInscriptionPlayers(); track player.inscriptionId + player.firstName + player.lastName) {
+                        <div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 px-5 py-4 text-sm text-neutral-700">
+                          <div>
+                            <p class="font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
+                            <p class="mt-1 text-xs text-neutral-500">{{ getInscriptionGenderLabel(player.gender) }}</p>
+                          </div>
+                          <div>
+                            <p class="font-medium text-neutral-900">{{ player.eventName }}</p>
+                            <p class="mt-1 text-xs text-neutral-500">{{ player.category }}</p>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              }
+            </section>
+          }
         }
       </div>
     </section>
@@ -391,6 +491,10 @@ export class TournamentDetailComponent implements OnInit {
   readonly isProfileComplete = signal(false);
   readonly selectedInscriptionCategoryId = signal<number | null>(null);
   readonly selectedInscriptionGender = signal<TournamentEventGender | null>(null);
+  readonly tournamentInscriptions = signal<TournamentInscriptionsResponse | null>(null);
+  readonly isLoadingTournamentInscriptions = signal(false);
+  readonly tournamentInscriptionsError = signal<string | null>(null);
+  readonly selectedTournamentInscriptionEventId = signal<string | null>(null);
 
   readonly isCreator = computed(() => {
     const tournament = this.tournament();
@@ -480,6 +584,16 @@ export class TournamentDetailComponent implements OnInit {
     return transitionsByStatus[currentTournament.status] ?? [];
   });
 
+  readonly tournamentInscriptionEvents = computed<TournamentInscriptionEvent[]>(() => this.tournamentInscriptions()?.events ?? []);
+
+  readonly tournamentInscriptionCategoryCounts = computed<TournamentInscriptionCategoryCount[]>(() =>
+    this.tournamentInscriptions()?.categoryCounts ?? []
+  );
+
+  readonly tournamentInscriptionPlayers = computed(() => this.tournamentInscriptions()?.inscriptions ?? []);
+
+  readonly hasTournamentInscriptionsResults = computed(() => this.tournamentInscriptionPlayers().length > 0);
+
   readonly getSurfaceLabel = getTournamentSurfaceCategoryLabel;
   readonly getGenderLabel = getTournamentEventGenderLabel;
 
@@ -503,6 +617,10 @@ export class TournamentDetailComponent implements OnInit {
     this.activeSection.set(section);
     this.actionMessage.set(null);
     this.actionError.set(null);
+
+    if (section === 'registeredPlayers' && !this.tournamentInscriptions() && !this.isLoadingTournamentInscriptions()) {
+      this.loadTournamentInscriptions();
+    }
   }
 
   toggleCatalogEvent(catalogEvent: TournamentEventCatalogItem, checked: boolean): void {
@@ -704,6 +822,11 @@ export class TournamentDetailComponent implements OnInit {
     this.selectedInscriptionGender.set(rawGender as TournamentEventGender);
   }
 
+  onTournamentInscriptionEventChange(eventId: string): void {
+    this.selectedTournamentInscriptionEventId.set(eventId || null);
+    this.loadTournamentInscriptions();
+  }
+
   private loadTournament(tournamentId: string): void {
     this.isLoading.set(true);
     this.errorMessage.set(null);
@@ -714,6 +837,7 @@ export class TournamentDetailComponent implements OnInit {
         this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
         this.initializeInscriptionSelection();
         this.selectedStatus.set(this.getDefaultStatusSelection(tournament.status));
+        this.loadTournamentInscriptions();
         this.isLoading.set(false);
         this.activeSection.set(this.isCreator() ? 'setup' : 'overview');
       },
@@ -826,5 +950,43 @@ export class TournamentDetailComponent implements OnInit {
 
     this.selectedInscriptionCategoryId.set(firstCategory.categoryId);
     this.selectedInscriptionGender.set(firstCategory.genders[0] ?? null);
+  }
+
+  private loadTournamentInscriptions(): void {
+    const currentTournament = this.tournament();
+    if (!currentTournament) {
+      return;
+    }
+
+    this.isLoadingTournamentInscriptions.set(true);
+    this.tournamentInscriptionsError.set(null);
+
+    this.tournamentService
+      .getTournamentInscriptions(currentTournament.id, this.selectedTournamentInscriptionEventId() ?? undefined)
+      .subscribe({
+        next: response => {
+          this.tournamentInscriptions.set(response);
+          this.isLoadingTournamentInscriptions.set(false);
+        },
+        error: () => {
+          this.tournamentInscriptions.set(null);
+          this.tournamentInscriptionsError.set('No se pudo cargar el listado de jugadores inscritos.');
+          this.isLoadingTournamentInscriptions.set(false);
+        }
+      });
+  }
+
+  protected getInscriptionGenderLabel(gender: string): string {
+    const normalizedGender = gender?.toUpperCase();
+
+    if (normalizedGender === 'UNKNOWN') {
+      return 'Sin especificar';
+    }
+
+    if (normalizedGender === 'MALE' || normalizedGender === 'FEMALE' || normalizedGender === 'MIXED') {
+      return this.getGenderLabel(normalizedGender);
+    }
+
+    return gender;
   }
 }
