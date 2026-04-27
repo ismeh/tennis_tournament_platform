@@ -19,7 +19,8 @@ describe('TournamentDetailComponent', () => {
       'getEventCatalog',
       'saveTournamentEvents',
       'requestInscription',
-      'updateTournamentStatus'
+      'updateTournamentStatus',
+      'getTournamentInscriptions'
     ]);
     memberServiceSpy = jasmine.createSpyObj<MemberService>('MemberService', ['getMemberByEmail', 'getMyProfile']);
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUserEmail']);
@@ -62,6 +63,56 @@ describe('TournamentDetailComponent', () => {
       ]
     }));
     tournamentServiceSpy.saveTournamentEvents.and.returnValue(of(void 0));
+    tournamentServiceSpy.getTournamentInscriptions.and.returnValue(of({
+      tournamentId: 'tournament-id',
+      selectedEventId: null,
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          category: 'Absoluto',
+          eventName: 'Absoluto - Masculino',
+          eventGender: 'MALE'
+        },
+        {
+          eventId: 'event-2',
+          categoryId: 1,
+          category: 'Absoluto',
+          eventName: 'Absoluto - Mixto',
+          eventGender: 'MIXED'
+        }
+      ],
+      categoryCounts: [
+        {
+          categoryId: 1,
+          category: 'Absoluto',
+          totalPlayers: 3,
+          genders: [
+            {
+              gender: 'MALE',
+              totalPlayers: 2
+            },
+            {
+              gender: 'FEMALE',
+              totalPlayers: 1
+            }
+          ]
+        }
+      ],
+      inscriptions: [
+        {
+          inscriptionId: 'inscription-1',
+          eventId: 'event-1',
+          categoryId: 1,
+          category: 'Absoluto',
+          eventName: 'Absoluto - Masculino',
+          eventGender: 'MALE',
+          firstName: 'Carlos',
+          lastName: 'Lopez',
+          gender: 'MALE'
+        }
+      ]
+    }));
     tournamentServiceSpy.updateTournamentStatus.and.returnValue(of({
       id: 'tournament-id',
       formalName: 'Open de Primavera',
@@ -142,6 +193,7 @@ describe('TournamentDetailComponent', () => {
     expect(component.selectedEvents()[0].genders).toEqual(['MALE', 'MIXED']);
     expect(component.isLoading()).toBeFalse();
     expect(component.isLoadingEvents()).toBeFalse();
+    expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledWith('tournament-id', undefined);
   });
 
   it('should add and remove events using checkbox toggle', () => {
@@ -234,5 +286,18 @@ describe('TournamentDetailComponent', () => {
     component.ngOnInit();
 
     expect(component.isCreator()).toBeTrue();
+  });
+
+  it('should render the registered players section and apply the event filter', () => {
+    component.setActiveSection('registeredPlayers');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Jugadores inscritos');
+    expect(fixture.nativeElement.textContent).toContain('Carlos Lopez');
+
+    tournamentServiceSpy.getTournamentInscriptions.calls.reset();
+    component.onTournamentInscriptionEventChange('event-1');
+
+    expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledWith('tournament-id', 'event-1');
   });
 });

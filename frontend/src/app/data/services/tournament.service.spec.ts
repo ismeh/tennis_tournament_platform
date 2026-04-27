@@ -117,4 +117,54 @@ describe('TournamentService', () => {
       events: []
     });
   });
+
+  it('should get tournament inscriptions with optional event filter', () => {
+    service.getTournamentInscriptions('tournament-id', 'event-1').subscribe(response => {
+      expect(response.selectedEventId).toBe('event-1');
+      expect(response.inscriptions.length).toBe(1);
+    });
+
+    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/inscriptions?eventId=event-1`);
+    expect(request.request.method).toBe('GET');
+
+    request.flush({
+      tournamentId: 'tournament-id',
+      selectedEventId: 'event-1',
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          category: 'Absoluto',
+          eventName: 'Absoluto - Masculino',
+          eventGender: 'MALE'
+        }
+      ],
+      categoryCounts: [
+        {
+          categoryId: 1,
+          category: 'Absoluto',
+          totalPlayers: 1,
+          genders: [
+            {
+              gender: 'MALE',
+              totalPlayers: 1
+            }
+          ]
+        }
+      ],
+      inscriptions: [
+        {
+          inscriptionId: 'inscription-1',
+          eventId: 'event-1',
+          categoryId: 1,
+          category: 'Absoluto',
+          eventName: 'Absoluto - Masculino',
+          eventGender: 'MALE',
+          firstName: 'Carlos',
+          lastName: 'Lopez',
+          gender: 'MALE'
+        }
+      ]
+    });
+  });
 });
