@@ -1,9 +1,9 @@
 package com.tfm.tennis_platform.application.service;
 
+import com.tfm.tennis_platform.application.dto.EventCommand;
 import com.tfm.tennis_platform.domain.models.Event;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
-import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,15 +17,15 @@ public class EventService {
     private final TournamentRepository tournamentRepository;
 
     @Transactional
-    public Tournament addEventsToTournament(UUID tournamentId, EventRequest eventRequest) {
+    public Tournament addEventsToTournament(UUID tournamentId, EventCommand eventCommand) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
 
-        List<Event> events = eventRequest.getEvents().stream()
+        List<Event> events = eventCommand.events().stream()
                 .map(event -> Event.builder()
                         .tournamentId(tournamentId)
-                        .categoryId(event.getCategoryId())
-                        .gender(event.getGender())
+                        .categoryId(event.categoryId())
+                        .gender(event.gender())
                         .build())
                 .toList();
 
