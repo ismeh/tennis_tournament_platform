@@ -1,4 +1,4 @@
-package com.tfm.tennis_platform.application.service;
+package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.application.dto.AgeCategoryOutput;
 import com.tfm.tennis_platform.domain.port.out.AgeCategoryRefRepository;

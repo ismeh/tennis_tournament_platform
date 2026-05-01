@@ -1,4 +1,4 @@
-package com.tfm.tennis_platform.application.service;
+package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.application.dto.EventCommand;
 import com.tfm.tennis_platform.domain.models.Event;
