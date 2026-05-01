@@ -9,6 +9,9 @@ public record TournamentInscriptionPlayerResponse(
         String category,
         String eventName,
         String eventGender,
+        UUID personId,
+        String playerSource,
+        String tennisId,
         String firstName,
         String lastName,
         String gender
