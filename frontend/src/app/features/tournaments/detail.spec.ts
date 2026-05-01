@@ -1,7 +1,8 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
+import { PersonService } from '../../data/services/person.service';
 import { MemberService } from '../../data/services/member.service';
 import { TournamentService } from '../../data/services/tournament.service';
 import { TournamentDetailComponent } from './detail';
@@ -12,6 +13,7 @@ describe('TournamentDetailComponent', () => {
   let tournamentServiceSpy: jasmine.SpyObj<TournamentService>;
   let memberServiceSpy: jasmine.SpyObj<MemberService>;
   let authServiceSpy: jasmine.SpyObj<AuthService>;
+  let personServiceSpy: jasmine.SpyObj<PersonService>;
 
   beforeEach(async () => {
     tournamentServiceSpy = jasmine.createSpyObj<TournamentService>('TournamentService', [
@@ -19,11 +21,13 @@ describe('TournamentDetailComponent', () => {
       'getEventCatalog',
       'saveTournamentEvents',
       'requestInscription',
+      'addManualInscription',
       'updateTournamentStatus',
       'getTournamentInscriptions'
     ]);
     memberServiceSpy = jasmine.createSpyObj<MemberService>('MemberService', ['getMemberByEmail', 'getMyProfile']);
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUserEmail']);
+    personServiceSpy = jasmine.createSpyObj<PersonService>('PersonService', ['searchPersons']);
 
     tournamentServiceSpy.getEventCatalog.and.returnValue(of([
       {
@@ -63,6 +67,18 @@ describe('TournamentDetailComponent', () => {
       ]
     }));
     tournamentServiceSpy.saveTournamentEvents.and.returnValue(of(void 0));
+    tournamentServiceSpy.addManualInscription.and.returnValue(of({
+      id: 'inscription-created',
+      tournamentId: 'tournament-id',
+      eventId: 'event-1',
+      categoryId: 1,
+      memberId: 'person-2',
+      participantId: 'participant-id',
+      partnerId: null,
+      status: 'PENDING',
+      paymentStatus: 'UNPAID',
+      registeredAt: '2026-04-29T00:00:00Z'
+    }));
     tournamentServiceSpy.getTournamentInscriptions.and.returnValue(of({
       tournamentId: 'tournament-id',
       selectedEventId: null,
@@ -140,6 +156,17 @@ describe('TournamentDetailComponent', () => {
     }));
 
     authServiceSpy.getCurrentUserEmail.and.returnValue('organizer@example.com');
+    personServiceSpy.searchPersons.and.returnValue(of([
+      {
+        id: 'person-2',
+        tennisId: 'LIC-02',
+        firstName: 'Roger',
+        lastName: 'Federer',
+        nationality: 'SUI',
+        birthDate: '1981-08-08',
+        gender: 'MALE'
+      }
+    ]));
     memberServiceSpy.getMemberByEmail.and.returnValue(of({
       id: 'member-id',
       email: 'organizer@example.com',
@@ -168,6 +195,7 @@ describe('TournamentDetailComponent', () => {
         { provide: TournamentService, useValue: tournamentServiceSpy },
         { provide: MemberService, useValue: memberServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
+        { provide: PersonService, useValue: personServiceSpy },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -300,4 +328,54 @@ describe('TournamentDetailComponent', () => {
 
     expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledWith('tournament-id', 'event-1');
   });
+
+  it('should keep manual event selection based on tournament events when inscriptions are empty', () => {
+    tournamentServiceSpy.getTournamentInscriptions.and.returnValue(of({
+      tournamentId: 'tournament-id',
+      selectedEventId: null,
+      events: [],
+      categoryCounts: [],
+      inscriptions: []
+    }));
+
+    (component as any).loadTournamentInscriptions();
+
+    expect(component.manualPlayerEventId()).toBe('event-1');
+    expect(component.manualPlayerEventOptions().length).toBe(2);
+  });
+
+  it('should search existing persons and add a manual inscription', () => {
+    component.setActiveSection('inscriptions');
+    component.onManualPlayerSourceChange('EXISTING_PERSON');
+    component.manualPlayerSearchQuery.set('Roger');
+
+    component.searchExistingPersons();
+
+    expect(personServiceSpy.searchPersons).toHaveBeenCalledWith('Roger');
+    expect(component.manualPlayerSearchResults().length).toBe(1);
+
+    component.selectExistingPerson(component.manualPlayerSearchResults()[0]);
+    component.manualPlayerEventId.set('event-1');
+    component.submitManualPlayer();
+
+    expect(tournamentServiceSpy.addManualInscription).toHaveBeenCalledWith('tournament-id', 'event-1', {
+      playerSource: 'EXISTING_PERSON',
+      personId: 'person-2'
+    });
+    expect(component.manualPlayerSuccess()).toContain('Jugador añadido');
+  });
+
+  it('should debounce the existing-player search while typing', fakeAsync(() => {
+    component.onManualPlayerSourceChange('EXISTING_PERSON');
+
+    component.onManualPlayerSearchQueryChange('Ro');
+    tick(299);
+
+    expect(personServiceSpy.searchPersons).not.toHaveBeenCalled();
+
+    tick(1);
+
+    expect(personServiceSpy.searchPersons).toHaveBeenCalledWith('Ro');
+    expect(component.manualPlayerSearchResults().length).toBe(1);
+  }));
 });

@@ -1,7 +1,7 @@
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { TournamentEventsConfigRequest } from '../interfaces/tournament.model';
+import { ManualEventInscriptionRequest, TournamentEventsConfigRequest } from '../interfaces/tournament.model';
 import { TournamentService } from './tournament.service';
 import { AppSettings } from '../../shared/constants';
 
@@ -165,6 +165,39 @@ describe('TournamentService', () => {
           gender: 'MALE'
         }
       ]
+    });
+  });
+
+  it('should post a manual inscription to the dedicated endpoint', () => {
+    const payload: ManualEventInscriptionRequest = {
+      playerSource: 'MANUAL',
+      firstName: 'Lucia',
+      lastName: 'Perez',
+      gender: 'FEMALE',
+      birthDate: '1998-03-05',
+      nationality: 'ESP',
+      tennisId: 'LIC-77'
+    };
+
+    service.addManualInscription('tournament-id', 'event-1', payload).subscribe(response => {
+      expect(response.id).toBe('inscription-created');
+    });
+
+    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/events/event-1/manual-inscriptions`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(payload);
+
+    request.flush({
+      id: 'inscription-created',
+      tournamentId: 'tournament-id',
+      eventId: 'event-1',
+      categoryId: 1,
+      memberId: 'person-2',
+      participantId: 'participant-id',
+      partnerId: null,
+      status: 'PENDING',
+      paymentStatus: 'UNPAID',
+      registeredAt: '2026-04-29T00:00:00Z'
     });
   });
 });

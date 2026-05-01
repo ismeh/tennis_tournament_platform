@@ -5,6 +5,7 @@ import { AppSettings } from '../../shared/constants';
 import {
   EventInscriptionRequest,
   EventInscriptionResponse,
+  ManualEventInscriptionRequest,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
   TournamentEventsConfigRequest,
@@ -47,6 +48,10 @@ export class TournamentService {
 
   requestInscription(tournamentId: string, eventId: string, payload: EventInscriptionRequest): Observable<EventInscriptionResponse> {
     return this.http.post<EventInscriptionResponse>(`${this.apiUrl}/${tournamentId}/events/${eventId}/inscriptions`, payload);
+  }
+
+  addManualInscription(tournamentId: string, eventId: string, payload: ManualEventInscriptionRequest): Observable<EventInscriptionResponse> {
+    return this.http.post<EventInscriptionResponse>(`${this.apiUrl}/${tournamentId}/events/${eventId}/manual-inscriptions`, payload);
   }
 
   getTournamentInscriptions(tournamentId: string, eventId?: string): Observable<TournamentInscriptionsResponse> {

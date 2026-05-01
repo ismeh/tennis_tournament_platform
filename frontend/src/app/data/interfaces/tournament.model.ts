@@ -82,6 +82,19 @@ export interface EventInscriptionRequest {
   partnerId?: string | null;
 }
 
+export type ManualParticipantSource = 'EXISTING_PERSON' | 'MANUAL' | 'PROFESSIONAL';
+
+export interface ManualEventInscriptionRequest {
+  playerSource: ManualParticipantSource;
+  personId?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  gender?: string | null;
+  birthDate?: string | null;
+  nationality?: string | null;
+  tennisId?: string | null;
+}
+
 export interface EventInscriptionResponse {
   id: string;
   tournamentId: string;
@@ -127,6 +140,9 @@ export interface TournamentInscriptionPlayer {
   category: string;
   eventName: string;
   eventGender: string;
+  personId?: string | null;
+  playerSource?: string | null;
+  tennisId?: string | null;
   firstName: string;
   lastName: string;
   gender: string;
