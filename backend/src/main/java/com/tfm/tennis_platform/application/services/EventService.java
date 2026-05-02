@@ -15,6 +15,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class EventService {
     private final TournamentRepository tournamentRepository;
+    private final StageGenerationService stageGenerationService;
 
     @Transactional
     public Tournament addEventsToTournament(UUID tournamentId, EventCommand eventCommand) {
@@ -22,11 +23,25 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
 
         List<Event> events = eventCommand.events().stream()
-                .map(event -> Event.builder()
-                        .tournamentId(tournamentId)
-                        .categoryId(event.categoryId())
-                        .gender(event.gender())
-                        .build())
+                .map(event -> {
+                    var eventBuilder = Event.builder()
+                            .tournamentId(tournamentId)
+                            .categoryId(event.categoryId())
+                            .gender(event.gender());
+                    
+                    var stages = stageGenerationService.generateStagesForEvent(
+                        "Event_" + event.categoryId() + "_" + event.gender(),
+                        event.categoryId(),
+                        event.gender(),
+                        null
+                    );
+                    
+                    return stages.stream()
+                            .reduce(eventBuilder,
+                                (builder, stage) -> builder.stage(stage),
+                                (builder1, builder2) -> builder1)
+                            .build();
+                })
                 .toList();
 
         Tournament tournamentWithNewEvents = tournament.addEvent(events);

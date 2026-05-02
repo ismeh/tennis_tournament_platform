@@ -1,5 +1,6 @@
 package com.tfm.tennis_platform.application.service;
 
+import com.tfm.tennis_platform.application.services.EventService;
 import com.tfm.tennis_platform.domain.models.Event;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
