@@ -1,5 +1,6 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
+import com.tfm.tennis_platform.application.dto.CompleteProfileCommand;
 import com.tfm.tennis_platform.application.services.AuthService;
 import com.tfm.tennis_platform.infrastructure.controller.dto.LoginRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.LoginResponse;
@@ -67,7 +68,15 @@ public class LoginController {
 
     @PutMapping("/api/auth/profile")
     public ResponseEntity<ProfileResponse> completeProfile(Principal principal, @RequestBody ProfileRequest request) {
-        AuthService.UserProfile profile = authService.completeProfile(principal.getName(), request);
+        CompleteProfileCommand command = new CompleteProfileCommand(
+                request.firstName(),
+                request.lastName(),
+                request.gender(),
+                request.birthDate(),
+                request.nationality(),
+                request.federationLicense()
+        );
+        AuthService.UserProfile profile = authService.completeProfile(principal.getName(), command);
         return ResponseEntity.ok(toProfileResponse(profile));
     }
 

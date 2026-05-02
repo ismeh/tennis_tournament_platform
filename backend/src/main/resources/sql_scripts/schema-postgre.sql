@@ -64,6 +64,13 @@ CREATE TABLE participants (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tournament_id    UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
     person_id        UUID REFERENCES persons(id),   -- NULL if participant is a pair/team
+    participant_source VARCHAR(30),
+    display_first_name VARCHAR(100),
+    display_last_name VARCHAR(100),
+    display_gender   VARCHAR(20),
+    display_birth_date DATE,
+    display_nationality VARCHAR(50),
+    display_tennis_id VARCHAR(50),
     participant_type VARCHAR(20) NOT NULL,          -- INDIVIDUAL / PAIR / TEAM
     entry_status     VARCHAR(30),                   -- DIRECT_ACCEPTANCE / WILDCARD / QUALIFIER / LUCKY_LOSER
     seed             INTEGER

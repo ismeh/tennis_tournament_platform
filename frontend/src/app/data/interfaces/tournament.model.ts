@@ -82,6 +82,19 @@ export interface EventInscriptionRequest {
   partnerId?: string | null;
 }
 
+export type ManualParticipantSource = 'EXISTING_PERSON' | 'MANUAL' | 'PROFESSIONAL';
+
+export interface ManualEventInscriptionRequest {
+  playerSource: ManualParticipantSource;
+  personId?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  gender?: string | null;
+  birthDate?: string | null;
+  nationality?: string | null;
+  tennisId?: string | null;
+}
+
 export interface EventInscriptionResponse {
   id: string;
   tournamentId: string;
@@ -90,6 +103,49 @@ export interface EventInscriptionResponse {
   memberId: string;
   partnerId?: string | null;
   registeredAt: string;
+}
+
+export interface TournamentInscriptionsResponse {
+  tournamentId: string;
+  selectedEventId?: string | null;
+  events: TournamentInscriptionEvent[];
+  categoryCounts: TournamentInscriptionCategoryCount[];
+  inscriptions: TournamentInscriptionPlayer[];
+}
+
+export interface TournamentInscriptionEvent {
+  eventId: string;
+  categoryId: number;
+  category: string;
+  eventName: string;
+  eventGender: string;
+}
+
+export interface TournamentInscriptionCategoryCount {
+  categoryId: number;
+  category: string;
+  totalPlayers: number;
+  genders: TournamentInscriptionGenderCount[];
+}
+
+export interface TournamentInscriptionGenderCount {
+  gender: string;
+  totalPlayers: number;
+}
+
+export interface TournamentInscriptionPlayer {
+  inscriptionId: string;
+  eventId: string;
+  categoryId: number;
+  category: string;
+  eventName: string;
+  eventGender: string;
+  personId?: string | null;
+  playerSource?: string | null;
+  tennisId?: string | null;
+  firstName: string;
+  lastName: string;
+  gender: string;
 }
 
 export interface TournamentStatusUpdateRequest {

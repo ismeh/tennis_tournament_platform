@@ -8,6 +8,7 @@ import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaPersonRe
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,5 +29,21 @@ public class PersonRepositoryAdapter implements PersonRepository {
     @Override
     public Optional<Person> findById(UUID id) {
         return jpaPersonRepository.findById(id).map(personMapper::toDomain);
+    }
+
+    @Override
+    public List<Person> findTop20() {
+        return jpaPersonRepository.findTop20ByOrderByFirstNameAscLastNameAsc()
+                .stream()
+                .map(personMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Person> searchByQuery(String query) {
+        return jpaPersonRepository.searchByQuery(query)
+                .stream()
+                .map(personMapper::toDomain)
+                .toList();
     }
 }

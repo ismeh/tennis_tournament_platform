@@ -1,5 +1,6 @@
 package com.tfm.tennis_platform.application.services;
 
+import com.tfm.tennis_platform.application.dto.CompleteProfileCommand;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.PersonRepository;
 import com.tfm.tennis_platform.domain.models.Member;
@@ -7,7 +8,6 @@ import com.tfm.tennis_platform.domain.models.Person;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
 import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
 import com.tfm.tennis_platform.domain.exceptions.UnauthorizedException;
-import com.tfm.tennis_platform.infrastructure.controller.dto.ProfileRequest;
 import com.tfm.tennis_platform.infrastructure.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -141,7 +141,7 @@ public class AuthService {
     }
 
     @Transactional
-    public UserProfile completeProfile(String email, ProfileRequest request) {
+    public UserProfile completeProfile(String email, CompleteProfileCommand request) {
         Member member = memberRepository.findByEmailWithPersonId(email)
                 .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
 

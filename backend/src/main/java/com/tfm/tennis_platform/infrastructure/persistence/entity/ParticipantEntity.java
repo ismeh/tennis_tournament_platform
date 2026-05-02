@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.infrastructure.persistence.entity;
 
 import com.tfm.tennis_platform.domain.models.enums.EntryStatus;
+import com.tfm.tennis_platform.domain.models.enums.ParticipantSource;
 import com.tfm.tennis_platform.domain.models.enums.ParticipantType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,28 @@ public class ParticipantEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "person_id", nullable = true)
     private PersonEntity individualPerson;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "participant_source")
+    private ParticipantSource participantSource;
+
+    @Column(name = "display_first_name")
+    private String displayFirstName;
+
+    @Column(name = "display_last_name")
+    private String displayLastName;
+
+    @Column(name = "display_gender")
+    private String displayGender;
+
+    @Column(name = "display_birth_date")
+    private java.time.LocalDate displayBirthDate;
+
+    @Column(name = "display_nationality")
+    private String displayNationality;
+
+    @Column(name = "display_tennis_id")
+    private String displayTennisId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "participant_type")
