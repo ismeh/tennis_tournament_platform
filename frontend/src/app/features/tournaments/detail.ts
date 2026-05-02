@@ -311,7 +311,7 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'register
                   Desde esta seccion podras revisar participantes inscritos y su estado conforme se habilite el flujo completo.
                 </div>
 
-                <div class="mt-5 rounded-3xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm sm:p-6">
+                <div class="mt-5 rounded-3xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm sm:p-6" (keydown.enter)="submitManualPlayer()">
                   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Alta manual</p>
@@ -507,7 +507,6 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'register
                             (ngModelChange)="manualPlayerGender.set($event)"
                             name="manualPlayerGender"
                           >
-                            <option value="">Selecciona genero</option>
                             <option value="MALE">Masculino</option>
                             <option value="FEMALE">Femenino</option>
                             <option value="MIXED">Mixto</option>
@@ -799,7 +798,7 @@ export class TournamentDetailComponent implements OnInit {
   readonly manualPlayerSearchError = signal<string | null>(null);
   readonly manualPlayerFirstName = signal<string>('');
   readonly manualPlayerLastName = signal<string>('');
-  readonly manualPlayerGender = signal<string>('');
+  readonly manualPlayerGender = signal<string>('MALE');
   readonly manualPlayerBirthDate = signal<string>('');
   readonly manualPlayerNationality = signal<string>('');
   readonly manualPlayerTennisId = signal<string>('');
@@ -1268,7 +1267,6 @@ export class TournamentDetailComponent implements OnInit {
         this.manualPlayerSelectedPersonId.set('');
         this.manualPlayerFirstName.set('');
         this.manualPlayerLastName.set('');
-        this.manualPlayerGender.set('');
         this.manualPlayerBirthDate.set('');
         this.manualPlayerNationality.set('');
         this.manualPlayerTennisId.set('');
