@@ -3,9 +3,15 @@ package com.tfm.tennis_platform.infrastructure.persistence.mapper;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.Event;
+import com.tfm.tennis_platform.domain.models.Stage;
+import com.tfm.tennis_platform.domain.models.Draw;
+import com.tfm.tennis_platform.domain.models.enums.DrawType;
+import com.tfm.tennis_platform.domain.models.enums.StageType;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MemberEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.TournamentEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.EventEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.StageEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.DrawEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.RefAgeCategoryEntity;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapping;
@@ -80,6 +86,7 @@ public interface TournamentEntityMapper {
                 .id(entity.getId())
                 .categoryId(entity.getAgeCategory() != null ? entity.getAgeCategory().getId() : null)
                 .gender(entity.getGender())
+                .stages(toDomainStages(entity.getStages()))
                 .build();
     }
 
@@ -89,6 +96,75 @@ public interface TournamentEntityMapper {
                 .id(event.getId())
                 .ageCategory(mapRefAgeCategory(event.getCategoryId()))
                 .gender(event.getGender())
+                .stages(toEntityStages(event.getStages()))
+                .build();
+    }
+
+    default List<Stage> toDomainStages(List<StageEntity> entities) {
+        if (entities == null) return new ArrayList<>();
+        return entities.stream()
+                .map(this::toDomain)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    default List<StageEntity> toEntityStages(List<Stage> stages) {
+        if (stages == null) return new ArrayList<>();
+        return stages.stream()
+                .map(this::toEntity)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    default Stage toDomain(StageEntity entity) {
+        if (entity == null) return null;
+        return Stage.builder()
+                .id(entity.getId())
+                .eventId(entity.getEvent() != null ? entity.getEvent().getId() : null)
+                .stageNumber(entity.getStageNumber())
+                .stageType(entity.getStageType() != null ? StageType.valueOf(entity.getStageType()) : null)
+                .draws(toDomainDraws(entity.getDraws()))
+                .build();
+    }
+
+    default StageEntity toEntity(Stage stage) {
+        if (stage == null) return null;
+        return StageEntity.builder()
+                .id(stage.getId())
+                .stageNumber(stage.getStageNumber())
+                .stageType(stage.getStageType() != null ? stage.getStageType().name() : null)
+                .draws(toEntityDraws(stage.getDraws()))
+                .build();
+    }
+
+    default List<Draw> toDomainDraws(List<DrawEntity> entities) {
+        if (entities == null) return new ArrayList<>();
+        return entities.stream()
+                .map(this::toDomain)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    default List<DrawEntity> toEntityDraws(List<Draw> draws) {
+        if (draws == null) return new ArrayList<>();
+        return draws.stream()
+                .map(this::toEntity)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    default Draw toDomain(DrawEntity entity) {
+        if (entity == null) return null;
+        return Draw.builder()
+                .id(entity.getId())
+                .stageId(entity.getStage() != null ? entity.getStage().getId() : null)
+                .drawType(entity.getDrawType() != null ? DrawType.valueOf(entity.getDrawType()) : null)
+                .drawName(entity.getDrawName())
+                .build();
+    }
+
+    default DrawEntity toEntity(Draw draw) {
+        if (draw == null) return null;
+        return DrawEntity.builder()
+                .id(draw.getId())
+                .drawType(draw.getDrawType() != null ? draw.getDrawType().name() : null)
+                .drawName(draw.getDrawName())
                 .build();
     }
 
@@ -97,7 +173,17 @@ public interface TournamentEntityMapper {
         if (tournamentEntity.getEvents() == null) {
             return;
         }
-        tournamentEntity.getEvents().forEach(event -> event.setTournament(tournamentEntity));
+        tournamentEntity.getEvents().forEach(event -> {
+            event.setTournament(tournamentEntity);
+            if (event.getStages() != null) {
+                event.getStages().forEach(stage -> {
+                    stage.setEvent(event);
+                    if (stage.getDraws() != null) {
+                        stage.getDraws().forEach(draw -> draw.setStage(stage));
+                    }
+                });
+            }
+        });
     }
 
 

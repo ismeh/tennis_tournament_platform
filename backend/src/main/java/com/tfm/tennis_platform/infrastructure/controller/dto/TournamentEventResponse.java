@@ -1,7 +1,11 @@
 package com.tfm.tennis_platform.infrastructure.controller.dto;
 
+import java.util.List;
+import java.util.UUID;
+
 public record TournamentEventResponse(
-    java.util.UUID eventId,
+    UUID eventId,
     Integer categoryId,
-    String gender
+    String gender,
+    List<StageResponse> stages
 ) {}
