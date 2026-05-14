@@ -9,7 +9,7 @@ import { AppSettings } from '../shared/constants';
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
-    <header class="sticky top-0 z-50 bg-white border-b border-neutral-200 shadow-sm">
+    <header class="fixed inset-x-0 top-0 z-50 border-b border-neutral-200 bg-white shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/95">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <!-- Logo -->
