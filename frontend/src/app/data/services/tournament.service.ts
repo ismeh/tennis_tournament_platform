@@ -58,4 +58,11 @@ export class TournamentService {
     const query = eventId ? `?eventId=${encodeURIComponent(eventId)}` : '';
     return this.http.get<TournamentInscriptionsResponse>(`${this.apiUrl}/${tournamentId}/inscriptions${query}`);
   }
+
+  generateDraws(tournamentId: string, eventId: string): Observable<TournamentResponse> {
+    return this.http.post<TournamentResponse>(
+      `${this.apiUrl}/${tournamentId}/events/${eventId}/generate-draws`,
+      {}
+    );
+  }
 }
