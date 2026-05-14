@@ -1,4 +1,4 @@
-package com.tfm.tennis_platform.application.dto;
+package com.tfm.tennis_platform.application.commands;
 
 import java.time.LocalDate;
 

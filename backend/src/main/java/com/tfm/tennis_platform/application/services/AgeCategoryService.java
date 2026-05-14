@@ -1,6 +1,6 @@
 package com.tfm.tennis_platform.application.services;
 
-import com.tfm.tennis_platform.application.dto.AgeCategoryOutput;
+import com.tfm.tennis_platform.application.commands.AgeCategoryOutput;
 import com.tfm.tennis_platform.domain.port.out.AgeCategoryRefRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
