@@ -255,7 +255,8 @@ describe('TournamentDetailComponent', () => {
       events: [
         {
           categoryId: 2,
-          gender: 'MIXED'
+          gender: 'MIXED',
+          stages: ['SINGLE_ELIMINATION']
         }
       ]
     });
