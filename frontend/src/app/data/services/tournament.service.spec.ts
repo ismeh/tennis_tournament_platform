@@ -73,11 +73,13 @@ describe('TournamentService', () => {
       events: [
         {
           categoryId: 1,
-          gender: 'MALE'
+          gender: 'MALE',
+          stages: ['SINGLE_ELIMINATION']
         },
         {
           categoryId: 1,
-          gender: 'MIXED'
+          gender: 'MIXED',
+          stages: ['ROUND_ROBIN', 'CONSOLATION']
         }
       ]
     };
