@@ -6,8 +6,10 @@ import java.util.List;
 import java.util.UUID;
 
 public record StageResponse(
-    UUID stageId,
-    Integer stageNumber,
+    UUID id,
+    UUID eventId,
     StageType stageType,
+    Integer order,
+    String description,
     List<DrawResponse> draws
 ) {}
