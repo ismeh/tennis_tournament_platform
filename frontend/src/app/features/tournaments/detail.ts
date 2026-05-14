@@ -8,9 +8,9 @@ import {
   TournamentInscriptionCategoryCount,
   TournamentInscriptionEvent,
   TournamentInscriptionsResponse,
-  TournamentEventCategoryGender,
   TournamentEventCatalogItem,
   TournamentEventGender,
+  TournamentEventResponse,
   TournamentEventSelection,
   TournamentEventsConfigRequest,
   ManualParticipantSource,
@@ -19,18 +19,21 @@ import {
   TournamentStatus,
   TournamentResponse,
   getTournamentEventGenderLabel,
-  getTournamentSurfaceCategoryLabel
+  getTournamentStageTypeLabel,
+  getTournamentSurfaceCategoryLabel,
+  TournamentStageType
 } from '../../data/interfaces/tournament.model';
 import { PersonSearchResponse } from '../../data/interfaces/person.model';
 import { MemberService } from '../../data/services/member.service';
 import { TournamentService } from '../../data/services/tournament.service';
+import { StagesComponent } from './components/stages.component';
 
-type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'registeredPlayers';
+type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'registeredPlayers' | 'stages';
 
 @Component({
   selector: 'app-tournament-detail-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe, FormsModule],
+  imports: [CommonModule, RouterLink, DatePipe, FormsModule, StagesComponent],
   template: `
     <section class="relative overflow-hidden bg-gradient-to-b from-neutral-50 via-white to-white py-10 sm:py-14">
       <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -89,6 +92,14 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'register
                   [class]="activeSection() === 'registeredPlayers' ? 'rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary-700 shadow-sm' : 'rounded-xl px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-white/70'"
                 >
                   Jugadores inscritos
+                </button>
+
+                <button
+                  type="button"
+                  (click)="setActiveSection('stages')"
+                  [class]="activeSection() === 'stages' ? 'rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary-700 shadow-sm' : 'rounded-xl px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-white/70'"
+                >
+                  Fases y cuadros
                 </button>
               </div>
             </div>
@@ -236,6 +247,72 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'register
                                       </label>
                                     }
                                   </div>
+                                </div>
+                              </div>
+
+                              <div class="mt-4 rounded-2xl border border-dashed border-neutral-200 bg-white p-4">
+                                <div class="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Fases</p>
+                                    <p class="mt-1 text-sm text-neutral-600">Define el orden y tipo de las fases que tendrá este evento.</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700"
+                                    (click)="addEventStage(event.categoryId)"
+                                  >
+                                    Añadir fase
+                                  </button>
+                                </div>
+
+                                <div class="mt-4 space-y-3">
+                                  @for (stage of event.stages; track $index; let stageIndex = $index) {
+                                    <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                                      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                        <div class="flex-1">
+                                          <label class="block">
+                                            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Tipo de fase {{ stageIndex + 1 }}</span>
+                                            <select
+                                              class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:bg-white"
+                                              [value]="stage.stageType"
+                                              (change)="updateEventStageType(event.categoryId, stageIndex, $any($event.target).value)"
+                                            >
+                                              @for (option of stageOptions; track option) {
+                                                <option [value]="option">{{ getStageLabel(option) }}</option>
+                                              }
+                                            </select>
+                                          </label>
+                                        </div>
+
+                                        <div class="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                            [disabled]="stageIndex === 0"
+                                            (click)="moveEventStage(event.categoryId, stageIndex, 'up')"
+                                          >
+                                            Subir
+                                          </button>
+                                          <button
+                                            type="button"
+                                            class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                            [disabled]="stageIndex === event.stages.length - 1"
+                                            (click)="moveEventStage(event.categoryId, stageIndex, 'down')"
+                                          >
+                                            Bajar
+                                          </button>
+                                          <button
+                                            type="button"
+                                            class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                            [disabled]="event.stages.length === 1"
+                                            (click)="removeEventStage(event.categoryId, stageIndex)"
+                                          >
+                                            Eliminar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  }
                                 </div>
                               </div>
                             </div>
@@ -736,6 +813,46 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'register
               }
             </section>
           }
+
+          @if (activeSection() === 'stages') {
+            <section class="mt-6 rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 class="text-xl font-bold text-neutral-900">Fases y cuadros del torneo</h2>
+                  <p class="mt-2 text-neutral-600">Visualiza las fases, cuadros y enfrentamientos generados para cada evento.</p>
+                </div>
+              </div>
+
+              @if (tournament()?.events && (tournament()!.events!.length > 0)) {
+                <div class="mt-6 space-y-6">
+                  @for (event of tournament()!.events!; track event.eventId) {
+                    <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-6">
+                      <h3 class="text-lg font-semibold text-neutral-900">
+                        {{ getCategoryLabel(event.categoryId) }} - {{ getGenderLabelForString(event.gender) }}
+                      </h3>
+                      
+                      @if (event.stages && event.stages.length > 0) {
+                        <app-stages
+                          [stagesInput]="event.stages"
+                          [tournamentIdInput]="tournament()!.id"
+                          (generateDraws)="onGenerateDraws($event, event.eventId!)"
+                          (matchSelected)="onMatchSelected($event)"
+                        ></app-stages>
+                      } @else {
+                        <div class="mt-3 rounded-lg border border-neutral-200 bg-white p-4 text-sm text-neutral-600">
+                          Sin fases generadas aún
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 p-6 text-center text-neutral-600">
+                  No hay eventos para mostrar
+                </div>
+              }
+            </section>
+          }
         }
       </div>
     </section>
@@ -749,6 +866,7 @@ export class TournamentDetailComponent implements OnInit {
   private readonly personService = inject(PersonService);
 
   readonly eventGenderOptions: TournamentEventGender[] = ['MALE', 'FEMALE', 'MIXED'];
+  readonly stageOptions: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
   readonly tournament = signal<TournamentResponse | null>(null);
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -851,7 +969,7 @@ export class TournamentDetailComponent implements OnInit {
   });
 
   readonly inscriptionCategories = computed<TournamentEventSelection[]>(() => {
-    const groupedEvents = new Map<number, Set<TournamentEventGender>>();
+    const groupedEvents = new Map<number, { eventIdsByGender: Map<TournamentEventGender, string>; genders: Set<TournamentEventGender> }>();
     const events = this.tournament()?.events ?? [];
 
     events.forEach(event => {
@@ -860,15 +978,21 @@ export class TournamentDetailComponent implements OnInit {
         return;
       }
 
-      const currentGenders = groupedEvents.get(event.categoryId) ?? new Set<TournamentEventGender>();
-      currentGenders.add(normalizedGender);
-      groupedEvents.set(event.categoryId, currentGenders);
+      const currentEntry = groupedEvents.get(event.categoryId) ?? {
+        eventIdsByGender: new Map<TournamentEventGender, string>(),
+        genders: new Set<TournamentEventGender>()
+      };
+      currentEntry.eventIdsByGender.set(normalizedGender, event.eventId);
+      currentEntry.genders.add(normalizedGender);
+      groupedEvents.set(event.categoryId, currentEntry);
     });
 
-    return Array.from(groupedEvents.entries()).map(([categoryId, genders]) => ({
+    return Array.from(groupedEvents.entries()).map(([categoryId, entry]) => ({
       categoryId,
       eventCategory: this.getEventLabelById(categoryId),
-      genders: Array.from(genders)
+      eventsByGender: Array.from(entry.eventIdsByGender.entries()).map(([gender, eventId]) => ({ gender, eventId })),
+      genders: Array.from(entry.genders),
+      stages: []
     }));
   });
 
@@ -925,6 +1049,7 @@ export class TournamentDetailComponent implements OnInit {
 
   readonly getSurfaceLabel = getTournamentSurfaceCategoryLabel;
   readonly getGenderLabel = getTournamentEventGenderLabel;
+  readonly getStageLabel = getTournamentStageTypeLabel;
 
   constructor() {
     this.loadEventCatalog();
@@ -987,7 +1112,13 @@ export class TournamentDetailComponent implements OnInit {
         {
           categoryId: catalogEvent.id,
           eventCategory: catalogEvent.category,
-          genders: []
+          eventsByGender: [],
+          genders: [],
+          stages: [
+            {
+              stageType: 'SINGLE_ELIMINATION'
+            }
+          ]
         }
       ]);
       return;
@@ -1005,6 +1136,70 @@ export class TournamentDetailComponent implements OnInit {
             genders: checked
               ? Array.from(new Set([...event.genders, gender]))
               : event.genders.filter(currentGender => currentGender !== gender)
+          }
+          : event
+      )
+    );
+  }
+
+  addEventStage(categoryId: number): void {
+    this.selectedEvents.update(events =>
+      events.map(event =>
+        event.categoryId === categoryId
+          ? {
+            ...event,
+            stages: [...event.stages, { stageType: 'SINGLE_ELIMINATION' }]
+          }
+          : event
+      )
+    );
+  }
+
+  removeEventStage(categoryId: number, stageIndex: number): void {
+    this.selectedEvents.update(events =>
+      events.map(event => {
+        if (event.categoryId !== categoryId || event.stages.length <= 1) {
+          return event;
+        }
+
+        return {
+          ...event,
+          stages: event.stages.filter((_, index) => index !== stageIndex)
+        };
+      })
+    );
+  }
+
+  moveEventStage(categoryId: number, stageIndex: number, direction: 'up' | 'down'): void {
+    this.selectedEvents.update(events =>
+      events.map(event => {
+        if (event.categoryId !== categoryId) {
+          return event;
+        }
+
+        const targetIndex = direction === 'up' ? stageIndex - 1 : stageIndex + 1;
+        if (targetIndex < 0 || targetIndex >= event.stages.length) {
+          return event;
+        }
+
+        const stages = [...event.stages];
+        [stages[stageIndex], stages[targetIndex]] = [stages[targetIndex], stages[stageIndex]];
+
+        return {
+          ...event,
+          stages
+        };
+      })
+    );
+  }
+
+  updateEventStageType(categoryId: number, stageIndex: number, stageType: TournamentStageType): void {
+    this.selectedEvents.update(events =>
+      events.map(event =>
+        event.categoryId === categoryId
+          ? {
+            ...event,
+            stages: event.stages.map((stage, index) => (index === stageIndex ? { stageType } : stage))
           }
           : event
       )
@@ -1094,12 +1289,22 @@ export class TournamentDetailComponent implements OnInit {
       return;
     }
 
+    if (selectedEvents.some(event => event.stages.length === 0)) {
+      this.eventsErrorMessage.set('Debes definir al menos una fase en cada evento antes de guardar.');
+      return;
+    }
+
     const payload: TournamentEventsConfigRequest = {
       events: selectedEvents.flatMap(event =>
-        event.genders.map(gender => ({
-          categoryId: event.categoryId,
-          gender
-        }))
+        event.genders.map(gender => {
+          const eventEntry = event.eventsByGender.find(eg => eg.gender === gender);
+          return {
+            id: eventEntry?.eventId ?? null,
+            categoryId: event.categoryId,
+            gender,
+            stages: event.stages.map(stage => stage.stageType)
+          };
+        })
       )
     };
 
@@ -1344,8 +1549,8 @@ export class TournamentDetailComponent implements OnInit {
     });
   }
 
-  private hydrateSelectedEventsFromTournament(events: TournamentEventCategoryGender[]): void {
-    const groupedEvents = new Map<number, Set<TournamentEventGender>>();
+  private hydrateSelectedEventsFromTournament(events: TournamentEventResponse[]): void {
+    const groupedEvents = new Map<number, { eventIdsByGender: Map<TournamentEventGender, string>; genders: Set<TournamentEventGender>; stages: TournamentEventSelection['stages'] }>();
 
     events.forEach(event => {
       const normalizedGender = event.gender.toUpperCase() as TournamentEventGender;
@@ -1353,15 +1558,27 @@ export class TournamentDetailComponent implements OnInit {
         return;
       }
 
-      const currentGenders = groupedEvents.get(event.categoryId) ?? new Set<TournamentEventGender>();
-      currentGenders.add(normalizedGender);
-      groupedEvents.set(event.categoryId, currentGenders);
+      const currentEntry = groupedEvents.get(event.categoryId) ?? {
+        eventIdsByGender: new Map<TournamentEventGender, string>(),
+        genders: new Set<TournamentEventGender>(),
+        stages: event.stages?.length
+          ? event.stages
+              .slice()
+              .sort((left, right) => left.order - right.order)
+              .map(stage => ({ stageType: stage.stageType as TournamentStageType }))
+          : [{ stageType: 'SINGLE_ELIMINATION' as TournamentStageType }]
+      };
+      currentEntry.eventIdsByGender.set(normalizedGender, event.eventId);
+      currentEntry.genders.add(normalizedGender);
+      groupedEvents.set(event.categoryId, currentEntry);
     });
 
-    const selections: TournamentEventSelection[] = Array.from(groupedEvents.entries()).map(([categoryId, genders]) => ({
+    const selections: TournamentEventSelection[] = Array.from(groupedEvents.entries()).map(([categoryId, entry]) => ({
       categoryId,
       eventCategory: this.getEventLabelById(categoryId),
-      genders: Array.from(genders)
+      eventsByGender: Array.from(entry.eventIdsByGender.entries()).map(([gender, eventId]) => ({ gender, eventId })),
+      genders: Array.from(entry.genders),
+      stages: entry.stages
     }));
 
     this.selectedEvents.set(selections);
@@ -1512,5 +1729,31 @@ export class TournamentDetailComponent implements OnInit {
 
     clearTimeout(this.manualPlayerSearchDebounceHandle);
     this.manualPlayerSearchDebounceHandle = null;
+  }
+
+  onGenerateDraws(event: { tournamentId: string; stageId: string }, eventId: string): void {
+    this.tournamentService.generateDraws(event.tournamentId, eventId)
+      .subscribe({
+        next: (tournament) => {
+          this.tournament.set(tournament);
+          this.actionMessage.set('Cuadros generados correctamente');
+        },
+        error: (err) => {
+          this.actionError.set('Error al generar cuadros: ' + err.message);
+        }
+      });
+  }
+
+  onMatchSelected(matchId: string): void {
+    // Placeholder para futuras acciones al seleccionar un match
+    console.log('Match selected:', matchId);
+  }
+
+  getCategoryLabel(categoryId: number): string {
+    return this.getEventLabelById(categoryId);
+  }
+
+  getGenderLabelForString(gender: string | TournamentEventGender): string {
+    return this.getGenderLabel(gender as TournamentEventGender);
   }
 }
