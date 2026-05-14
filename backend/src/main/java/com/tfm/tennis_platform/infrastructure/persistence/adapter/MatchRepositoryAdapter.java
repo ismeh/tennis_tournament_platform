@@ -2,7 +2,7 @@ package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.models.Match;
-import com.tfm.tennis_platform.infrastructure.persistence.mapper.MatchMapper;
+import com.tfm.tennis_platform.infrastructure.persistence.mapper.MatchDomainMapper;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMatchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,7 +16,7 @@ import java.util.UUID;
 public class MatchRepositoryAdapter implements MatchRepository {
 
     private final JpaMatchRepository matchRepository;
-    private final MatchMapper mapper;
+    private final MatchDomainMapper mapper;
 
     @Override
     public Match save(Match match) {

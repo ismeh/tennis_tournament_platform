@@ -25,6 +25,10 @@ public class MatchEntity {
     @JoinColumn(name = "category_id")
     private CategoryEntity category;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "draw_id")
+    private DrawEntity draw;
+
     @ManyToOne
     @JoinColumn(name = "first_inscription_id")
     private InscriptionEntity firstInscription;

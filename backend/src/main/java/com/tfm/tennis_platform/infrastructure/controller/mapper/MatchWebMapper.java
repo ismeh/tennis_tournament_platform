@@ -17,6 +17,7 @@ public interface MatchWebMapper {
 
     @Mapping(target = "tournament.id", source = "tournamentId")
     @Mapping(target = "category.id", source = "categoryId")
+    @Mapping(target = "drawId", ignore = true)
     @Mapping(target = "firstInscription.id", source = "firstInscriptionId")
     @Mapping(target = "secondInscription.id", source = "secondInscriptionId")
     @Mapping(target = "winner.id", source = "winnerId")
