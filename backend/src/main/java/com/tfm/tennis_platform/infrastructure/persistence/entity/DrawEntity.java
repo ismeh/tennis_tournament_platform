@@ -14,6 +14,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "draws")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,14 +25,13 @@ public class DrawEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "stage_id", nullable = false)
     @JsonIgnore
-    @Setter
     private StageEntity stage;
 
     @Column(name = "draw_type", nullable = false)
     private String drawType;
 
-    @Column(name = "draw_name")
-    private String drawName;
+    @Column(name = "label")
+    private String label;
 
     @OneToMany(mappedBy = "draw", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
