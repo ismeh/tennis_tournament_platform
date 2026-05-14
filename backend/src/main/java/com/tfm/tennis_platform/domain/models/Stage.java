@@ -12,12 +12,13 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(exclude = "draws")
-@Builder(builderClassName = "StageBuilder", buildMethodName = "buildInternal")
+@Builder(builderClassName = "StageBuilder", buildMethodName = "buildInternal", toBuilder = true)
 public class Stage {
     private UUID id;
     private UUID eventId;
     private Integer stageNumber;
     private StageType stageType;
+    private String description;
     @Singular
     private List<Draw> draws;
 
