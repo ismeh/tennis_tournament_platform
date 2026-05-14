@@ -48,10 +48,10 @@ class StageGenerationTest {
     @Test
     void testDefaultStrategy() {
         List<Stage> stages = stageGenerationService.generateStagesForEvent(
-                "Male Singles",
-                1,
-                "MALE",
-                null
+            "Male Singles",
+            1,
+            "MALE",
+            (String) null
         );
 
         assertFalse(stages.isEmpty());
