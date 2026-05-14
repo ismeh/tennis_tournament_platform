@@ -5,7 +5,8 @@ import java.util.List;
 public record EventCommand(List<EventItem> events) {
     public record EventItem(
             Integer categoryId,
-            String gender
+            String gender,
+            List<String> stages
     ) {
     }
 }
