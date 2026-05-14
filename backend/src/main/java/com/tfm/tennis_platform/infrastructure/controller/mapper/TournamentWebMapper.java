@@ -4,8 +4,10 @@ import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.Stage;
 import com.tfm.tennis_platform.domain.models.Draw;
+import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.DrawResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.StageResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentEventResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
@@ -104,12 +106,14 @@ public interface TournamentWebMapper {
         }
 
         return stages.stream()
-                .map(stage -> new StageResponse(
-                        stage.getId(),
-                        stage.getStageNumber(),
-                        stage.getStageType(),
-                        toDrawResponses(stage.getDraws())
-                ))
+            .map(stage -> new StageResponse(
+                stage.getId(),
+                stage.getEventId(),
+                stage.getStageType(),
+                stage.getStageNumber(),
+                stage.getDescription(),
+                toDrawResponses(stage.getDraws())
+            ))
                 .toList();
     }
 
@@ -119,7 +123,34 @@ public interface TournamentWebMapper {
         }
 
         return draws.stream()
-                .map(draw -> new DrawResponse(draw.getId(), draw.getDrawType(), draw.getDrawName()))
+                .map(draw -> new DrawResponse(
+                    draw.getId(),
+                    draw.getStageId(),
+                    draw.getDrawType(),
+                    draw.getLabel(),
+                    toMatchResponses(draw.getMatches())
+                ))
+                .toList();
+    }
+
+    default List<MatchResponse> toMatchResponses(List<Match> matches) {
+        if (matches == null) {
+            return List.of();
+        }
+
+        return matches.stream()
+                .map(match -> new MatchResponse(
+                    match.getId(),
+                    match.getTournamentId(),
+                    match.getCategoryId(),
+                    match.getFirstInscriptionId(),
+                    match.getSecondInscriptionId(),
+                    match.getWinnerId(),
+                    match.getRoundNumber(),
+                    match.getScheduledAt(),
+                    match.getCourt(),
+                    match.getResult()
+                ))
                 .toList();
     }
 
