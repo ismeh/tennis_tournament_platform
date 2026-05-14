@@ -119,8 +119,9 @@ public interface TournamentEntityMapper {
         return Stage.builder()
                 .id(entity.getId())
                 .eventId(entity.getEvent() != null ? entity.getEvent().getId() : null)
-                .stageNumber(entity.getStageNumber())
+                .stageNumber(entity.getOrder())
                 .stageType(entity.getStageType() != null ? StageType.valueOf(entity.getStageType()) : null)
+                .description(entity.getDescription())
                 .draws(toDomainDraws(entity.getDraws()))
                 .build();
     }
@@ -129,8 +130,9 @@ public interface TournamentEntityMapper {
         if (stage == null) return null;
         return StageEntity.builder()
                 .id(stage.getId())
-                .stageNumber(stage.getStageNumber())
+                .order(stage.getStageNumber())
                 .stageType(stage.getStageType() != null ? stage.getStageType().name() : null)
+                .description(stage.getDescription())
                 .draws(toEntityDraws(stage.getDraws()))
                 .build();
     }
@@ -155,7 +157,8 @@ public interface TournamentEntityMapper {
                 .id(entity.getId())
                 .stageId(entity.getStage() != null ? entity.getStage().getId() : null)
                 .drawType(entity.getDrawType() != null ? DrawType.valueOf(entity.getDrawType()) : null)
-                .drawName(entity.getDrawName())
+                .drawName(entity.getLabel())
+                .label(entity.getLabel())
                 .build();
     }
 
@@ -164,7 +167,7 @@ public interface TournamentEntityMapper {
         return DrawEntity.builder()
                 .id(draw.getId())
                 .drawType(draw.getDrawType() != null ? draw.getDrawType().name() : null)
-                .drawName(draw.getDrawName())
+                .label(draw.getLabel() != null ? draw.getLabel() : draw.getDrawName())
                 .build();
     }
 
