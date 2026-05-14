@@ -1,6 +1,6 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
-import com.tfm.tennis_platform.application.dto.EventCommand;
+import com.tfm.tennis_platform.application.commands.EventCommand;
 import com.tfm.tennis_platform.application.services.TournamentService;
 import com.tfm.tennis_platform.application.services.InscriptionService;
 import com.tfm.tennis_platform.application.services.EventService;
@@ -69,9 +69,9 @@ public class TournamentController {
     @PostMapping("/{tournamentId}/events")
     public ResponseEntity<TournamentResponse> addEventsToTournament(@PathVariable("tournamentId") UUID tournamentId, @RequestBody EventRequest eventRequest) {
         EventCommand command = new EventCommand(eventRequest.getEvents().stream()
-                .map(event -> new EventCommand.EventItem(event.getCategoryId(), event.getGender()))
-                .toList());
-        Tournament updatedTournament = eventService.addEventsToTournament(tournamentId, command);
+            .map(event -> new EventCommand.EventItem(event.getId(), event.getCategoryId(), event.getGender(), event.getStages()))
+            .toList());
+        Tournament updatedTournament = eventService.replaceAllEvents(tournamentId, command);
         return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
     }
 
@@ -142,6 +142,15 @@ public class TournamentController {
     ) {
         TournamentInscriptionsView view = inscriptionService.findByTournament(tournamentId, eventId);
         return ResponseEntity.ok(toTournamentInscriptionsResponse(view));
+    }
+
+    @PostMapping("/{tournamentId}/events/{eventId}/generate-draws")
+    public ResponseEntity<TournamentResponse> generateDraws(
+            @PathVariable UUID tournamentId,
+            @PathVariable UUID eventId
+    ) {
+        Tournament updatedTournament = eventService.generateDrawsForEvent(tournamentId, eventId);
+        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
     }
 
     private static EventInscriptionResponse toEventInscriptionResponse(EventInscriptionResult result) {
