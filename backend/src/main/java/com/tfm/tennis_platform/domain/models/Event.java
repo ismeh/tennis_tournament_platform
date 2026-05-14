@@ -1,5 +1,6 @@
 package com.tfm.tennis_platform.domain.models;
 
+import com.tfm.tennis_platform.application.commands.EventCommand;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -11,7 +12,7 @@ import java.util.UUID;
 
 @Data
 @EqualsAndHashCode(exclude = "stages")
-@Builder(builderClassName = "EventBuilder", buildMethodName = "buildInternal")
+@Builder(builderClassName = "EventBuilder", buildMethodName = "buildInternal", toBuilder = true)
 public class Event {
     private UUID id;
     private UUID tournamentId;
@@ -45,5 +46,21 @@ public class Event {
             }
             return buildInternal();
         }
+    }
+
+    public static Event createOrUpdateEvent(UUID tournamentId, EventCommand.EventItem eventItem, List<Stage> stages) {
+        UUID eventId = eventItem.id() != null ? eventItem.id() : UUID.randomUUID();
+
+        return Event.builder()
+                .id(eventId)
+                .tournamentId(tournamentId)
+                .categoryId(eventItem.categoryId())
+                .gender(eventItem.gender())
+                .stages(stages)
+                .build();
+    }
+
+    public static String buildEventName(EventCommand.EventItem eventItem) {
+        return "Evento_%d_%s".formatted(eventItem.categoryId(), eventItem.gender());
     }
 }
