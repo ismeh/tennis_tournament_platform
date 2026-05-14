@@ -1,11 +1,10 @@
-package com.tfm.tennis_platform.application.strategies.stage;
+package com.tfm.tennis_platform.application.services.strategies.stage;
 
 import com.tfm.tennis_platform.domain.models.Stage;
 import com.tfm.tennis_platform.domain.models.enums.StageType;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.UUID;
 
 @Component
 public class SingleEliminationStageGenerator implements StageGenerationStrategy {

@@ -10,10 +10,12 @@ import lombok.Singular;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Getter
@@ -30,7 +32,6 @@ public class Tournament {
     private final String location;
     private final TournamentStatus state; // 'soon', 'inscription', 'playing', 'finished'
     private final Member createdBy;
-    @Singular
     private final List<Event> events;
 
     public static class TournamentBuilder {
@@ -66,23 +67,10 @@ public class Tournament {
         }
     }
 
-    /**
-     * Añade una lista de eventos al torneo, ignorando los que tengan un categoryId duplicado con los ya existentes en el torneo.
-     * Devuelve un nuevo objeto Tournament con la lista de eventos actualizada.
-     */
-    public Tournament addEvent(List<Event> newEvents) {
+    public Tournament setEvents(List<Event> newEvents) {
         Objects.requireNonNull(newEvents, "newEvents must not be null");
-        Set<Integer> existingIds = this.events.stream()
-                .map(Event::getCategoryId)
-                .collect(Collectors.toSet());
-        List<Event> filteredNewEvents = newEvents.stream()
-                .filter(e -> !existingIds.contains(e.getCategoryId()))
-                .toList();
-        List<Event> updatedEvents = new java.util.ArrayList<>(this.events);
-        updatedEvents.addAll(filteredNewEvents);
         return this.toBuilder()
-            .clearEvents()
-                .events(updatedEvents)
+                .events(newEvents)
                 .build();
     }
 }

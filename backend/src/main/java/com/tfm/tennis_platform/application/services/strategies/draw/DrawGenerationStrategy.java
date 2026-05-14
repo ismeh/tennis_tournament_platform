@@ -1,4 +1,4 @@
-package com.tfm.tennis_platform.application.strategies.draw;
+package com.tfm.tennis_platform.application.services.strategies.draw;
 
 import com.tfm.tennis_platform.domain.models.Draw;
 import com.tfm.tennis_platform.domain.models.Stage;
