@@ -1,14 +1,17 @@
 package com.tfm.tennis_platform.application.service;
 
 import com.tfm.tennis_platform.application.commands.EventCommand;
-import com.tfm.tennis_platform.application.services.EventService;
-import com.tfm.tennis_platform.application.services.TournamentService;
 import com.tfm.tennis_platform.application.services.DrawGenerationService;
+import com.tfm.tennis_platform.application.services.EventService;
+import com.tfm.tennis_platform.application.services.MatchGenerationService;
+import com.tfm.tennis_platform.application.services.MatchPersistenceService;
 import com.tfm.tennis_platform.application.services.StageGenerationService;
+import com.tfm.tennis_platform.application.services.TournamentService;
 import com.tfm.tennis_platform.application.services.strategies.draw.ConsolationDrawGenerator;
 import com.tfm.tennis_platform.application.services.strategies.draw.DoubleEliminationDrawGenerator;
 import com.tfm.tennis_platform.application.services.strategies.draw.RoundRobinDrawGenerator;
 import com.tfm.tennis_platform.application.services.strategies.draw.SingleEliminationDrawGenerator;
+import com.tfm.tennis_platform.application.services.strategies.match.SingleEliminationMatchGenerator;
 import com.tfm.tennis_platform.application.services.strategies.stage.ConsolationStageGenerator;
 import com.tfm.tennis_platform.application.services.strategies.stage.DoubleEliminationStageGenerator;
 import com.tfm.tennis_platform.application.services.strategies.stage.RoundRobinStageGenerator;
@@ -21,10 +24,11 @@ import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.port.out.InscriptionRepository;
+import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -41,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,28 +60,42 @@ class TournamentGenerationFlowTest {
     @Mock
     private InscriptionRepository inscriptionRepository;
 
-        private TournamentService tournamentService;
+    @Mock
+    private MatchRepository matchRepository;
 
-        private EventService eventService;
+    private TournamentService tournamentService;
+    private EventService eventService;
 
-        @BeforeEach
-        void setUp() {
+    @BeforeEach
+    void setUp() {
         StageGenerationService stageGenerationService = new StageGenerationService(
-            new SingleEliminationStageGenerator(),
-            new RoundRobinStageGenerator(),
-            new DoubleEliminationStageGenerator(),
-            new ConsolationStageGenerator()
+                new SingleEliminationStageGenerator(),
+                new RoundRobinStageGenerator(),
+                new DoubleEliminationStageGenerator(),
+                new ConsolationStageGenerator()
         );
         DrawGenerationService drawGenerationService = new DrawGenerationService(
-            new SingleEliminationDrawGenerator(),
-            new RoundRobinDrawGenerator(),
-            new DoubleEliminationDrawGenerator(),
-            new ConsolationDrawGenerator()
+                new SingleEliminationDrawGenerator(),
+                new RoundRobinDrawGenerator(),
+                new DoubleEliminationDrawGenerator(),
+                new ConsolationDrawGenerator()
         );
+        MatchGenerationService matchGenerationService = new MatchGenerationService(new SingleEliminationMatchGenerator());
+        MatchPersistenceService matchPersistenceService = new MatchPersistenceService(matchRepository);
+
+        lenient().when(matchRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         tournamentService = new TournamentService(tournamentRepository, memberRepository);
-        eventService = new EventService(tournamentRepository, inscriptionRepository, stageGenerationService, drawGenerationService);
-        }
+        eventService = new EventService(
+                tournamentRepository,
+                inscriptionRepository,
+                matchRepository,
+                stageGenerationService,
+                drawGenerationService,
+                matchGenerationService,
+                matchPersistenceService
+        );
+    }
 
     @Test
     void should_create_tournament_and_generate_events_stages_and_draws() {
@@ -101,8 +120,8 @@ class TournamentGenerationFlowTest {
         assertTrue(createdTournament.getEvents().isEmpty());
 
         Tournament tournamentWithEvents = eventService.replaceAllEvents(
-            createdTournament.getId(),
-            new EventCommand(List.of(new EventCommand.EventItem(1, "MALE", null)))
+                createdTournament.getId(),
+                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("1"))))
         );
 
         assertEquals(1, tournamentWithEvents.getEvents().size());
