@@ -71,6 +71,8 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
             tournamentEntity.getEvents().add(newEvent);
         }
 
+        tournamentJpaRepository.flush();
+
         return mapper.toDomain(tournamentEntity);
     }
 

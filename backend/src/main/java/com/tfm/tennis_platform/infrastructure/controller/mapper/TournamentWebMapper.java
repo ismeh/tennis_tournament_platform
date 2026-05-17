@@ -141,8 +141,6 @@ public interface TournamentWebMapper {
         return matches.stream()
                 .map(match -> new MatchResponse(
                     match.getId(),
-                    match.getTournamentId(),
-                    match.getCategoryId(),
                     match.getFirstInscriptionId(),
                     match.getSecondInscriptionId(),
                     match.getWinnerId(),

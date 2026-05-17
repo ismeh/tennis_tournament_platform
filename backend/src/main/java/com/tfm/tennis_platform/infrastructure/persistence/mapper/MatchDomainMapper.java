@@ -1,25 +1,24 @@
 package com.tfm.tennis_platform.infrastructure.persistence.mapper;
 
-import com.tfm.tennis_platform.domain.models.Category;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
-import com.tfm.tennis_platform.domain.models.Tournament;
-import com.tfm.tennis_platform.domain.models.TournamentPeriod;
-import com.tfm.tennis_platform.domain.models.enums.Surface;
-import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
-import com.tfm.tennis_platform.infrastructure.persistence.entity.CategoryEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.DrawEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.InscriptionEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity;
-import com.tfm.tennis_platform.infrastructure.persistence.entity.TournamentEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaDrawRepository;
+import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaInscriptionRepository;
 import org.springframework.stereotype.Component;
+import lombok.RequiredArgsConstructor;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 @Component
+@RequiredArgsConstructor
 public class MatchDomainMapper {
+
+    private final JpaDrawRepository drawRepository;
+    private final JpaInscriptionRepository inscriptionRepository;
 
     public Match toDomain(MatchEntity entity) {
         if (entity == null) {
@@ -28,8 +27,6 @@ public class MatchDomainMapper {
 
         return Match.builder()
                 .id(entity.getId())
-                .tournament(mapTournamentDomain(entity.getTournament() != null ? entity.getTournament().getId() : null))
-                .category(mapCategoryDomain(entity.getCategory() != null ? entity.getCategory().getId() : null))
                 .drawId(entity.getDraw() != null ? entity.getDraw().getId() : null)
                 .firstInscription(mapInscriptionDomain(entity.getFirstInscription() != null ? entity.getFirstInscription().getId() : null))
                 .secondInscription(mapInscriptionDomain(entity.getSecondInscription() != null ? entity.getSecondInscription().getId() : null))
@@ -49,14 +46,12 @@ public class MatchDomainMapper {
 
         return MatchEntity.builder()
                 .id(domain.getId())
-                .tournament(mapTournamentEntity(domain.getTournament() != null ? domain.getTournament().getId() : null))
-                .category(mapCategoryEntity(domain.getCategory() != null ? domain.getCategory().getId() : null))
-                .draw(mapDrawEntity(domain.getDrawId()))
-                .firstInscription(mapInscriptionEntity(domain.getFirstInscription() != null ? domain.getFirstInscription().getId() : null))
-                .secondInscription(mapInscriptionEntity(domain.getSecondInscription() != null ? domain.getSecondInscription().getId() : null))
-                .winner(mapInscriptionEntity(domain.getWinner() != null ? domain.getWinner().getId() : null))
+            .draw(mapDrawEntity(domain.getDrawId()))
+            .firstInscription(mapInscriptionEntity(domain.getFirstInscription() != null ? domain.getFirstInscription().getId() : null))
+            .secondInscription(mapInscriptionEntity(domain.getSecondInscription() != null ? domain.getSecondInscription().getId() : null))
+            .winner(mapInscriptionEntity(domain.getWinner() != null ? domain.getWinner().getId() : null))
                 .roundNumber(domain.getRoundNumber())
-                .nextMatch(toEntity(domain.getNextMatch()))
+            .nextMatch(null)
                 .scheduledAt(domain.getScheduledAt())
                 .court(domain.getCourt())
                 .result(domain.getResult())
@@ -69,32 +64,6 @@ public class MatchDomainMapper {
         }
 
         return entities.stream().map(this::toDomain).toList();
-    }
-
-    private Tournament mapTournamentDomain(UUID tournamentId) {
-        if (tournamentId == null) {
-            return null;
-        }
-
-        LocalDate today = LocalDate.now();
-        return Tournament.builder()
-                .id(tournamentId)
-                .name("Match tournament")
-                .playPeriod(new TournamentPeriod(today, today.plusDays(1)))
-                .inscriptionPeriod(new TournamentPeriod(today, today.plusDays(1)))
-                .surface(Surface.HARD)
-                .maxPlayers(2)
-                .location("N/A")
-                .state(TournamentStatus.DRAFT)
-                .build();
-    }
-
-    private Category mapCategoryDomain(UUID categoryId) {
-        if (categoryId == null) {
-            return null;
-        }
-
-        return Category.builder().id(categoryId).build();
     }
 
     private Inscription mapInscriptionDomain(UUID inscriptionId) {
@@ -112,28 +81,12 @@ public class MatchDomainMapper {
                 .build();
     }
 
-    private TournamentEntity mapTournamentEntity(UUID tournamentId) {
-        if (tournamentId == null) {
-            return null;
-        }
-
-        return TournamentEntity.builder().id(tournamentId).build();
-    }
-
-    private CategoryEntity mapCategoryEntity(UUID categoryId) {
-        if (categoryId == null) {
-            return null;
-        }
-
-        return CategoryEntity.builder().id(categoryId).build();
-    }
-
     private DrawEntity mapDrawEntity(UUID drawId) {
         if (drawId == null) {
             return null;
         }
 
-        return DrawEntity.builder().id(drawId).build();
+        return drawRepository.getReferenceById(drawId);
     }
 
     private InscriptionEntity mapInscriptionEntity(UUID inscriptionId) {
@@ -141,6 +94,6 @@ public class MatchDomainMapper {
             return null;
         }
 
-        return InscriptionEntity.builder().id(inscriptionId).build();
+        return inscriptionRepository.getReferenceById(inscriptionId);
     }
 }

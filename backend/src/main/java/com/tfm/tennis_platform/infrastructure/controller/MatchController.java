@@ -29,11 +29,11 @@ public class MatchController {
     @PutMapping("/{id}")
     public ResponseEntity<MatchResponse> update(@PathVariable UUID id, @RequestBody MatchResponse request) {
         Match match = matchMapper.toDomain(request);
+        Match existingMatch = matchService.findById(id.toString()).orElse(null);
         // Note: Using id from path variable
         Match updatedMatch = Match.builder()
                 .id(id)
-                .tournament(match.getTournament())
-                .category(match.getCategory())
+            .drawId(existingMatch != null ? existingMatch.getDrawId() : null)
                 .firstInscription(match.getFirstInscription())
                 .secondInscription(match.getSecondInscription())
                 .winner(match.getWinner())
@@ -41,6 +41,7 @@ public class MatchController {
                 .scheduledAt(match.getScheduledAt())
                 .court(match.getCourt())
                 .result(match.getResult())
+            .nextMatch(existingMatch != null ? existingMatch.getNextMatch() : null)
                 .build();
         
         return ResponseEntity.ok(matchMapper.toResponse(matchService.update(updatedMatch)));
