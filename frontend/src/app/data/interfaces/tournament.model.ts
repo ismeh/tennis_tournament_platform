@@ -69,8 +69,6 @@ export interface DrawResponse {
 
 export interface MatchResponse {
   id: string;
-  tournamentId: string;
-  categoryId: string;
   firstInscriptionId: string;
   secondInscriptionId: string;
   winnerId?: string | null;
