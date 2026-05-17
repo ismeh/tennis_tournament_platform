@@ -74,11 +74,6 @@ SET MODE PostgreSQL;
     INSERT INTO draws (stage_id, draw_type, draw_name) VALUES
         ( (SELECT id FROM stages WHERE event_id = (SELECT id FROM events WHERE name = 'Absoluto Individual Masculino')), 'ELIMINATION', 'Main Draw');
 
-    -- 8. Insert a matchup (Rafa vs Novak)
-    INSERT INTO matchups (draw_id, round_number, match_number, match_format, status, scheduled_at, court, winner_side) VALUES
-        ( (SELECT id FROM draws WHERE draw_name = 'Main Draw'), 1, 1, 'SET3-S:6/TB7', 'UPCOMING', '2024-05-10 10:00:00+02', 'Pista Central', NULL);
-
-    -- 9. Insert matchup sides
-    INSERT INTO matchup_sides (matchup_id, side_number, participant_id) VALUES
-        ( (SELECT id FROM matchups WHERE round_number = 1 AND match_number = 1), 1, (SELECT id FROM participants WHERE person_id = (SELECT id FROM persons WHERE tennis_id = 'IPIN001'))),
-        ( (SELECT id FROM matchups WHERE round_number = 1 AND match_number = 1), 2, (SELECT id FROM participants WHERE person_id = (SELECT id FROM persons WHERE tennis_id = 'IPIN005')));
+    -- 8. Insert an empty match structure for the MVP
+    INSERT INTO matches (draw_id, round_number, scheduled_at, court, result) VALUES
+        ( (SELECT id FROM draws WHERE draw_name = 'Main Draw'), 1, NULL, NULL, NULL);

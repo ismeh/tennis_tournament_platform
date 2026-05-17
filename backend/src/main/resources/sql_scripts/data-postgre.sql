@@ -130,32 +130,12 @@ VALUES (
            'Main Draw'
        );
 
--- 8. Insert matchup
-INSERT INTO matchups (draw_id, round_number, match_number, match_format, status, scheduled_at, court, winner_side)
+-- 8. Insert an empty match structure for the MVP
+INSERT INTO matches (draw_id, round_number, scheduled_at, court, result)
 VALUES (
            (SELECT id FROM draws WHERE draw_name='Main Draw' LIMIT 1),
            1,
-           1,
-           'SET3-S:6/TB7',
-           'UPCOMING',
-           TIMESTAMPTZ '2026-05-10 10:00:00+02',
-           'Pista Central',
+           NULL,
+           NULL,
            NULL
        );
-
--- 9. Insert matchup sides
-INSERT INTO matchup_sides (matchup_id, side_number, participant_id) VALUES
-                                                                        (
-                                                                            (SELECT id FROM matchups WHERE round_number=1 AND match_number=1 LIMIT 1),
-                                                                            1,
-                                                                            (SELECT id FROM participants
-                                                                             WHERE person_id=(SELECT id FROM persons WHERE tennis_id='IPIN001' LIMIT 1)
-                                                                             LIMIT 1)
-                                                                        ),
-                                                                        (
-                                                                            (SELECT id FROM matchups WHERE round_number=1 AND match_number=1 LIMIT 1),
-                                                                            2,
-                                                                            (SELECT id FROM participants
-                                                                             WHERE person_id=(SELECT id FROM persons WHERE tennis_id='IPIN005' LIMIT 1)
-                                                                             LIMIT 1)
-                                                                        );

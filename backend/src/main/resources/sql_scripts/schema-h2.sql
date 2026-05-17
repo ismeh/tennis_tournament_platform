@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS rankings;
 DROP TABLE IF EXISTS sets;
 DROP TABLE IF EXISTS matchup_sides;
 DROP TABLE IF EXISTS matchups;
+DROP TABLE IF EXISTS matches;
 DROP TABLE IF EXISTS draws;
 DROP TABLE IF EXISTS stages;
 DROP TABLE IF EXISTS events;
@@ -148,39 +149,23 @@ CREATE TABLE draws (
     FOREIGN KEY (stage_id) REFERENCES stages(id)
 );
 
-CREATE TABLE matchups (
-    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    draw_id         UUID NOT NULL,
-    round_number    INTEGER,
-    match_number    INTEGER,
-    match_format    VARCHAR(100),
-    status          VARCHAR(20),
-    scheduled_at    TIMESTAMP,
-    court           VARCHAR(100),
-    winner_side     SMALLINT,
-    FOREIGN KEY (draw_id) REFERENCES draws(id)
-);
-
-CREATE TABLE matchup_sides (
-    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    matchup_id      UUID NOT NULL,
-    side_number     SMALLINT NOT NULL,
-    participant_id  UUID,
-    UNIQUE (matchup_id, side_number),
-    FOREIGN KEY (matchup_id) REFERENCES matchups(id),
-    FOREIGN KEY (participant_id) REFERENCES participants(id)
-);
-
-CREATE TABLE sets (
-    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    matchup_id      UUID NOT NULL,
-    set_number      SMALLINT NOT NULL,
-    side1_games     SMALLINT,
-    side2_games     SMALLINT,
-    side1_tiebreak  SMALLINT,
-    side2_tiebreak  SMALLINT,
-    UNIQUE (matchup_id, set_number),
-    FOREIGN KEY (matchup_id) REFERENCES matchups(id)
+CREATE TABLE matches (
+    id                      UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    draw_id                 UUID NOT NULL,
+    first_inscription_id    UUID,
+    second_inscription_id   UUID,
+    winner_id               UUID,
+    round_number            INTEGER,
+    next_match_id           UUID,
+    scheduled_at            TIMESTAMP,
+    court                   VARCHAR(100),
+    result                  VARCHAR(255),
+    version                 BIGINT NOT NULL DEFAULT 0,
+    FOREIGN KEY (draw_id) REFERENCES draws(id),
+    FOREIGN KEY (first_inscription_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (second_inscription_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (winner_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (next_match_id) REFERENCES matches(id)
 );
 
 CREATE TABLE rankings (
