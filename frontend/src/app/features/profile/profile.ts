@@ -3,6 +3,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MemberService } from '../../data/services/member.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'app-profile-page',
@@ -76,6 +77,7 @@ import { MemberService } from '../../data/services/member.service';
 export class ProfileComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly memberService = inject(MemberService);
+  private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
   readonly isSubmitting = signal(false);
@@ -133,6 +135,9 @@ export class ProfileComponent implements OnInit {
       next: () => {
         this.isSubmitting.set(false);
         this.successMessage.set('Perfil actualizado correctamente.');
+        const raw = this.form.getRawValue();
+        const fullName = (raw.firstName || '').trim() + (raw.lastName ? ' ' + raw.lastName.trim() : '');
+        this.authService.setDisplayName(fullName || null);
         this.router.navigateByUrl('/torneos');
       },
       error: () => {

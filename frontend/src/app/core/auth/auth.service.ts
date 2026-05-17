@@ -10,6 +10,7 @@ import {
   RegisterResponse
 } from './auth.model';
 import { AppSettings } from '../../shared/constants';
+import { ProfileResponse } from '../../data/interfaces/member.model';
 
 @Injectable({
   providedIn: 'root'
@@ -41,15 +42,58 @@ export class AuthService {
     return this.http.post<LoginResponse>(`${this.API_URL}/login`, credentials).pipe(
       tap(response => {
         this.setSession(response.accessToken, response.refreshToken);
-      })
+      }),
+      switchMap(response =>
+        this.loadDisplayNameFromProfile().pipe(
+          map(() => response),
+          catchError(() => of(response))
+        )
+      )
     );
   }
 
   register(payload: RegisterRequest): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${this.API_URL}/register`, payload).pipe(
       tap(response => {
-        this.setSession(response.accessToken, response.refreshToken, payload.name);
-      })
+        this.setSession(response.accessToken, response.refreshToken);
+      }),
+      switchMap(response =>
+        this.loadDisplayNameFromProfile().pipe(
+          map(() => response),
+          catchError(() => of(response))
+        )
+      )
+    );
+  }
+
+  setDisplayName(name: string | null): void {
+    const normalized = this.normalizeName(name);
+    if (isPlatformBrowser(this.platformId)) {
+      if (normalized) {
+        localStorage.setItem(this.USER_NAME_KEY, normalized);
+      } else {
+        localStorage.removeItem(this.USER_NAME_KEY);
+      }
+    }
+
+    this.userDisplayName$.next(normalized);
+  }
+
+  loadDisplayNameFromProfile(): Observable<void> {
+    if (!isPlatformBrowser(this.platformId)) {
+      return of(void 0);
+    }
+
+    if (!this.hasValidStoredToken() && !this.getRefreshToken()) {
+      return of(void 0);
+    }
+
+    return this.http.get<ProfileResponse>(`${this.API_URL}/profile`).pipe(
+      tap(profile => {
+        this.setDisplayName(this.resolveProfileDisplayName(profile));
+      }),
+      map(() => void 0),
+      catchError(() => of(void 0))
     );
   }
 
@@ -66,7 +110,13 @@ export class AuthService {
           const accessToken = response.accessToken;
           const nextRefreshToken = response.refreshToken ?? refreshToken;
           this.setSession(accessToken, nextRefreshToken);
-        })
+        }),
+        switchMap(response =>
+          this.loadDisplayNameFromProfile().pipe(
+            map(() => response),
+            catchError(() => of(response))
+          )
+        )
       );
   }
 
@@ -239,6 +289,16 @@ export class AuthService {
     }
 
     return trimmed;
+  }
+
+  private resolveProfileDisplayName(profile: ProfileResponse): string | null {
+    const fullName = this.normalizeName([profile.firstName, profile.lastName].filter(Boolean).join(' '));
+    if (fullName) {
+      return fullName;
+    }
+
+    const emailPrefix = profile.email.includes('@') ? profile.email.split('@')[0] : profile.email;
+    return this.normalizeName(emailPrefix);
   }
 
   private hasValidStoredToken(): boolean {
