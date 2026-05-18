@@ -1,12 +1,18 @@
 package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 
 import com.tfm.tennis_platform.domain.models.Event;
+import com.tfm.tennis_platform.domain.models.Draw;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
+import com.tfm.tennis_platform.domain.models.Stage;
+import com.tfm.tennis_platform.domain.models.enums.DrawType;
+import com.tfm.tennis_platform.domain.models.enums.StageType;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.EventEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.DrawEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.RefAgeCategoryEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.StageEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.TournamentEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.mapper.TournamentEntityMapper;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaTournamentRepository;
@@ -128,5 +134,82 @@ class TournamentRepositoryAdapterTest {
 
         verify(mapper).updateEntityFromDomain(domainTournament, tournamentEntity);
         assertSame(domainTournament, savedTournament);
+    }
+
+    @Test
+    void should_preserve_existing_draws_when_stage_payload_does_not_include_them() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
+        UUID stageId = UUID.randomUUID();
+        UUID drawId = UUID.randomUUID();
+
+        TournamentEntity tournamentEntity = TournamentEntity.builder()
+                .id(tournamentId)
+                .events(new ArrayList<>())
+                .build();
+
+        EventEntity eventEntity = EventEntity.builder()
+                .id(eventId)
+                .gender("MALE")
+                .ageCategory(RefAgeCategoryEntity.builder().id(1).build())
+                .tournament(tournamentEntity)
+                .stages(new ArrayList<>())
+                .build();
+
+        StageEntity stageEntity = StageEntity.builder()
+                .id(stageId)
+                .event(eventEntity)
+                .order(1)
+                .stageType("SINGLE_ELIMINATION")
+                .description("Main draw")
+                .draws(new ArrayList<>())
+                .build();
+
+        DrawEntity drawEntity = DrawEntity.builder()
+                .id(drawId)
+                .stage(stageEntity)
+                .drawType(DrawType.ELIMINATION.name())
+                .label("Draw 1")
+                .build();
+
+        stageEntity.getDraws().add(drawEntity);
+        eventEntity.getStages().add(stageEntity);
+        tournamentEntity.getEvents().add(eventEntity);
+
+        Tournament domainTournament = Tournament.builder()
+                .id(tournamentId)
+                .name("Open Primavera")
+                .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
+                .surface(Surface.CLAY)
+                .maxPlayers(32)
+                .location("Club Central")
+                .state(TournamentStatus.DRAFT)
+                .events(List.of(
+                        Event.builder()
+                                .id(eventId)
+                                .categoryId(1)
+                                .gender("MALE")
+                                .stages(List.of(
+                                        Stage.builder()
+                                                .id(stageId)
+                                                .eventId(eventId)
+                                                .stageNumber(1)
+                                                .stageType(StageType.MAIN)
+                                                .description("Main draw")
+                                                .build()
+                                ))
+                                .build()
+                ))
+                .build();
+
+        when(tournamentJpaRepository.findById(tournamentId)).thenReturn(Optional.of(tournamentEntity));
+        when(entityManager.getReference(RefAgeCategoryEntity.class, 1)).thenReturn(RefAgeCategoryEntity.builder().id(1).build());
+        when(mapper.toDomain(tournamentEntity)).thenReturn(domainTournament);
+
+        repositoryAdapter.save(domainTournament);
+
+        assertEquals(1, stageEntity.getDraws().size());
+        assertSame(drawEntity, stageEntity.getDraws().get(0));
     }
 }

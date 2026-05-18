@@ -33,7 +33,7 @@ public class DrawEntity {
     @Column(name = "label")
     private String label;
 
-    @OneToMany(mappedBy = "draw", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "draw", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
-    private List<MatchupEntity> matchups = new ArrayList<>();
+    private List<MatchEntity> matches = new ArrayList<>();
 }

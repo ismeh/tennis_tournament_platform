@@ -4,13 +4,17 @@ import com.tfm.tennis_platform.domain.models.Draw;
 import com.tfm.tennis_platform.domain.models.enums.DrawType;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.DrawEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.StageEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
 
 @Component
+@RequiredArgsConstructor
 public class DrawDomainMapper {
+
+    private final MatchDomainMapper matchDomainMapper;
 
     public Draw toDomain(DrawEntity entity) {
         if (entity == null) {
@@ -23,6 +27,7 @@ public class DrawDomainMapper {
                 .drawType(entity.getDrawType() != null ? DrawType.valueOf(entity.getDrawType()) : null)
                 .drawName(entity.getLabel())
                 .label(entity.getLabel())
+                .matches(matchDomainMapper.toDomainList(entity.getMatches()))
                 .build();
     }
 

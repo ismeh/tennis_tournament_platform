@@ -4,6 +4,8 @@ import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.Event;
 import com.tfm.tennis_platform.domain.models.Stage;
+import com.tfm.tennis_platform.domain.models.Inscription;
+import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.domain.models.Draw;
 import com.tfm.tennis_platform.domain.models.enums.DrawType;
 import com.tfm.tennis_platform.domain.models.enums.StageType;
@@ -15,6 +17,7 @@ import com.tfm.tennis_platform.infrastructure.persistence.entity.DrawEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.RefAgeCategoryEntity;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapping;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 
@@ -159,6 +162,7 @@ public interface TournamentEntityMapper {
                 .drawType(entity.getDrawType() != null ? DrawType.valueOf(entity.getDrawType()) : null)
                 .drawName(entity.getLabel())
                 .label(entity.getLabel())
+                .matches(toDomainMatches(entity.getMatches()))
                 .build();
     }
 
@@ -168,6 +172,44 @@ public interface TournamentEntityMapper {
                 .id(draw.getId())
                 .drawType(draw.getDrawType() != null ? draw.getDrawType().name() : null)
                 .label(draw.getLabel() != null ? draw.getLabel() : draw.getDrawName())
+                .build();
+    }
+
+    default List<Match> toDomainMatches(List<MatchEntity> entities) {
+        if (entities == null) return new ArrayList<>();
+        return entities.stream()
+                .map(this::toDomain)
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    default Match toDomain(MatchEntity entity) {
+        if (entity == null) return null;
+        return Match.builder()
+                .id(entity.getId())
+                .drawId(entity.getDraw() != null ? entity.getDraw().getId() : null)
+                .firstInscription(mapInscriptionDomain(entity.getFirstInscription() != null ? entity.getFirstInscription().getId() : null))
+                .secondInscription(mapInscriptionDomain(entity.getSecondInscription() != null ? entity.getSecondInscription().getId() : null))
+                .winner(mapInscriptionDomain(entity.getWinner() != null ? entity.getWinner().getId() : null))
+                .roundNumber(entity.getRoundNumber())
+                .nextMatch(toDomain(entity.getNextMatch()))
+                .scheduledAt(entity.getScheduledAt())
+                .court(entity.getCourt())
+                .result(entity.getResult())
+                .build();
+    }
+
+    default Inscription mapInscriptionDomain(java.util.UUID inscriptionId) {
+        if (inscriptionId == null) {
+            return null;
+        }
+
+        return Inscription.builder()
+                .id(inscriptionId)
+                .eventId(null)
+                .participantId(null)
+                .status(null)
+                .paymentStatus(null)
+                .registeredAt(null)
                 .build();
     }
 

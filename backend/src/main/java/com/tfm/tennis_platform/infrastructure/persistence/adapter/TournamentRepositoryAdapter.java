@@ -1,6 +1,8 @@
 package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 
 import com.tfm.tennis_platform.domain.models.Draw;
+import com.tfm.tennis_platform.domain.models.Event;
+import com.tfm.tennis_platform.domain.models.Stage;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.EventEntity;
@@ -88,7 +90,7 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
         return tournamentJpaRepository.findById(id).map(mapper::toDomain);
     }
 
-    private void updateEventStages(EventEntity eventEntity, com.tfm.tennis_platform.domain.models.Event domainEvent) {
+    private void updateEventStages(EventEntity eventEntity, Event domainEvent) {
         Map<UUID, StageEntity> existingStagesById = eventEntity.getStages().stream()
             .collect(Collectors.toMap(StageEntity::getId, stage -> stage, (left, right) -> left, LinkedHashMap::new));
 
@@ -121,7 +123,11 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
         }
     }
 
-    private void updateStageDraws(StageEntity stageEntity, com.tfm.tennis_platform.domain.models.Stage domainStage) {
+    private void updateStageDraws(StageEntity stageEntity, Stage domainStage) {
+        if (domainStage.getDraws() == null || domainStage.getDraws().isEmpty()) {
+            return;
+        }
+
         Map<UUID, DrawEntity> existingDrawsById = stageEntity.getDraws().stream()
             .collect(Collectors.toMap(DrawEntity::getId, draw -> draw, (left, right) -> left, LinkedHashMap::new));
 
