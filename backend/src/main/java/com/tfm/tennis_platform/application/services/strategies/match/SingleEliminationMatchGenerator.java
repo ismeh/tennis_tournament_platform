@@ -47,6 +47,45 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
             }
         }
 
+        // Second pass: connect each match with its next-round destination.
+        for (int round = 1; round < rounds; round++) {
+            int matchesInRound = calculateMatchesInRound(participantCount, round);
+
+            for (int matchIndex = 0; matchIndex < matchesInRound; matchIndex++) {
+                String currentPosition = round + "-" + matchIndex;
+                String nextPosition = (round + 1) + "-" + (matchIndex / 2);
+
+                Match currentMatch = matchMap.get(currentPosition);
+                Match nextMatch = matchMap.get(nextPosition);
+
+                if (currentMatch != null && nextMatch != null) {
+                    matchMap.put(currentPosition, currentMatch.toBuilder()
+                            .nextMatch(nextMatch)
+                            .build());
+                }
+            }
+        }
+
+        // Third pass: seed inscriptions into first-round matches (firstInscription / secondInscription)
+        int matchesInFirstRound = calculateMatchesInRound(participantCount, 1);
+        for (int i = 0; i < inscriptions.size(); i++) {
+            Inscription inscription = inscriptions.get(i);
+            int matchIndex = i / 2;
+            String position = 1 + "-" + matchIndex;
+            Match existing = matchMap.get(position);
+            if (existing == null) {
+                continue;
+            }
+
+            Match updated;
+            if (i % 2 == 0) {
+                updated = existing.toBuilder().firstInscription(inscription).build();
+            } else {
+                updated = existing.toBuilder().secondInscription(inscription).build();
+            }
+            matchMap.put(position, updated);
+        }
+
         allMatches.addAll(matchMap.values());
         return allMatches;
     }

@@ -9,6 +9,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "matches")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -38,6 +39,10 @@ public class MatchEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "next_match_id")
     private MatchEntity nextMatch;
+
+    public void setNextMatch(MatchEntity nextMatch) {
+        this.nextMatch = nextMatch;
+    }
 
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
