@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatchResponse } from '../../../data/interfaces/tournament.model';
@@ -115,6 +115,10 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                         class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                       />
                     </div>
+
+                    @if (validationMessage()) {
+                      <p class="text-xs font-medium text-red-600">{{ validationMessage() }}</p>
+                    }
                   </div>
                 </div>
               </div>
@@ -132,7 +136,8 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
               </button>
               <button
                 (click)="onSave()"
-                class="flex-1 rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                [disabled]="!isFormValid()"
+                class="flex-1 rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
                 Guardar Resultado
               </button>
@@ -145,21 +150,46 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
   styles: []
 })
 export class MatchDetailModalComponent {
+  @Input() participantNamesInput: Record<string, string> = {};
+
   @Input() set matchInput(value: MatchResponse | null) {
     if (value) {
       this.match.set(value);
       this.selectedWinnerId = value.winnerId || '';
       this.matchResult = value.result || '';
+      this.validationMessage.set(null);
     }
   }
   match = signal<MatchResponse | null>(null);
   isOpen = signal(false);
+  validationMessage = signal<string | null>(null);
 
   selectedWinnerId = '';
   matchResult = '';
 
   @Output() close = new EventEmitter<void>();
   @Output() saveResult = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapeKeyDown(event: Event): void {
+    if (!this.isOpen()) {
+      return;
+    }
+
+    event.preventDefault();
+    this.onClose();
+  }
+
+  @HostListener('document:keydown.enter', ['$event'])
+  onEnterKeyDown(event: Event): void {
+    const keyboardEvent = event as KeyboardEvent;
+    if (!this.isOpen() || keyboardEvent.isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    this.onSave();
+  }
 
   open() {
     this.isOpen.set(true);
@@ -171,19 +201,29 @@ export class MatchDetailModalComponent {
   }
 
   onSave() {
-    if (this.match() && this.selectedWinnerId && this.matchResult) {
-      this.saveResult.emit({
-        matchId: this.match()!.id,
-        winnerId: this.selectedWinnerId,
-        result: this.matchResult
-      });
-      this.isOpen.set(false);
+    if (!this.isFormValid()) {
+      this.validationMessage.set('Selecciona un ganador y registra un resultado antes de guardar.');
+      return;
     }
+
+    this.saveResult.emit({
+      matchId: this.match()!.id,
+      winnerId: this.selectedWinnerId,
+      result: this.matchResult
+    });
+    this.validationMessage.set(null);
+    this.isOpen.set(false);
   }
 
   getParticipantName(inscriptionId: string | undefined): string {
-    // TODO: Fetch participant name from service
-    // For now, return inscriptionId as placeholder
-    return inscriptionId ? inscriptionId.substring(0, 8) : 'Participante';
+    if (!inscriptionId) {
+      return 'Participante';
+    }
+
+    return this.participantNamesInput[inscriptionId] ?? inscriptionId.substring(0, 8);
+  }
+
+  isFormValid(): boolean {
+    return !!this.match() && !!this.selectedWinnerId && this.matchResult.trim().length > 0;
   }
 }

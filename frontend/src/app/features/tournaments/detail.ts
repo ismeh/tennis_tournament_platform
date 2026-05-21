@@ -15,6 +15,9 @@ import {
   TournamentEventsConfigRequest,
   ManualParticipantSource,
   ManualEventInscriptionRequest,
+  DrawResponse,
+  MatchResponse,
+  StageResponse,
   TournamentProviderSummary,
   TournamentStatus,
   TournamentResponse,
@@ -29,6 +32,11 @@ import { TournamentService } from '../../data/services/tournament.service';
 import { StagesComponent } from './components/stages.component';
 
 type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'registeredPlayers' | 'stages';
+
+type DrawGenerationFeedback = {
+  status: 'success' | 'error';
+  message: string;
+};
 
 @Component({
   selector: 'app-tournament-detail-page',
@@ -835,8 +843,12 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'register
                         <app-stages
                           [stagesInput]="event.stages"
                           [tournamentIdInput]="tournament()!.id"
+                          [participantNamesInput]="participantNamesByInscriptionId()"
+                          [generatingDrawsForStageIdInput]="generatingDrawsStageId()"
+                          [drawGenerationFeedbackInput]="drawGenerationFeedbackByStageId()"
                           (generateDraws)="onGenerateDraws($event, event.eventId!)"
                           (matchSelected)="onMatchSelected($event)"
+                          (matchResultSaved)="onMatchResultSaved($event)"
                         ></app-stages>
                       } @else {
                         <div class="mt-3 rounded-lg border border-neutral-200 bg-white p-4 text-sm text-neutral-600">
@@ -924,6 +936,8 @@ export class TournamentDetailComponent implements OnInit {
   readonly manualPlayerSuccess = signal<string | null>(null);
   readonly isSearchingPersons = signal(false);
   readonly isSubmittingManualPlayer = signal(false);
+  readonly generatingDrawsStageId = signal<string | null>(null);
+  readonly drawGenerationFeedbackByStageId = signal<Record<string, DrawGenerationFeedback>>({});
   readonly manualPlayerSourceOptions: Array<{ value: ManualParticipantSource; label: string; description: string }> = [
     {
       value: 'EXISTING_PERSON',
@@ -1044,6 +1058,13 @@ export class TournamentDetailComponent implements OnInit {
   );
 
   readonly tournamentInscriptionPlayers = computed(() => this.tournamentInscriptions()?.inscriptions ?? []);
+
+  readonly participantNamesByInscriptionId = computed<Record<string, string>>(() =>
+    this.tournamentInscriptionPlayers().reduce<Record<string, string>>((accumulator, player) => {
+      accumulator[player.inscriptionId] = [player.firstName, player.lastName].filter(Boolean).join(' ').trim();
+      return accumulator;
+    }, {})
+  );
 
   readonly hasTournamentInscriptionsResults = computed(() => this.tournamentInscriptionPlayers().length > 0);
 
@@ -1484,7 +1505,7 @@ export class TournamentDetailComponent implements OnInit {
     });
   }
 
-  private loadTournament(tournamentId: string): void {
+  private loadTournament(tournamentId: string, preserveActiveSection = false): void {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
@@ -1497,7 +1518,9 @@ export class TournamentDetailComponent implements OnInit {
         this.selectedStatus.set(this.getDefaultStatusSelection(tournament.status));
         this.loadTournamentInscriptions();
         this.isLoading.set(false);
-        this.activeSection.set(this.isCreator() ? 'setup' : 'overview');
+        if (!preserveActiveSection) {
+          this.activeSection.set(this.isCreator() ? 'setup' : 'overview');
+        }
       },
       error: () => {
         this.errorMessage.set('No se pudo cargar el detalle del torneo.');
@@ -1732,21 +1755,300 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   onGenerateDraws(event: { tournamentId: string; stageId: string }, eventId: string): void {
+    this.generatingDrawsStageId.set(event.stageId);
+    this.setDrawGenerationFeedback(event.stageId, null);
+    this.actionMessage.set(null);
+    this.actionError.set(null);
+
     this.tournamentService.generateDraws(event.tournamentId, eventId)
       .subscribe({
         next: (tournament) => {
-          this.tournament.set(tournament);
+          console.debug('GenerateDraws: backend returned tournament event(s):', tournament.events);
+          console.debug('GenerateDraws: current local tournament before replace:', this.tournament());
+          const updatedTournament = this.replaceTournamentEvent(this.tournament(), tournament, eventId);
+          this.tournament.set(updatedTournament ?? tournament);
+          console.debug('GenerateDraws: local tournament after replace:', this.tournament());
+          this.clearGeneratingDrawsStage(event.stageId);
+          this.setDrawGenerationFeedback(event.stageId, {
+            status: 'success',
+            message: 'Cuadros generados correctamente.'
+          });
           this.actionMessage.set('Cuadros generados correctamente');
         },
         error: (err) => {
-          this.actionError.set('Error al generar cuadros: ' + err.message);
+          const message = `Error al generar cuadros: ${this.getRequestErrorMessage(err)}`;
+          this.clearGeneratingDrawsStage(event.stageId);
+          this.setDrawGenerationFeedback(event.stageId, {
+            status: 'error',
+            message
+          });
+          this.actionError.set(message);
         }
       });
+  }
+
+  private setDrawGenerationFeedback(stageId: string, feedback: DrawGenerationFeedback | null): void {
+    const nextFeedback = { ...this.drawGenerationFeedbackByStageId() };
+
+    if (feedback) {
+      nextFeedback[stageId] = feedback;
+    } else {
+      delete nextFeedback[stageId];
+    }
+
+    this.drawGenerationFeedbackByStageId.set(nextFeedback);
+  }
+
+  private clearGeneratingDrawsStage(stageId: string): void {
+    if (this.generatingDrawsStageId() === stageId) {
+      this.generatingDrawsStageId.set(null);
+    }
+  }
+
+  private getRequestErrorMessage(error: unknown): string {
+    if (error && typeof error === 'object') {
+      const httpError = error as { error?: unknown; message?: string };
+
+      if (typeof httpError.error === 'string' && httpError.error.trim()) {
+        return httpError.error;
+      }
+
+      if (httpError.error && typeof httpError.error === 'object') {
+        const errorBody = httpError.error as { message?: string };
+
+        if (errorBody.message) {
+          return errorBody.message;
+        }
+      }
+
+      if (httpError.message) {
+        return httpError.message;
+      }
+    }
+
+    return 'No se pudo completar la operacion.';
   }
 
   onMatchSelected(matchId: string): void {
     // Placeholder para futuras acciones al seleccionar un match
     console.log('Match selected:', matchId);
+  }
+
+  onMatchResultSaved(event: { matchId: string; winnerId: string; result: string }): void {
+    const currentTournament = this.tournament();
+    if (!currentTournament) {
+      return;
+    }
+
+    this.actionError.set(null);
+    this.tournamentService.submitMatchResult(currentTournament.id, event.matchId, {
+      winnerId: event.winnerId,
+      scoreString: event.result
+    }).subscribe({
+      next: (updatedMatch) => {
+        console.debug('SubmitMatchResult: backend returned match:', updatedMatch);
+        console.debug('SubmitMatchResult: current local tournament before patch:', currentTournament);
+        const updatedTournament = this.patchMatchResultInTournament(currentTournament, event.matchId, updatedMatch);
+        if (updatedTournament) {
+          this.tournament.set(updatedTournament);
+          console.debug('SubmitMatchResult: local tournament after patch:', this.tournament());
+        } else {
+          this.loadTournament(currentTournament.id, true);
+        }
+        this.actionMessage.set('Resultado guardado y cuadro actualizado');
+      },
+      error: () => {
+        this.actionError.set('No se pudo guardar el resultado del partido.');
+      }
+    });
+  }
+
+  private replaceTournamentEvent(
+    currentTournament: TournamentResponse | null,
+    updatedTournament: TournamentResponse,
+    eventId: string
+  ): TournamentResponse | null {
+    if (!currentTournament) {
+      return updatedTournament;
+    }
+
+    const updatedEvent = updatedTournament.events?.find(event => event.eventId === eventId);
+    if (!updatedEvent) {
+      return updatedTournament;
+    }
+
+    const sanitized = this.sanitizeEvent(updatedEvent);
+
+    return {
+      ...currentTournament,
+      events: (currentTournament.events ?? []).map(event =>
+        event.eventId === eventId ? sanitized : event
+      )
+    };
+  }
+
+  private sanitizeEvent(event: TournamentEventResponse): TournamentEventResponse {
+    if (!event || !event.stages) return event;
+
+    const stagesById = new Map<string, StageResponse>();
+
+    for (const st of event.stages) {
+      const existing = stagesById.get(st.id);
+      if (!existing) {
+        stagesById.set(st.id, st);
+        continue;
+      }
+
+      // prefer stage that has more draws or draws with matches
+      const existingScore = (existing.draws ?? []).reduce((s: number, d: DrawResponse) => s + ((d.matches?.length ?? 0) > 0 ? 10 : 1), 0);
+      const newScore = (st.draws ?? []).reduce((s: number, d: DrawResponse) => s + ((d.matches?.length ?? 0) > 0 ? 10 : 1), 0);
+      if (newScore > existingScore) {
+        stagesById.set(st.id, st);
+      }
+    }
+
+    // sanitize draws inside each stage
+    const sanitizedStages = Array.from(stagesById.values()).map(stage => {
+      if (!stage.draws) return stage;
+      const drawsById = new Map<string, DrawResponse>();
+      for (const dr of stage.draws) {
+        const existing = drawsById.get(dr.id);
+        if (!existing) {
+          drawsById.set(dr.id, dr);
+          continue;
+        }
+        const existingScore = (existing.matches ?? []).length;
+        const newScore = (dr.matches ?? []).length;
+        if (newScore > existingScore) drawsById.set(dr.id, dr);
+      }
+      return { ...stage, draws: Array.from(drawsById.values()) };
+    });
+
+    return { ...event, stages: sanitizedStages };
+  }
+
+  private patchMatchResultInTournament(
+    currentTournament: TournamentResponse,
+    matchId: string,
+    updatedMatch: MatchResponse
+  ): TournamentResponse | null {
+    let patched = false;
+
+    const events = (currentTournament.events ?? []).map(event => ({
+      ...event,
+      stages: (event.stages ?? []).map(stage => ({
+        ...stage,
+        draws: (stage.draws ?? []).map(draw => {
+          const patchedDraw = this.patchDrawMatches(draw, matchId, updatedMatch);
+          patched = patched || patchedDraw.patched;
+          return patchedDraw.draw;
+        })
+      }))
+    }));
+
+    return patched ? { ...currentTournament, events } : null;
+  }
+
+  private patchDrawMatches(
+    draw: DrawResponse,
+    matchId: string,
+    updatedMatch: MatchResponse
+  ): { draw: DrawResponse; patched: boolean } {
+    const matches = draw.matches ?? [];
+    const currentIndex = matches.findIndex(match => match.id === matchId);
+
+    if (currentIndex < 0) {
+      return { draw, patched: false };
+    }
+
+    const currentMatch = matches[currentIndex];
+    const roundNumber = currentMatch.roundNumber ?? 1;
+    const roundMatches = matches.filter(match => (match.roundNumber ?? 1) === roundNumber);
+    const currentRoundIndex = roundMatches.findIndex(match => match.id === matchId);
+    const nextRoundMatches = matches.filter(match => (match.roundNumber ?? 1) === roundNumber + 1);
+    const nextMatch = currentRoundIndex >= 0 ? nextRoundMatches[Math.floor(currentRoundIndex / 2)] : undefined;
+
+    const patchedMatches = matches.map(match => {
+      if (match.id === matchId) {
+        return {
+          ...match,
+          winnerId: updatedMatch.winnerId,
+          result: updatedMatch.result
+        };
+      }
+
+      if (nextMatch && match.id === nextMatch.id) {
+        return this.assignWinnerToNextMatch(match, updatedMatch.winnerId ?? null, currentRoundIndex);
+      }
+
+      return match;
+    });
+
+    // Ensure there are no duplicate matches by id (preserve first occurrence)
+    const seen = new Set<string>();
+    const uniqueMatches: MatchResponse[] = [];
+    for (const m of patchedMatches) {
+      if (!m || !m.id) continue;
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      uniqueMatches.push(m);
+    }
+
+    return {
+      draw: {
+        ...draw,
+        matches: uniqueMatches
+      },
+      patched: true
+    };
+  }
+
+  private assignWinnerToNextMatch(
+    nextMatch: MatchResponse,
+    winnerId: string | null,
+    currentRoundIndex: number
+  ): MatchResponse {
+    if (!winnerId) {
+      return nextMatch;
+    }
+
+    if (nextMatch.firstInscriptionId === winnerId || nextMatch.secondInscriptionId === winnerId) {
+      return nextMatch;
+    }
+
+    const preferFirstSlot = currentRoundIndex % 2 === 0;
+
+    if (preferFirstSlot) {
+      if (!nextMatch.firstInscriptionId) {
+        return {
+          ...nextMatch,
+          firstInscriptionId: winnerId
+        };
+      }
+
+      if (!nextMatch.secondInscriptionId) {
+        return {
+          ...nextMatch,
+          secondInscriptionId: winnerId
+        };
+      }
+    } else {
+      if (!nextMatch.secondInscriptionId) {
+        return {
+          ...nextMatch,
+          secondInscriptionId: winnerId
+        };
+      }
+
+      if (!nextMatch.firstInscriptionId) {
+        return {
+          ...nextMatch,
+          firstInscriptionId: winnerId
+        };
+      }
+    }
+
+    return nextMatch;
   }
 
   getCategoryLabel(categoryId: number): string {

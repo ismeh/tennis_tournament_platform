@@ -18,15 +18,27 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
             <thead class="bg-neutral-100">
               <tr>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Ronda</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Partido</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Jugadores</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Estado</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Cancha</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Hora</th>
               </tr>
             </thead>
             <tbody>
-              @for (match of matches(); track match.id) {
-                <tr class="border-b border-neutral-200 hover:bg-neutral-50">
+              @for (match of sortedMatches(); track match.id) {
+                <tr
+                  (click)="onMatchClicked(match)"
+                  class="cursor-pointer border-b border-neutral-200 hover:bg-primary-50"
+                >
                   <td class="px-3 py-2">Ronda {{ match.roundNumber }}</td>
+                  <td class="px-3 py-2">#{{ getMatchNumber(match) }}</td>
+                  <td class="px-3 py-2">
+                    <div class="max-w-64">
+                      <p class="truncate font-medium text-neutral-900">{{ getParticipantName(match.firstInscriptionId) }}</p>
+                      <p class="truncate text-neutral-600">{{ getParticipantName(match.secondInscriptionId) }}</p>
+                    </div>
+                  </td>
                   <td class="px-3 py-2">
                     @if (match.result) {
                       <span class="inline-block rounded bg-green-100 px-2 py-1 text-xs text-green-800">
@@ -50,11 +62,53 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
   `
 })
 export class MatchesComponent {
+  @Input() participantNamesInput: Record<string, string> = {};
+
   @Input() set matchesInput(value: MatchResponse[]) {
     this._matches.set(value);
   }
   private _matches = signal<MatchResponse[]>([]);
   matches = computed(() => this._matches());
+  sortedMatches = computed(() =>
+    this.matches()
+      .map((match, index) => ({ match, index }))
+      .sort((left, right) => this.compareMatches(left.match, right.match, left.index, right.index))
+      .map(entry => entry.match)
+  );
 
-  @Output() matchSelected = new EventEmitter<string>();
+  @Output() matchSelected = new EventEmitter<MatchResponse>();
+
+  onMatchClicked(match: MatchResponse): void {
+    this.matchSelected.emit(match);
+  }
+
+  getMatchNumber(match: MatchResponse): number {
+    const matchesInRound = this.matches().filter(candidate => candidate.roundNumber === match.roundNumber);
+    return matchesInRound.indexOf(match) + 1;
+  }
+
+  getParticipantName(inscriptionId: string | undefined): string {
+    if (!inscriptionId) {
+      return 'Bye';
+    }
+
+    return this.participantNamesInput[inscriptionId] ?? inscriptionId.substring(0, 8);
+  }
+
+  private compareMatches(left: MatchResponse, right: MatchResponse, leftIndex: number, rightIndex: number): number {
+    return (
+      this.compareNumbers(left.roundNumber, right.roundNumber) ||
+      this.compareStrings(left.scheduledAt, right.scheduledAt) ||
+      this.compareStrings(left.court, right.court) ||
+      leftIndex - rightIndex
+    );
+  }
+
+  private compareNumbers(left: number | undefined, right: number | undefined): number {
+    return (left ?? Number.MAX_SAFE_INTEGER) - (right ?? Number.MAX_SAFE_INTEGER);
+  }
+
+  private compareStrings(left: string | null | undefined, right: string | null | undefined): number {
+    return (left ?? '').localeCompare(right ?? '');
+  }
 }

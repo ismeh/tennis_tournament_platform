@@ -5,6 +5,8 @@ import { MatchesComponent } from './matches.component';
 import { BracketComponent } from './bracket.component';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
 
+type DrawViewMode = 'tree' | 'list';
+
 @Component({
   selector: 'app-draws',
   standalone: true,
@@ -16,35 +18,46 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
       @if (draws().length === 0) {
         <p class="text-sm text-neutral-600">Sin cuadros</p>
       } @else {
-        <!-- Bracket Visualization -->
-        <app-bracket [drawsInput]="draws()" (matchSelected)="onMatchSelected($event)"></app-bracket>
-        
-        <!-- Legacy matches list (optional, can be hidden) -->
-        <div class="space-y-3 border-t border-neutral-200 pt-4">
-          <p class="text-xs font-semibold text-neutral-600 uppercase">Vista alternativa: Lista de enfrentamientos</p>
+        <div class="space-y-3">
           @for (draw of draws(); track draw.id) {
-            <div class="rounded-md border border-neutral-200 bg-neutral-50 p-4">
-              <div class="flex items-center justify-between">
+            <div class="rounded-md border border-neutral-200 bg-white p-4">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p class="font-medium text-neutral-900">{{ draw.label }}</p>
                   <p class="text-xs text-neutral-500">Tipo: {{ draw.drawType }}</p>
                   <p class="text-xs text-neutral-500">{{ (draw.matches || []).length }} enfrentamientos</p>
                 </div>
                 <button
-                  (click)="toggleDraw(draw.id)"
-                  class="rounded px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 hover:text-primary-700"
+                  type="button"
+                  (click)="toggleDrawView(draw.id)"
+                  class="inline-flex items-center justify-center rounded-lg border border-primary-200 px-3 py-2 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
+                  [attr.aria-label]="getDrawViewToggleLabel(draw.id)"
                 >
-                  {{ expandedDrawId() === draw.id ? '−' : '+' }}
+                  {{ getDrawViewToggleLabel(draw.id) }}
                 </button>
               </div>
 
-              @if (expandedDrawId() === draw.id && (draw.matches || []).length > 0) {
+              @if ((draw.matches || []).length > 0) {
                 <div class="mt-3 border-t border-neutral-200 pt-3">
-                  <app-matches [matchesInput]="draw.matches || []" (matchSelected)="onRowMatchSelected($event)"></app-matches>
+                  @if (getDrawViewMode(draw.id) === 'tree') {
+                    <app-bracket
+                      [drawsInput]="[draw]"
+                      [participantNamesInput]="participantNamesInput"
+                      [showTitleInput]="false"
+                      [showDrawCardInput]="false"
+                      (matchSelected)="onMatchSelected($event)"
+                    ></app-bracket>
+                  } @else {
+                    <app-matches
+                      [matchesInput]="draw.matches || []"
+                      [participantNamesInput]="participantNamesInput"
+                      (matchSelected)="onMatchSelected($event)"
+                    ></app-matches>
+                  }
                 </div>
               }
 
-              @if (expandedDrawId() === draw.id && (draw.matches || []).length === 0) {
+              @if ((draw.matches || []).length === 0) {
                 <div class="mt-3 border-t border-neutral-200 pt-3 text-sm text-neutral-600">
                   Sin enfrentamientos
                 </div>
@@ -59,12 +72,15 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
     <app-match-detail-modal 
       #matchModal 
       [matchInput]="selectedMatch()"
+      [participantNamesInput]="participantNamesInput"
       (saveResult)="onSaveMatchResult($event)"
       (close)="onModalClose()"
     ></app-match-detail-modal>
   `
 })
 export class DrawsComponent {
+  @Input() participantNamesInput: Record<string, string> = {};
+
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
   }
@@ -76,11 +92,22 @@ export class DrawsComponent {
   @Output() matchSelected = new EventEmitter<string>();
   @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
 
-  expandedDrawId = signal<string | null>(null);
+  drawViewModes = signal<Record<string, DrawViewMode>>({});
   selectedMatch = signal<MatchResponse | null>(null);
 
-  toggleDraw(drawId: string) {
-    this.expandedDrawId.set(this.expandedDrawId() === drawId ? null : drawId);
+  toggleDrawView(drawId: string) {
+    this.drawViewModes.update(viewModes => ({
+      ...viewModes,
+      [drawId]: this.getDrawViewMode(drawId) === 'tree' ? 'list' : 'tree'
+    }));
+  }
+
+  getDrawViewMode(drawId: string): DrawViewMode {
+    return this.drawViewModes()[drawId] ?? 'tree';
+  }
+
+  getDrawViewToggleLabel(drawId: string): string {
+    return this.getDrawViewMode(drawId) === 'tree' ? 'Ver listado' : 'Ver árbol';
   }
 
   onMatchSelected(match: MatchResponse) {
@@ -88,10 +115,6 @@ export class DrawsComponent {
     if (this.matchModal) {
       this.matchModal.open();
     }
-  }
-
-  onRowMatchSelected(matchId: string) {
-    this.matchSelected.emit(matchId);
   }
 
   onModalClose() {

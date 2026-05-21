@@ -3,6 +3,11 @@ import { CommonModule } from '@angular/common';
 import { StageResponse, DrawResponse } from '../../../data/interfaces/tournament.model';
 import { DrawsComponent } from './draws.component';
 
+type DrawGenerationFeedback = {
+  status: 'success' | 'error';
+  message: string;
+};
+
 @Component({
   selector: 'app-stages',
   standalone: true,
@@ -26,17 +31,39 @@ import { DrawsComponent } from './draws.component';
                   <p class="mt-2 text-xs text-neutral-500">Fase {{ stage.order }}</p>
                 </div>
                 <button
+                  type="button"
                   (click)="onGenerateDraws(stage)"
-                  [disabled]="generatingDrawsForStageId() === stage.id"
-                  class="rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 disabled:bg-neutral-400"
+                  [disabled]="isGeneratingDraws(stage.id)"
+                  [attr.aria-busy]="isGeneratingDraws(stage.id)"
+                  [class]="getGenerateDrawsButtonClass(stage)"
                 >
-                  {{ generatingDrawsForStageId() === stage.id ? 'Generando...' : 'Generar Cuadros' }}
+                  {{ getGenerateDrawsButtonLabel(stage) }}
                 </button>
               </div>
 
+              @if (isGeneratingDraws(stage.id)) {
+                <div class="mt-4 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm font-medium text-primary-800">
+                  Generando cuadros para esta fase...
+                </div>
+              } @else if (drawGenerationFeedback()[stage.id]) {
+                <div
+                  class="mt-4 rounded-lg border px-4 py-3 text-sm font-medium"
+                  [ngClass]="drawGenerationFeedback()[stage.id].status === 'success'
+                    ? 'border-green-200 bg-green-50 text-green-800'
+                    : 'border-red-200 bg-red-50 text-red-700'"
+                >
+                  {{ drawGenerationFeedback()[stage.id].message }}
+                </div>
+              }
+
               @if (expandedStageId() === stage.id && (stage.draws || []).length > 0) {
                 <div class="mt-4 border-t border-neutral-200 pt-4">
-                  <app-draws [drawsInput]="stage.draws || []" (matchSelected)="onMatchSelected($event)"></app-draws>
+                  <app-draws
+                    [drawsInput]="stage.draws || []"
+                    [participantNamesInput]="participantNamesInput"
+                    (matchSelected)="onMatchSelected($event)"
+                    (matchResultSaved)="onMatchResultSaved($event)"
+                  ></app-draws>
                 </div>
               }
 
@@ -60,6 +87,8 @@ import { DrawsComponent } from './draws.component';
   `
 })
 export class StagesComponent {
+  @Input() participantNamesInput: Record<string, string> = {};
+
   @Input() set stagesInput(value: StageResponse[]) {
     this._stages.set(value);
   }
@@ -74,16 +103,28 @@ export class StagesComponent {
 
   @Output() generateDraws = new EventEmitter<{ tournamentId: string; stageId: string }>();
   @Output() matchSelected = new EventEmitter<string>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
 
   expandedStageId = signal<string | null>(null);
-  generatingDrawsForStageId = signal<string | null>(null);
+
+  @Input() set generatingDrawsForStageIdInput(value: string | null) {
+    this._generatingDrawsForStageId.set(value);
+  }
+  private _generatingDrawsForStageId = signal<string | null>(null);
+  generatingDrawsForStageId = computed(() => this._generatingDrawsForStageId());
+
+  @Input() set drawGenerationFeedbackInput(value: Record<string, DrawGenerationFeedback>) {
+    this._drawGenerationFeedback.set(value);
+  }
+  private _drawGenerationFeedback = signal<Record<string, DrawGenerationFeedback>>({});
+  drawGenerationFeedback = computed(() => this._drawGenerationFeedback());
 
   toggleStage(stageId: string) {
     this.expandedStageId.set(this.expandedStageId() === stageId ? null : stageId);
   }
 
   onGenerateDraws(stage: StageResponse) {
-    this.generatingDrawsForStageId.set(stage.id);
+    this.expandedStageId.set(stage.id);
     this.generateDraws.emit({
       tournamentId: this.tournamentId(),
       stageId: stage.id
@@ -92,5 +133,45 @@ export class StagesComponent {
 
   onMatchSelected(matchId: string) {
     this.matchSelected.emit(matchId);
+  }
+
+  onMatchResultSaved(event: { matchId: string; winnerId: string; result: string }) {
+    this.matchResultSaved.emit(event);
+  }
+
+  isGeneratingDraws(stageId: string): boolean {
+    return this.generatingDrawsForStageId() === stageId;
+  }
+
+  getGenerateDrawsButtonLabel(stage: StageResponse): string {
+    if (this.isGeneratingDraws(stage.id)) {
+      return 'Generando cuadros...';
+    }
+
+    const feedback = this.drawGenerationFeedback()[stage.id];
+    if (feedback?.status === 'error') {
+      return 'Reintentar generar';
+    }
+
+    if ((stage.draws || []).length > 0 || feedback?.status === 'success') {
+      return 'Regenerar cuadros';
+    }
+
+    return 'Generar cuadros';
+  }
+
+  getGenerateDrawsButtonClass(stage: StageResponse): string {
+    const baseClass = 'rounded-lg px-4 py-2 text-white disabled:cursor-wait disabled:bg-neutral-400';
+    const feedback = this.drawGenerationFeedback()[stage.id];
+
+    if (feedback?.status === 'error') {
+      return `${baseClass} bg-red-600 hover:bg-red-700`;
+    }
+
+    if ((stage.draws || []).length > 0 || feedback?.status === 'success') {
+      return `${baseClass} bg-green-700 hover:bg-green-800`;
+    }
+
+    return `${baseClass} bg-primary-600 hover:bg-primary-700`;
   }
 }
