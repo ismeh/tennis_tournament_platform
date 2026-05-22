@@ -190,7 +190,7 @@ public class EventService {
                                                                                                                                                         .matches(matchesByDraw.getOrDefault(dr.getId(), java.util.List.of()))
                                                                                                                                                         .build())
                                                                                                                         .collect(Collectors.toList());
-                                                                                        Stage candidate = st.toBuilder().draws(rebuiltDraws).build();
+                                                                                        Stage candidate = st.toBuilder().clearDraws().draws(rebuiltDraws).build();
 
                                                                                         Stage existing = stagesById.get(candidate.getId());
                                                                                         if (existing == null) {

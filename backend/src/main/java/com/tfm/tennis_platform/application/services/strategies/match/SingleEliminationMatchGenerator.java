@@ -6,7 +6,7 @@ import com.tfm.tennis_platform.domain.models.Match;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,8 +26,8 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
         int rounds = calculateRounds(participantCount);
 
         // Store match IDs by position for linking
-        Map<String, UUID> matchPositions = new HashMap<>();
-        Map<String, Match> matchMap = new HashMap<>();
+        Map<String, UUID> matchPositions = new LinkedHashMap<>();
+        Map<String, Match> matchMap = new LinkedHashMap<>();
 
         // First pass: Generate all matches with IDs
         for (int round = 1; round <= rounds; round++) {
@@ -86,7 +86,15 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
             matchMap.put(position, updated);
         }
 
-        allMatches.addAll(matchMap.values());
+        for (int round = 1; round <= rounds; round++) {
+            int matchesInRound = calculateMatchesInRound(participantCount, round);
+            for (int matchIndex = 0; matchIndex < matchesInRound; matchIndex++) {
+                Match match = matchMap.get(round + "-" + matchIndex);
+                if (match != null) {
+                    allMatches.add(match);
+                }
+            }
+        }
         return allMatches;
     }
 

@@ -149,7 +149,7 @@ class TournamentGenerationFlowTest {
         assertEquals(1, tournamentWithDraws.getEvents().size());
         assertEquals(1, tournamentWithDraws.getEvents().get(0).getStages().size());
         assertEquals(1, tournamentWithDraws.getEvents().get(0).getStages().get(0).getDraws().size());
-        assertTrue(tournamentWithDraws.getEvents().get(0).getStages().get(0).getDraws().get(0).getMatches().isEmpty());
+        assertEquals(3, tournamentWithDraws.getEvents().get(0).getStages().get(0).getDraws().get(0).getMatches().size());
     }
 
     private Tournament createTournament() {
