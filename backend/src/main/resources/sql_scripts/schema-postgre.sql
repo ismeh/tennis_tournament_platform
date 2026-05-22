@@ -123,8 +123,9 @@ CREATE INDEX idx_inscriptions_member ON inscriptions (participant_id);
 CREATE TABLE stages (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id        UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    stage_number    INTEGER NOT NULL,
-    stage_type      VARCHAR(30)                 -- QUALIFYING / MAIN / CONSOLATION / PLAYOFF
+    stage_order     INTEGER NOT NULL,
+    stage_type      VARCHAR(30),                -- QUALIFYING / MAIN / CONSOLATION / PLAYOFF
+    description     VARCHAR
 );
 
 -- DRAWS (structure inside a stage)
@@ -132,8 +133,10 @@ CREATE TABLE draws (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     stage_id        UUID NOT NULL REFERENCES stages(id) ON DELETE CASCADE,
     draw_type       VARCHAR(30) NOT NULL,      -- ELIMINATION / ROUND_ROBIN
-    draw_name       VARCHAR(100)
+    label           VARCHAR(100)
 );
+
+COMMENT ON COLUMN draws.label IS 'Draw visible name';
 
 -- MATCHES (individual matches)
 CREATE TABLE matches (

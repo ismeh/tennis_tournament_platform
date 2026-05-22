@@ -136,8 +136,9 @@ CREATE INDEX idx_inscriptions_participant ON inscriptions(participant_id);
 CREATE TABLE stages (
     id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     event_id        UUID NOT NULL,
-    stage_number    INTEGER NOT NULL,
+    stage_order     INTEGER NOT NULL,
     stage_type      VARCHAR(30),
+    description     VARCHAR,
     FOREIGN KEY (event_id) REFERENCES events(id)
 );
 
@@ -145,9 +146,11 @@ CREATE TABLE draws (
     id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     stage_id        UUID NOT NULL,
     draw_type       VARCHAR(30) NOT NULL,
-    draw_name       VARCHAR(100),
+    label           VARCHAR(100),
     FOREIGN KEY (stage_id) REFERENCES stages(id)
 );
+
+COMMENT ON COLUMN draws.label IS 'Draw visible name';
 
 CREATE TABLE matches (
     id                      UUID PRIMARY KEY DEFAULT RANDOM_UUID(),

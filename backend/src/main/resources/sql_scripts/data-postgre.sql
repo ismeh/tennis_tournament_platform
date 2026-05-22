@@ -112,7 +112,7 @@ INSERT INTO participants (tournament_id, person_id, participant_type, entry_stat
                                                                                               );
 
 -- 6. Insert stage
-INSERT INTO stages (event_id, stage_number, stage_type)
+INSERT INTO stages (event_id, stage_order, stage_type)
 VALUES (
            (SELECT id FROM events WHERE name='Absoluto Individual Masculino' LIMIT 1),
            1,
@@ -120,7 +120,7 @@ VALUES (
        );
 
 -- 7. Insert draw
-INSERT INTO draws (stage_id, draw_type, draw_name)
+INSERT INTO draws (stage_id, draw_type, label)
 VALUES (
            (SELECT id FROM stages
             WHERE event_id = (
@@ -133,7 +133,7 @@ VALUES (
 -- 8. Insert an empty match structure for the MVP
 INSERT INTO matches (draw_id, round_number, scheduled_at, court, result)
 VALUES (
-           (SELECT id FROM draws WHERE draw_name='Main Draw' LIMIT 1),
+           (SELECT id FROM draws WHERE label='Main Draw' LIMIT 1),
            1,
            NULL,
            NULL,

@@ -67,13 +67,13 @@ SET MODE PostgreSQL;
         ( (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026'), (SELECT id FROM persons WHERE tennis_id = 'IPIN005'), 'INDIVIDUAL', 'DIRECT_ACCEPTANCE', 3);
 
     -- 6. Insert a stage for singles event
-    INSERT INTO stages (event_id, stage_number, stage_type) VALUES
+    INSERT INTO stages (event_id, stage_order, stage_type) VALUES
         ( (SELECT id FROM events WHERE name = 'Absoluto Individual Masculino'), 1, 'MAIN');
 
     -- 7. Insert a draw for the stage
-    INSERT INTO draws (stage_id, draw_type, draw_name) VALUES
+    INSERT INTO draws (stage_id, draw_type, label) VALUES
         ( (SELECT id FROM stages WHERE event_id = (SELECT id FROM events WHERE name = 'Absoluto Individual Masculino')), 'ELIMINATION', 'Main Draw');
 
     -- 8. Insert an empty match structure for the MVP
     INSERT INTO matches (draw_id, round_number, scheduled_at, court, result) VALUES
-        ( (SELECT id FROM draws WHERE draw_name = 'Main Draw'), 1, NULL, NULL, NULL);
+        ( (SELECT id FROM draws WHERE label = 'Main Draw'), 1, NULL, NULL, NULL);
