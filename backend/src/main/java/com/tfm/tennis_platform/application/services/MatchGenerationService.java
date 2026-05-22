@@ -19,7 +19,7 @@ public class MatchGenerationService {
 
     public List<Match> generateMatchesForDraw(Draw draw, List<Inscription> inscriptions) {
         MatchGenerationStrategy strategy = selectStrategy(draw.getDrawType());
-        return strategy.generateMatches(draw, inscriptions);
+            return strategy.generateMatches(draw, inscriptions);
     }
 
     private MatchGenerationStrategy selectStrategy(DrawType drawType) {
