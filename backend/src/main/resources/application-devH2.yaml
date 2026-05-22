@@ -31,4 +31,4 @@ logging:
   pattern:
     level: "%5p [req-id: %X{correlationId}]"
 server:
-  port: 8085
+  port: ${BACKEND_PORT:8085}
