@@ -43,6 +43,7 @@ type DrawViewMode = 'tree' | 'list';
                     <app-bracket
                       [drawsInput]="[draw]"
                       [participantNamesInput]="participantNamesInput"
+                      [participantOrderInput]="participantOrderInput"
                       [showTitleInput]="false"
                       [showDrawCardInput]="false"
                       (matchSelected)="onMatchSelected($event)"
@@ -51,6 +52,7 @@ type DrawViewMode = 'tree' | 'list';
                     <app-matches
                       [matchesInput]="draw.matches || []"
                       [participantNamesInput]="participantNamesInput"
+                      [participantOrderInput]="participantOrderInput"
                       (matchSelected)="onMatchSelected($event)"
                     ></app-matches>
                   }
@@ -80,6 +82,7 @@ type DrawViewMode = 'tree' | 'list';
 })
 export class DrawsComponent {
   @Input() participantNamesInput: Record<string, string> = {};
+  @Input() participantOrderInput: Record<string, number> = {};
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);

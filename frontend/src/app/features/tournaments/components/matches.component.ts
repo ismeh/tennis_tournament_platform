@@ -63,6 +63,7 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
 })
 export class MatchesComponent {
   @Input() participantNamesInput: Record<string, string> = {};
+  @Input() participantOrderInput: Record<string, number> = {};
 
   @Input() set matchesInput(value: MatchResponse[]) {
     this._matches.set(value);
@@ -83,7 +84,7 @@ export class MatchesComponent {
   }
 
   getMatchNumber(match: MatchResponse): number {
-    const matchesInRound = this.matches().filter(candidate => candidate.roundNumber === match.roundNumber);
+    const matchesInRound = this.sortedMatches().filter(candidate => candidate.roundNumber === match.roundNumber);
     return matchesInRound.indexOf(match) + 1;
   }
 
@@ -98,8 +99,10 @@ export class MatchesComponent {
   private compareMatches(left: MatchResponse, right: MatchResponse, leftIndex: number, rightIndex: number): number {
     return (
       this.compareNumbers(left.roundNumber, right.roundNumber) ||
-      this.compareStrings(left.scheduledAt, right.scheduledAt) ||
-      this.compareStrings(left.court, right.court) ||
+      this.compareNumbers(this.getMatchSeedOrder(left), this.getMatchSeedOrder(right)) ||
+      this.compareStrings(this.getParticipantName(left.firstInscriptionId), this.getParticipantName(right.firstInscriptionId)) ||
+      this.compareStrings(this.getParticipantName(left.secondInscriptionId), this.getParticipantName(right.secondInscriptionId)) ||
+      this.compareStrings(left.id, right.id) ||
       leftIndex - rightIndex
     );
   }
@@ -110,5 +113,19 @@ export class MatchesComponent {
 
   private compareStrings(left: string | null | undefined, right: string | null | undefined): number {
     return (left ?? '').localeCompare(right ?? '');
+  }
+
+  private getMatchSeedOrder(match: MatchResponse): number {
+    const firstOrder = this.getParticipantOrder(match.firstInscriptionId);
+    const secondOrder = this.getParticipantOrder(match.secondInscriptionId);
+    return Math.min(firstOrder, secondOrder);
+  }
+
+  private getParticipantOrder(inscriptionId: string | undefined): number {
+    if (!inscriptionId) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+
+    return this.participantOrderInput[inscriptionId] ?? Number.MAX_SAFE_INTEGER;
   }
 }

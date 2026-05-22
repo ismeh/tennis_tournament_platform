@@ -61,6 +61,7 @@ type DrawGenerationFeedback = {
                   <app-draws
                     [drawsInput]="stage.draws || []"
                     [participantNamesInput]="participantNamesInput"
+                    [participantOrderInput]="participantOrderInput"
                     (matchSelected)="onMatchSelected($event)"
                     (matchResultSaved)="onMatchResultSaved($event)"
                   ></app-draws>
@@ -88,6 +89,7 @@ type DrawGenerationFeedback = {
 })
 export class StagesComponent {
   @Input() participantNamesInput: Record<string, string> = {};
+  @Input() participantOrderInput: Record<string, number> = {};
 
   @Input() set stagesInput(value: StageResponse[]) {
     this._stages.set(value);

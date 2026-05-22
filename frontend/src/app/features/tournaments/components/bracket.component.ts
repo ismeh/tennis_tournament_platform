@@ -328,6 +328,7 @@ export class BracketComponent {
   private readonly slotPitch = 150;
 
   @Input() participantNamesInput: Record<string, string> = {};
+  @Input() participantOrderInput: Record<string, number> = {};
   @Input() showTitleInput = true;
   @Input() showDrawCardInput = true;
 
@@ -361,7 +362,7 @@ export class BracketComponent {
       .sort((a, b) => a[0] - b[0])
       .map(([roundNumber, roundMatches]) => ({
         roundNumber,
-        matches: roundMatches
+        matches: this.sortRoundMatches(roundMatches)
       }));
   }
 
@@ -420,7 +421,7 @@ export class BracketComponent {
   }
 
   getMatchNumber(match: MatchResponse, allMatches: MatchResponse[]): number {
-    const matchesInRound = allMatches.filter((m) => m.roundNumber === match.roundNumber);
+    const matchesInRound = this.sortRoundMatches(allMatches.filter((m) => m.roundNumber === match.roundNumber));
     return (matchesInRound.indexOf(match) + 1) || 1;
   }
 
@@ -444,5 +445,36 @@ export class BracketComponent {
       .trim();
 
     return sanitizedName || null;
+  }
+
+  private sortRoundMatches(matches: MatchResponse[]): MatchResponse[] {
+    return [...matches].sort((left, right) =>
+      this.compareNumbers(this.getMatchSeedOrder(left), this.getMatchSeedOrder(right)) ||
+      this.compareStrings(this.getParticipantName(left.firstInscriptionId), this.getParticipantName(right.firstInscriptionId)) ||
+      this.compareStrings(this.getParticipantName(left.secondInscriptionId), this.getParticipantName(right.secondInscriptionId)) ||
+      this.compareStrings(left.id, right.id)
+    );
+  }
+
+  private getMatchSeedOrder(match: MatchResponse): number {
+    const firstOrder = this.getParticipantOrder(match.firstInscriptionId);
+    const secondOrder = this.getParticipantOrder(match.secondInscriptionId);
+    return Math.min(firstOrder, secondOrder);
+  }
+
+  private getParticipantOrder(inscriptionId: string | undefined): number {
+    if (!inscriptionId) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+
+    return this.participantOrderInput[inscriptionId] ?? Number.MAX_SAFE_INTEGER;
+  }
+
+  private compareNumbers(left: number, right: number): number {
+    return left - right;
+  }
+
+  private compareStrings(left: string | undefined, right: string | undefined): number {
+    return (left ?? '').localeCompare(right ?? '');
   }
 }

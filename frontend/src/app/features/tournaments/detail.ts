@@ -844,6 +844,7 @@ type DrawGenerationFeedback = {
                           [stagesInput]="event.stages"
                           [tournamentIdInput]="tournament()!.id"
                           [participantNamesInput]="participantNamesByInscriptionId()"
+                          [participantOrderInput]="participantOrderByInscriptionId()"
                           [generatingDrawsForStageIdInput]="generatingDrawsStageId()"
                           [drawGenerationFeedbackInput]="drawGenerationFeedbackByStageId()"
                           (generateDraws)="onGenerateDraws($event, event.eventId!)"
@@ -1062,6 +1063,13 @@ export class TournamentDetailComponent implements OnInit {
   readonly participantNamesByInscriptionId = computed<Record<string, string>>(() =>
     this.tournamentInscriptionPlayers().reduce<Record<string, string>>((accumulator, player) => {
       accumulator[player.inscriptionId] = [player.firstName, player.lastName].filter(Boolean).join(' ').trim();
+      return accumulator;
+    }, {})
+  );
+
+  readonly participantOrderByInscriptionId = computed<Record<string, number>>(() =>
+    this.tournamentInscriptionPlayers().reduce<Record<string, number>>((accumulator, player, index) => {
+      accumulator[player.inscriptionId] = index;
       return accumulator;
     }, {})
   );
