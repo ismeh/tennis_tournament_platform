@@ -5,8 +5,6 @@ import java.util.UUID;
 
 public record MatchResponse(
     UUID id,
-    UUID tournamentId,
-    UUID categoryId,
     UUID firstInscriptionId,
     UUID secondInscriptionId,
     UUID winnerId,

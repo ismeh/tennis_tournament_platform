@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS rankings;
 DROP TABLE IF EXISTS sets;
 DROP TABLE IF EXISTS matchup_sides;
 DROP TABLE IF EXISTS matchups;
+DROP TABLE IF EXISTS matches;
 DROP TABLE IF EXISTS draws;
 DROP TABLE IF EXISTS stages;
 DROP TABLE IF EXISTS events;
@@ -76,6 +77,13 @@ CREATE TABLE participants (
     id               UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     tournament_id    UUID NOT NULL,
     person_id        UUID,
+    participant_source VARCHAR(30),
+    display_first_name VARCHAR(100),
+    display_last_name VARCHAR(100),
+    display_gender   VARCHAR(20),
+    display_birth_date DATE,
+    display_nationality VARCHAR(50),
+    display_tennis_id VARCHAR(50),
     participant_type VARCHAR(20) NOT NULL,
     entry_status     VARCHAR(30),
     seed             INTEGER,
@@ -128,8 +136,9 @@ CREATE INDEX idx_inscriptions_participant ON inscriptions(participant_id);
 CREATE TABLE stages (
     id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     event_id        UUID NOT NULL,
-    stage_number    INTEGER NOT NULL,
+    stage_order     INTEGER NOT NULL,
     stage_type      VARCHAR(30),
+    description     VARCHAR,
     FOREIGN KEY (event_id) REFERENCES events(id)
 );
 
@@ -137,43 +146,29 @@ CREATE TABLE draws (
     id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     stage_id        UUID NOT NULL,
     draw_type       VARCHAR(30) NOT NULL,
-    draw_name       VARCHAR(100),
+    label           VARCHAR(100),
     FOREIGN KEY (stage_id) REFERENCES stages(id)
 );
 
-CREATE TABLE matchups (
-    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    draw_id         UUID NOT NULL,
-    round_number    INTEGER,
-    match_number    INTEGER,
-    match_format    VARCHAR(100),
-    status          VARCHAR(20),
-    scheduled_at    TIMESTAMP,
-    court           VARCHAR(100),
-    winner_side     SMALLINT,
-    FOREIGN KEY (draw_id) REFERENCES draws(id)
-);
+COMMENT ON COLUMN draws.label IS 'Draw visible name';
 
-CREATE TABLE matchup_sides (
-    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    matchup_id      UUID NOT NULL,
-    side_number     SMALLINT NOT NULL,
-    participant_id  UUID,
-    UNIQUE (matchup_id, side_number),
-    FOREIGN KEY (matchup_id) REFERENCES matchups(id),
-    FOREIGN KEY (participant_id) REFERENCES participants(id)
-);
-
-CREATE TABLE sets (
-    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    matchup_id      UUID NOT NULL,
-    set_number      SMALLINT NOT NULL,
-    side1_games     SMALLINT,
-    side2_games     SMALLINT,
-    side1_tiebreak  SMALLINT,
-    side2_tiebreak  SMALLINT,
-    UNIQUE (matchup_id, set_number),
-    FOREIGN KEY (matchup_id) REFERENCES matchups(id)
+CREATE TABLE matches (
+    id                      UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    draw_id                 UUID NOT NULL,
+    first_inscription_id    UUID,
+    second_inscription_id   UUID,
+    winner_id               UUID,
+    round_number            INTEGER,
+    next_match_id           UUID,
+    scheduled_at            TIMESTAMP,
+    court                   VARCHAR(100),
+    result                  VARCHAR(255),
+    version                 BIGINT NOT NULL DEFAULT 0,
+    FOREIGN KEY (draw_id) REFERENCES draws(id),
+    FOREIGN KEY (first_inscription_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (second_inscription_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (winner_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (next_match_id) REFERENCES matches(id)
 );
 
 CREATE TABLE rankings (

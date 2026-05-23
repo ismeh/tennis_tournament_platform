@@ -1,7 +1,7 @@
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { TournamentEventsConfigRequest } from '../interfaces/tournament.model';
+import { ManualEventInscriptionRequest, TournamentEventsConfigRequest } from '../interfaces/tournament.model';
 import { TournamentService } from './tournament.service';
 import { AppSettings } from '../../shared/constants';
 
@@ -73,11 +73,13 @@ describe('TournamentService', () => {
       events: [
         {
           categoryId: 1,
-          gender: 'MALE'
+          gender: 'MALE',
+          stages: ['SINGLE_ELIMINATION']
         },
         {
           categoryId: 1,
-          gender: 'MIXED'
+          gender: 'MIXED',
+          stages: ['ROUND_ROBIN', 'CONSOLATION']
         }
       ]
     };
@@ -115,6 +117,116 @@ describe('TournamentService', () => {
       status: 'OPEN',
       providerOrganisationId: 'member-id',
       events: []
+    });
+  });
+
+  it('should get tournament inscriptions with optional event filter', () => {
+    service.getTournamentInscriptions('tournament-id', 'event-1').subscribe(response => {
+      expect(response.selectedEventId).toBe('event-1');
+      expect(response.inscriptions.length).toBe(1);
+    });
+
+    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/inscriptions?eventId=event-1`);
+    expect(request.request.method).toBe('GET');
+
+    request.flush({
+      tournamentId: 'tournament-id',
+      selectedEventId: 'event-1',
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          category: 'Absoluto',
+          eventName: 'Absoluto - Masculino',
+          eventGender: 'MALE'
+        }
+      ],
+      categoryCounts: [
+        {
+          categoryId: 1,
+          category: 'Absoluto',
+          totalPlayers: 1,
+          genders: [
+            {
+              gender: 'MALE',
+              totalPlayers: 1
+            }
+          ]
+        }
+      ],
+      inscriptions: [
+        {
+          inscriptionId: 'inscription-1',
+          eventId: 'event-1',
+          categoryId: 1,
+          category: 'Absoluto',
+          eventName: 'Absoluto - Masculino',
+          eventGender: 'MALE',
+          firstName: 'Carlos',
+          lastName: 'Lopez',
+          gender: 'MALE'
+        }
+      ]
+    });
+  });
+
+  it('should post a manual inscription to the dedicated endpoint', () => {
+    const payload: ManualEventInscriptionRequest = {
+      playerSource: 'MANUAL',
+      firstName: 'Lucia',
+      lastName: 'Perez',
+      gender: 'FEMALE',
+      birthDate: '1998-03-05',
+      nationality: 'ESP',
+      tennisId: 'LIC-77'
+    };
+
+    service.addManualInscription('tournament-id', 'event-1', payload).subscribe(response => {
+      expect(response.id).toBe('inscription-created');
+    });
+
+    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/events/event-1/manual-inscriptions`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(payload);
+
+    request.flush({
+      id: 'inscription-created',
+      tournamentId: 'tournament-id',
+      eventId: 'event-1',
+      categoryId: 1,
+      memberId: 'person-2',
+      participantId: 'participant-id',
+      partnerId: null,
+      status: 'PENDING',
+      paymentStatus: 'UNPAID',
+      registeredAt: '2026-04-29T00:00:00Z'
+    });
+  });
+
+  it('should post a match result to the tournament-scoped endpoint', () => {
+    const payload = {
+      winnerId: 'winner-id',
+      scoreString: '6-4 6-3'
+    };
+
+    service.submitMatchResult('tournament-id', 'match-id', payload).subscribe(response => {
+      expect(response.id).toBe('match-id');
+      expect(response.winnerId).toBe('winner-id');
+    });
+
+    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/matches/match-id/result`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(payload);
+
+    request.flush({
+      id: 'match-id',
+      firstInscriptionId: 'winner-id',
+      secondInscriptionId: 'loser-id',
+      winnerId: 'winner-id',
+      roundNumber: 1,
+      scheduledAt: null,
+      court: null,
+      result: '6-4 6-3'
     });
   });
 });

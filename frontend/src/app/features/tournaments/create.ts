@@ -6,6 +6,7 @@ import { finalize, of, switchMap } from 'rxjs';
 import { TournamentService } from '../../data/services/tournament.service';
 import {
   getTournamentEventGenderLabel,
+  getTournamentStageTypeLabel,
   getTournamentSurfaceCategoryLabel,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
@@ -13,6 +14,7 @@ import {
   TournamentEventSelection,
   TournamentEventsConfigRequest,
   TournamentResponse,
+  TournamentStageType,
   TournamentSurfaceCategory
 } from '../../data/interfaces/tournament.model';
 
@@ -210,6 +212,72 @@ import {
                               </div>
                             </div>
                           </div>
+
+                          <div class="mt-4 rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-4">
+                            <div class="flex items-center justify-between gap-3">
+                              <div>
+                                <p class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Fases</p>
+                                <p class="mt-1 text-sm text-neutral-600">Ordena las fases del evento antes de enviar el payload al backend.</p>
+                              </div>
+                              <button
+                                type="button"
+                                class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700"
+                                (click)="addEventStage(event.categoryId)"
+                              >
+                                Añadir fase
+                              </button>
+                            </div>
+
+                            <div class="mt-4 space-y-3">
+                              @for (stage of event.stages; track $index; let stageIndex = $index) {
+                                <div class="rounded-xl border border-neutral-200 bg-white p-3 shadow-sm">
+                                  <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div class="flex-1">
+                                      <label class="block">
+                                        <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Tipo de fase {{ stageIndex + 1 }}</span>
+                                        <select
+                                          class="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:bg-white"
+                                          [value]="stage.stageType"
+                                          (change)="updateEventStageType(event.categoryId, stageIndex, $any($event.target).value)"
+                                        >
+                                          @for (option of stageOptions; track option) {
+                                            <option [value]="option">{{ getStageLabel(option) }}</option>
+                                          }
+                                        </select>
+                                      </label>
+                                    </div>
+
+                                    <div class="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        [disabled]="stageIndex === 0"
+                                        (click)="moveEventStage(event.categoryId, stageIndex, 'up')"
+                                      >
+                                        Subir
+                                      </button>
+                                      <button
+                                        type="button"
+                                        class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        [disabled]="stageIndex === event.stages.length - 1"
+                                        (click)="moveEventStage(event.categoryId, stageIndex, 'down')"
+                                      >
+                                        Bajar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                        [disabled]="event.stages.length === 1"
+                                        (click)="removeEventStage(event.categoryId, stageIndex)"
+                                      >
+                                        Eliminar
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              }
+                            </div>
+                          </div>
                         </div>
                       }
                     </div>
@@ -289,8 +357,10 @@ export class CreateTournamentComponent {
 
   readonly surfaceOptions: TournamentSurfaceCategory[] = ['CLAY', 'HARD', 'GRASS', 'CARPET'];
   readonly eventGenderOptions: TournamentEventGender[] = ['MALE', 'FEMALE', 'MIXED'];
+  readonly stageOptions: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
   readonly getSurfaceLabel = getTournamentSurfaceCategoryLabel;
   readonly getGenderLabel = getTournamentEventGenderLabel;
+  readonly getStageLabel = getTournamentStageTypeLabel;
   readonly isSubmitting = signal(false);
   readonly isLoadingEvents = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -326,6 +396,11 @@ export class CreateTournamentComponent {
       return;
     }
 
+    if (configuredEvents.some(event => event.stages.length === 0)) {
+      this.errorMessage.set('Debes definir al menos una fase en cada evento antes de guardar.');
+      return;
+    }
+
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
@@ -343,8 +418,10 @@ export class CreateTournamentComponent {
           const eventPayload: TournamentEventsConfigRequest = {
             events: configuredEvents.flatMap(event =>
               event.genders.map(gender => ({
+                id: null,
                 categoryId: event.categoryId,
-                gender
+                gender,
+                stages: event.stages.map(stage => stage.stageType)
               }))
             )
           };
@@ -394,7 +471,13 @@ export class CreateTournamentComponent {
         {
           categoryId: catalogEvent.id,
           eventCategory: catalogEvent.category,
-          genders: []
+          eventsByGender: [],
+          genders: [],
+          stages: [
+            {
+              stageType: 'SINGLE_ELIMINATION'
+            }
+          ]
         }
       ]);
       return;
@@ -412,6 +495,70 @@ export class CreateTournamentComponent {
             genders: checked
               ? Array.from(new Set([...event.genders, gender]))
               : event.genders.filter(currentGender => currentGender !== gender)
+          }
+          : event
+      )
+    );
+  }
+
+  addEventStage(categoryId: number): void {
+    this.selectedEvents.update(events =>
+      events.map(event =>
+        event.categoryId === categoryId
+          ? {
+            ...event,
+            stages: [...event.stages, { stageType: 'SINGLE_ELIMINATION' }]
+          }
+          : event
+      )
+    );
+  }
+
+  removeEventStage(categoryId: number, stageIndex: number): void {
+    this.selectedEvents.update(events =>
+      events.map(event => {
+        if (event.categoryId !== categoryId || event.stages.length <= 1) {
+          return event;
+        }
+
+        return {
+          ...event,
+          stages: event.stages.filter((_, index) => index !== stageIndex)
+        };
+      })
+    );
+  }
+
+  moveEventStage(categoryId: number, stageIndex: number, direction: 'up' | 'down'): void {
+    this.selectedEvents.update(events =>
+      events.map(event => {
+        if (event.categoryId !== categoryId) {
+          return event;
+        }
+
+        const targetIndex = direction === 'up' ? stageIndex - 1 : stageIndex + 1;
+        if (targetIndex < 0 || targetIndex >= event.stages.length) {
+          return event;
+        }
+
+        const stages = [...event.stages];
+        [stages[stageIndex], stages[targetIndex]] = [stages[targetIndex], stages[stageIndex]];
+
+        return {
+          ...event,
+          stages
+        };
+      })
+    );
+  }
+
+  updateEventStageType(categoryId: number, stageIndex: number, stageType: TournamentStageType): void {
+    this.selectedEvents.update(events =>
+      events.map(event =>
+        event.categoryId === categoryId
+          ? {
+            ...event,
+            stages: event.stages.map((stage, index) => (index === stageIndex ? { stageType } : stage))
           }
           : event
       )

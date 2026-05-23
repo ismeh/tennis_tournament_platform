@@ -9,41 +9,51 @@ import java.util.UUID;
 @Entity
 @Table(name = "matches")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class MatchEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne
-    @JoinColumn(name = "tournament_id")
-    private TournamentEntity tournament;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "draw_id", nullable = false)
+    private DrawEntity draw;
 
-    @ManyToOne
-    @JoinColumn(name = "category_id")
-    private CategoryEntity category;
-
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "first_inscription_id")
     private InscriptionEntity firstInscription;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "second_inscription_id")
     private InscriptionEntity secondInscription;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "winner_id")
     private InscriptionEntity winner;
 
+    @Column(name = "round_number")
     private Integer roundNumber;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "next_match_id")
     private MatchEntity nextMatch;
 
+    public void setNextMatch(MatchEntity nextMatch) {
+        this.nextMatch = nextMatch;
+    }
+
+    @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
+
+    @Column(name = "court")
     private String court;
+
+    @Column(name = "result")
     private String result;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 }

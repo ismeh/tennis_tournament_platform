@@ -10,39 +10,44 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  const token = authService.getToken();
-  const requestWithAuth = token
-    ? req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-    : req;
+  return authService.getAccessTokenForRequest().pipe(
+    switchMap(token => {
+      const requestWithAuth = token
+        ? req.clone({
+          setHeaders: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        : req;
 
-  return next(requestWithAuth).pipe(
-    catchError(error => {
-      if (error.status !== 401) {
-        return throwError(() => error);
-      }
+      return next(requestWithAuth).pipe(
+        catchError(error => {
+          if (error.status !== 401) {
+            return throwError(() => error);
+          }
 
-      const refreshToken = authService.getRefreshToken();
-      if (!refreshToken) {
-        authService.logout();
-        return throwError(() => error);
-      }
+          const refreshToken = authService.getRefreshToken();
+          if (!refreshToken) {
+            return authService.logout().pipe(
+              switchMap(() => throwError(() => error))
+            );
+          }
 
-      return authService.refreshToken().pipe(
-        switchMap(response => {
-          const retriedRequest = req.clone({
-            setHeaders: {
-              Authorization: `Bearer ${response.accessToken}`
-            }
-          });
-          return next(retriedRequest);
-        }),
-        catchError(refreshError => {
-          authService.logout();
-          return throwError(() => refreshError);
+          return authService.refreshToken().pipe(
+            switchMap(response => {
+              const retriedRequest = req.clone({
+                setHeaders: {
+                  Authorization: `Bearer ${response.accessToken}`
+                }
+              });
+              return next(retriedRequest);
+            }),
+            catchError(refreshError => {
+              return authService.logout().pipe(
+                switchMap(() => throwError(() => refreshError))
+              );
+            })
+          );
         })
       );
     })

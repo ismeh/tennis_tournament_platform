@@ -1,12 +1,11 @@
 package com.tfm.tennis_platform.application.services;
 
+import com.tfm.tennis_platform.application.commands.CompleteProfileCommand;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.PersonRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.Person;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
-import com.tfm.tennis_platform.application.services.AuthService;
-import com.tfm.tennis_platform.infrastructure.controller.dto.ProfileRequest;
 import com.tfm.tennis_platform.infrastructure.security.JwtService;
 import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
 import com.tfm.tennis_platform.domain.exceptions.UnauthorizedException;
@@ -219,7 +218,7 @@ class AuthServiceTest {
             .tennisId("RLA123")
             .build());
 
-        ProfileRequest request = new ProfileRequest(
+        CompleteProfileCommand request = new CompleteProfileCommand(
             "Rafa",
             "Nadal",
             "MALE",

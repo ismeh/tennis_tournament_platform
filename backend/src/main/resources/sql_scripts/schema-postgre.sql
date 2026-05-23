@@ -64,6 +64,13 @@ CREATE TABLE participants (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tournament_id    UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
     person_id        UUID REFERENCES persons(id),   -- NULL if participant is a pair/team
+    participant_source VARCHAR(30),
+    display_first_name VARCHAR(100),
+    display_last_name VARCHAR(100),
+    display_gender   VARCHAR(20),
+    display_birth_date DATE,
+    display_nationality VARCHAR(50),
+    display_tennis_id VARCHAR(50),
     participant_type VARCHAR(20) NOT NULL,          -- INDIVIDUAL / PAIR / TEAM
     entry_status     VARCHAR(30),                   -- DIRECT_ACCEPTANCE / WILDCARD / QUALIFIER / LUCKY_LOSER
     seed             INTEGER
@@ -116,8 +123,9 @@ CREATE INDEX idx_inscriptions_member ON inscriptions (participant_id);
 CREATE TABLE stages (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id        UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    stage_number    INTEGER NOT NULL,
-    stage_type      VARCHAR(30)                 -- QUALIFYING / MAIN / CONSOLATION / PLAYOFF
+    stage_order     INTEGER NOT NULL,
+    stage_type      VARCHAR(30),                -- QUALIFYING / MAIN / CONSOLATION / PLAYOFF
+    description     VARCHAR
 );
 
 -- DRAWS (structure inside a stage)
@@ -125,41 +133,24 @@ CREATE TABLE draws (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     stage_id        UUID NOT NULL REFERENCES stages(id) ON DELETE CASCADE,
     draw_type       VARCHAR(30) NOT NULL,      -- ELIMINATION / ROUND_ROBIN
-    draw_name       VARCHAR(100)
+    label           VARCHAR(100)
 );
 
--- MATCHUPS (individual matches)
-CREATE TABLE matchups (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    draw_id         UUID NOT NULL REFERENCES draws(id) ON DELETE CASCADE,
-    round_number    INTEGER,
-    match_number    INTEGER,
-    match_format    VARCHAR(50),               -- format string e.g. SET3-S:6/TB7
-    status          VARCHAR(20),               -- UPCOMING / IN_PROGRESS / COMPLETED / ABANDONED
-    scheduled_at    TIMESTAMPTZ,
-    court           VARCHAR(50),
-    winner_side     SMALLINT                   -- 1 or 2
-);
+COMMENT ON COLUMN draws.label IS 'Draw visible name';
 
--- MATCHUP SIDES (side 1 and side 2, referencing participants)
-CREATE TABLE matchup_sides (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matchup_id      UUID NOT NULL REFERENCES matchups(id) ON DELETE CASCADE,
-    side_number     SMALLINT NOT NULL,         -- 1 or 2
-    participant_id  UUID REFERENCES participants(id) ON DELETE SET NULL,
-    UNIQUE (matchup_id, side_number)
-);
-
--- SETS (per-set results for a matchup)
-CREATE TABLE sets (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    matchup_id      UUID NOT NULL REFERENCES matchups(id) ON DELETE CASCADE,
-    set_number      SMALLINT NOT NULL,
-    side1_games     SMALLINT,
-    side2_games     SMALLINT,
-    side1_tiebreak  SMALLINT,
-    side2_tiebreak  SMALLINT,
-    UNIQUE (matchup_id, set_number)
+-- MATCHES (individual matches)
+CREATE TABLE matches (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    draw_id                 UUID NOT NULL REFERENCES draws(id) ON DELETE CASCADE,
+    first_inscription_id    UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
+    second_inscription_id   UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
+    winner_id               UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
+    round_number            INTEGER,
+    next_match_id           UUID REFERENCES matches(id) ON DELETE SET NULL,
+    scheduled_at            TIMESTAMP,
+    court                   VARCHAR(50),
+    result                  VARCHAR(255),
+    version                 BIGINT NOT NULL DEFAULT 0
 );
 
 -- RANKINGS (historical ranking snapshots per player)

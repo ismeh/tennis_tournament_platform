@@ -1,7 +1,7 @@
 import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { BehaviorSubject, Observable, of, throwError, catchError, tap, finalize } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, finalize, map, of, switchMap, tap, throwError } from 'rxjs';
 import {
   LoginRequest,
   LoginResponse,
@@ -10,6 +10,7 @@ import {
   RegisterResponse
 } from './auth.model';
 import { AppSettings } from '../../shared/constants';
+import { ProfileResponse } from '../../data/interfaces/member.model';
 
 @Injectable({
   providedIn: 'root'
@@ -25,6 +26,10 @@ export class AuthService {
   private authStatus$ = new BehaviorSubject<boolean>(this.checkToken());
   private userDisplayName$ = new BehaviorSubject<string | null>(this.getInitialDisplayName());
 
+  constructor() {
+    this.verifyTokensOnStartup();
+  }
+
   get isLoggedIn$(): Observable<boolean> {
     return this.authStatus$.asObservable();
   }
@@ -37,15 +42,58 @@ export class AuthService {
     return this.http.post<LoginResponse>(`${this.API_URL}/login`, credentials).pipe(
       tap(response => {
         this.setSession(response.accessToken, response.refreshToken);
-      })
+      }),
+      switchMap(response =>
+        this.loadDisplayNameFromProfile().pipe(
+          map(() => response),
+          catchError(() => of(response))
+        )
+      )
     );
   }
 
   register(payload: RegisterRequest): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${this.API_URL}/register`, payload).pipe(
       tap(response => {
-        this.setSession(response.accessToken, response.refreshToken, payload.name);
-      })
+        this.setSession(response.accessToken, response.refreshToken);
+      }),
+      switchMap(response =>
+        this.loadDisplayNameFromProfile().pipe(
+          map(() => response),
+          catchError(() => of(response))
+        )
+      )
+    );
+  }
+
+  setDisplayName(name: string | null): void {
+    const normalized = this.normalizeName(name);
+    if (isPlatformBrowser(this.platformId)) {
+      if (normalized) {
+        localStorage.setItem(this.USER_NAME_KEY, normalized);
+      } else {
+        localStorage.removeItem(this.USER_NAME_KEY);
+      }
+    }
+
+    this.userDisplayName$.next(normalized);
+  }
+
+  loadDisplayNameFromProfile(): Observable<void> {
+    if (!isPlatformBrowser(this.platformId)) {
+      return of(void 0);
+    }
+
+    if (!this.hasValidStoredToken() && !this.getRefreshToken()) {
+      return of(void 0);
+    }
+
+    return this.http.get<ProfileResponse>(`${this.API_URL}/profile`).pipe(
+      tap(profile => {
+        this.setDisplayName(this.resolveProfileDisplayName(profile));
+      }),
+      map(() => void 0),
+      catchError(() => of(void 0))
     );
   }
 
@@ -62,8 +110,45 @@ export class AuthService {
           const accessToken = response.accessToken;
           const nextRefreshToken = response.refreshToken ?? refreshToken;
           this.setSession(accessToken, nextRefreshToken);
-        })
+        }),
+        switchMap(response =>
+          this.loadDisplayNameFromProfile().pipe(
+            map(() => response),
+            catchError(() => of(response))
+          )
+        )
       );
+  }
+
+  getAccessTokenForRequest(): Observable<string | null> {
+    if (!isPlatformBrowser(this.platformId)) {
+      return of(null);
+    }
+
+    const token = this.readStoredToken();
+    if (!token) {
+      return of(null);
+    }
+
+    if (!this.shouldRefreshToken(token)) {
+      return of(token);
+    }
+
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return this.logout().pipe(
+        switchMap(() => throwError(() => new Error('No refresh token available')))
+      );
+    }
+
+    return this.refreshToken().pipe(
+      map(response => response.accessToken),
+      catchError(error =>
+        this.logout().pipe(
+          switchMap(() => throwError(() => error))
+        )
+      )
+    );
   }
 
   logout(): Observable<void> {
@@ -105,7 +190,12 @@ export class AuthService {
       return null;
     }
 
-    return localStorage.getItem(this.TOKEN_KEY);
+    const token = this.readStoredToken();
+    if (!token) {
+      return null;
+    }
+
+    return token;
   }
 
   getRefreshToken(): string | null {
@@ -137,11 +227,7 @@ export class AuthService {
   }
 
   private checkToken(): boolean {
-    if (!isPlatformBrowser(this.platformId)) {
-      return false;
-    }
-
-    return !!localStorage.getItem(this.TOKEN_KEY);
+    return this.hasValidStoredToken();
   }
 
   private getInitialDisplayName(): string | null {
@@ -149,8 +235,8 @@ export class AuthService {
       return null;
     }
 
-    const token = localStorage.getItem(this.TOKEN_KEY);
-    if (token) {
+    const token = this.readStoredToken();
+    if (token && !this.isExpiredToken(token)) {
       const extractedName = this.extractDisplayNameFromToken(token);
       if (extractedName) {
         localStorage.setItem(this.USER_NAME_KEY, extractedName);
@@ -205,6 +291,58 @@ export class AuthService {
     return trimmed;
   }
 
+  private resolveProfileDisplayName(profile: ProfileResponse): string | null {
+    const fullName = this.normalizeName([profile.firstName, profile.lastName].filter(Boolean).join(' '));
+    if (fullName) {
+      return fullName;
+    }
+
+    const emailPrefix = profile.email.includes('@') ? profile.email.split('@')[0] : profile.email;
+    return this.normalizeName(emailPrefix);
+  }
+
+  private hasValidStoredToken(): boolean {
+    if (!isPlatformBrowser(this.platformId)) {
+      return false;
+    }
+
+    const token = this.readStoredToken();
+    return !!token && !this.isExpiredToken(token);
+  }
+
+  private readStoredToken(): string | null {
+    return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  private shouldRefreshToken(token: string): boolean {
+    const payload = this.decodeJwtPayload(token);
+    if (!payload) {
+      return false;
+    }
+
+    const expiration = payload['exp'];
+    if (typeof expiration !== 'number') {
+      return true;
+    }
+
+    const fiveMinutesInMs = 5 * 60 * 1000;
+    return expiration * 1000 - Date.now() <= fiveMinutesInMs;
+  }
+
+  private isExpiredToken(token: string): boolean {
+    const payload = this.decodeJwtPayload(token);
+    if (!payload) {
+      return true;
+    }
+
+    const expiration = payload['exp'];
+    if (typeof expiration !== 'number') {
+      return true;
+    }
+
+    return expiration * 1000 <= Date.now();
+  }
+
   private clearSession(): void {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem(this.TOKEN_KEY);
@@ -214,5 +352,49 @@ export class AuthService {
 
     this.authStatus$.next(false);
     this.userDisplayName$.next(null);
+  }
+
+  private verifyTokensOnStartup(): void {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
+    const token = this.readStoredToken();
+    const refresh = this.getRefreshToken();
+
+    // No tokens at all -> ensure logged out
+    if (!token && !refresh) {
+      this.clearSession();
+      return;
+    }
+
+    // If access token is close to expiry or already expired and we have a refresh token,
+    // attempt to refresh proactively so the app starts with a valid access token.
+    try {
+      if (token && this.shouldRefreshToken(token) && refresh) {
+        this.refreshToken().subscribe({ next: () => { }, error: () => this.clearSession() });
+        return;
+      }
+
+      if (token && this.isExpiredToken(token) && refresh) {
+        this.refreshToken().subscribe({ next: () => { }, error: () => this.clearSession() });
+        return;
+      }
+
+      // If token missing but refresh exists, try to refresh once.
+      if (!token && refresh) {
+        this.refreshToken().subscribe({ next: () => { }, error: () => this.clearSession() });
+        return;
+      }
+
+      // If token present and valid, ensure observables reflect that state (in case storage changed)
+      if (token && !this.isExpiredToken(token)) {
+        this.authStatus$.next(true);
+        const name = this.extractDisplayNameFromToken(token) ?? this.normalizeName(localStorage.getItem(this.USER_NAME_KEY));
+        this.userDisplayName$.next(name);
+      }
+    } catch {
+      this.clearSession();
+    }
   }
 }

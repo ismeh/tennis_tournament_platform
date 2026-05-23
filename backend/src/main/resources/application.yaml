@@ -2,7 +2,7 @@ spring:
   application:
     name: tennis_platform
   profiles:
-    active: dev
+    active: ${BACKEND_PROFILE:dev}
 application:
   security:
     jwt:

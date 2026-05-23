@@ -13,6 +13,8 @@ import { authInterceptor } from './core/auth/auth.interceptor';
 import { requestLoggingInterceptor } from './core/logging/request-logging.interceptor';
 import { RequestLoggerService } from './core/logging/request-logger.service';
 import { environment } from '../environments/environment';
+import { AuthService } from './core/auth/auth.service';
+import { firstValueFrom } from 'rxjs';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -34,6 +36,12 @@ export const appConfig: ApplicationConfig = {
           logHeaders: false
         }),
       deps: [RequestLoggerService],
+      multi: true
+    },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (authService: AuthService) => () => firstValueFrom(authService.loadDisplayNameFromProfile()),
+      deps: [AuthService],
       multi: true
     }
   ]
