@@ -2,10 +2,12 @@ spring:
   main:
     lazy-initialization: false
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/tennis}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    url: ${DATASOURCE_URL:jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:demo-tfm}}
     driver-class-name: org.postgresql.Driver
+    username: ${DB_USER:postgres-tfm}
+    password: ${DB_PASSWORD:secret}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -18,4 +20,4 @@ logging:
   pattern:
     level: "%5p [req-id: %X{correlationId}]"
 server:
-  port: 8080
+  port: ${BACKEND_PORT:8080}

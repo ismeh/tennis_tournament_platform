@@ -7,4 +7,5 @@ import java.util.UUID;
 public interface InscriptionRepository {
     Inscription save(Inscription inscription);
     List<Inscription> findByTournamentId(UUID tournamentId);
+    List<Inscription> findByEventId(UUID eventId);
 }

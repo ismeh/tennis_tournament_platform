@@ -9,7 +9,7 @@ import { AppSettings } from '../shared/constants';
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
-    <header class="sticky top-0 z-50 bg-white border-b border-neutral-200 shadow-sm">
+    <header class="fixed inset-x-0 top-0 z-50 border-b border-neutral-200 bg-white shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/95">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <!-- Logo -->
@@ -50,7 +50,7 @@ import { AppSettings } from '../shared/constants';
                 <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
                   {{ getUserInitial(displayName$ | async) }}
                 </div>
-                <span class="text-sm font-medium text-neutral-700">Hi {{ (displayName$ | async) ?? 'Player' }}</span>
+                <span class="text-sm font-medium text-neutral-700">{{ resolveDisplayName(displayName$ | async) }}</span>
                 <a
                   routerLink="/perfil"
                   class="px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -89,11 +89,25 @@ export class HeaderComponent {
   readonly displayName$ = this.authService.displayName$;
 
   getUserInitial(displayName: string | null): string {
-    if (!displayName) {
+    const name = displayName ?? this.authService.getCurrentUserEmail()?.split('@')[0] ?? null;
+    if (!name) {
       return '?';
     }
 
-    return displayName.charAt(0).toUpperCase();
+    return name.charAt(0).toUpperCase();
+  }
+
+  resolveDisplayName(displayName: string | null): string {
+    if (displayName) {
+      return displayName;
+    }
+
+    const email = this.authService.getCurrentUserEmail();
+    if (email) {
+      return email.split('@')[0];
+    }
+
+    return 'Player';
   }
 
   onLogout(): void {

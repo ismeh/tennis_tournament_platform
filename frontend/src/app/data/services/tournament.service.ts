@@ -6,6 +6,7 @@ import {
   EventInscriptionRequest,
   EventInscriptionResponse,
   ManualEventInscriptionRequest,
+  MatchResponse,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
   TournamentEventsConfigRequest,
@@ -57,5 +58,20 @@ export class TournamentService {
   getTournamentInscriptions(tournamentId: string, eventId?: string): Observable<TournamentInscriptionsResponse> {
     const query = eventId ? `?eventId=${encodeURIComponent(eventId)}` : '';
     return this.http.get<TournamentInscriptionsResponse>(`${this.apiUrl}/${tournamentId}/inscriptions${query}`);
+  }
+
+  generateDraws(tournamentId: string, eventId: string): Observable<TournamentResponse> {
+    return this.http.post<TournamentResponse>(
+      `${this.apiUrl}/${tournamentId}/events/${eventId}/generate-draws`,
+      {}
+    );
+  }
+
+  submitMatchResult(
+    tournamentId: string,
+    matchId: string,
+    payload: { winnerId: string; scoreString: string }
+  ): Observable<MatchResponse> {
+    return this.http.post<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/result`, payload);
   }
 }

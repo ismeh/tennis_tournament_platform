@@ -1,6 +1,6 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
-import com.tfm.tennis_platform.application.dto.CompleteProfileCommand;
+import com.tfm.tennis_platform.application.commands.CompleteProfileCommand;
 import com.tfm.tennis_platform.application.services.AuthService;
 import com.tfm.tennis_platform.infrastructure.controller.dto.LoginRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.LoginResponse;

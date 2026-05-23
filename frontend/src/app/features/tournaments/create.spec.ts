@@ -102,7 +102,11 @@ describe('CreateTournamentComponent', () => {
       {
         categoryId: 1,
         eventCategory: 'Absoluto Individual Masculino',
-        genders: ['MALE', 'MIXED']
+        genders: ['MALE', 'MIXED'],
+        stages: [
+          { stageType: 'SINGLE_ELIMINATION' },
+          { stageType: 'CONSOLATION' }
+        ]
       }
     ]);
 
@@ -133,11 +137,13 @@ describe('CreateTournamentComponent', () => {
       events: [
         {
           categoryId: 1,
-          gender: 'MALE'
+          gender: 'MALE',
+          stages: ['SINGLE_ELIMINATION', 'CONSOLATION']
         },
         {
           categoryId: 1,
-          gender: 'MIXED'
+          gender: 'MIXED',
+          stages: ['SINGLE_ELIMINATION', 'CONSOLATION']
         }
       ]
     });
@@ -187,7 +193,8 @@ describe('CreateTournamentComponent', () => {
       {
         categoryId: 1,
         eventCategory: 'Absoluto Individual Masculino',
-        genders: []
+        genders: [],
+        stages: [{ stageType: 'SINGLE_ELIMINATION' }]
       }
     ]);
 

@@ -73,11 +73,13 @@ describe('TournamentService', () => {
       events: [
         {
           categoryId: 1,
-          gender: 'MALE'
+          gender: 'MALE',
+          stages: ['SINGLE_ELIMINATION']
         },
         {
           categoryId: 1,
-          gender: 'MIXED'
+          gender: 'MIXED',
+          stages: ['ROUND_ROBIN', 'CONSOLATION']
         }
       ]
     };
@@ -198,6 +200,33 @@ describe('TournamentService', () => {
       status: 'PENDING',
       paymentStatus: 'UNPAID',
       registeredAt: '2026-04-29T00:00:00Z'
+    });
+  });
+
+  it('should post a match result to the tournament-scoped endpoint', () => {
+    const payload = {
+      winnerId: 'winner-id',
+      scoreString: '6-4 6-3'
+    };
+
+    service.submitMatchResult('tournament-id', 'match-id', payload).subscribe(response => {
+      expect(response.id).toBe('match-id');
+      expect(response.winnerId).toBe('winner-id');
+    });
+
+    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/matches/match-id/result`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(payload);
+
+    request.flush({
+      id: 'match-id',
+      firstInscriptionId: 'winner-id',
+      secondInscriptionId: 'loser-id',
+      winnerId: 'winner-id',
+      roundNumber: 1,
+      scheduledAt: null,
+      court: null,
+      result: '6-4 6-3'
     });
   });
 });

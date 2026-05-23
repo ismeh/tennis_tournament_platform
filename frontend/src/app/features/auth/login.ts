@@ -5,10 +5,10 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
-  selector: 'app-login-page',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
-  template: `
+	selector: 'app-login-page',
+	standalone: true,
+	imports: [CommonModule, ReactiveFormsModule, RouterLink],
+	template: `
 		<section class="mx-auto max-w-md px-4 py-10 sm:py-16">
 			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
 				<h1 class="text-2xl font-bold text-neutral-900">Iniciar sesion</h1>
@@ -27,7 +27,7 @@ import { AuthService } from '../../core/auth/auth.service';
 					</div>
 
 					<div>
-						<label class="mb-1 block text-sm font-medium text-neutral-700" for="password">Contrasena</label>
+						<label class="mb-1 block text-sm font-medium text-neutral-700" for="password">Contraseña</label>
 						<input
 							id="password"
 							type="password"
@@ -59,35 +59,35 @@ import { AuthService } from '../../core/auth/auth.service';
 	`
 })
 export class LoginComponent {
-  private readonly fb = inject(FormBuilder);
-  private readonly authService = inject(AuthService);
-  private readonly router = inject(Router);
+	private readonly fb = inject(FormBuilder);
+	private readonly authService = inject(AuthService);
+	private readonly router = inject(Router);
 
-  readonly isSubmitting = signal(false);
-  readonly errorMessage = signal<string | null>(null);
+	readonly isSubmitting = signal(false);
+	readonly errorMessage = signal<string | null>(null);
 
-  readonly form = this.fb.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]]
-  });
+	readonly form = this.fb.nonNullable.group({
+		email: ['', [Validators.required, Validators.email]],
+		password: ['', [Validators.required, Validators.minLength(6)]]
+	});
 
-  submit(): void {
-    if (this.form.invalid || this.isSubmitting()) {
-      return;
-    }
+	submit(): void {
+		if (this.form.invalid || this.isSubmitting()) {
+			return;
+		}
 
-    this.isSubmitting.set(true);
-    this.errorMessage.set(null);
+		this.isSubmitting.set(true);
+		this.errorMessage.set(null);
 
-    this.authService.login(this.form.getRawValue()).subscribe({
-      next: () => {
-        this.isSubmitting.set(false);
-        this.router.navigateByUrl('/');
-      },
-      error: () => {
-        this.isSubmitting.set(false);
-        this.errorMessage.set('No se pudo iniciar sesion. Revisa tus credenciales.');
-      }
-    });
-  }
+		this.authService.login(this.form.getRawValue()).subscribe({
+			next: () => {
+				this.isSubmitting.set(false);
+				this.router.navigateByUrl('/');
+			},
+			error: () => {
+				this.isSubmitting.set(false);
+				this.errorMessage.set('No se pudo iniciar sesion. Revisa tus credenciales.');
+			}
+		});
+	}
 }

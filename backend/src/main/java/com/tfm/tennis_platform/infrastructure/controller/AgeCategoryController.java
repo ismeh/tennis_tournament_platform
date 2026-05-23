@@ -1,6 +1,6 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
-import com.tfm.tennis_platform.application.dto.AgeCategoryOutput;
+import com.tfm.tennis_platform.application.commands.AgeCategoryOutput;
 import com.tfm.tennis_platform.application.services.AgeCategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -1,7 +1,8 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
-import com.tfm.tennis_platform.application.dto.EventCommand;
+import com.tfm.tennis_platform.application.commands.EventCommand;
 import com.tfm.tennis_platform.application.services.TournamentService;
+import com.tfm.tennis_platform.application.services.MatchService;
 import com.tfm.tennis_platform.application.services.InscriptionService;
 import com.tfm.tennis_platform.application.services.EventService;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionCommand;
@@ -19,6 +20,8 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.ManualEventInscript
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResultRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionCategoryCountResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionEventResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionGenderCountResponse;
@@ -26,10 +29,11 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscripti
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionsResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentStatusUpdateRequest;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.TournamentWebMapper;
+import com.tfm.tennis_platform.infrastructure.controller.mapper.MatchWebMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
@@ -41,7 +45,9 @@ import java.util.UUID;
 public class TournamentController {
 
     private final TournamentService tournamentService;
+    private final MatchService matchService;
     private final TournamentWebMapper tournamentWebMapper;
+    private final MatchWebMapper matchWebMapper;
     private final EventService eventService;
     private final InscriptionService inscriptionService;
 
@@ -69,9 +75,9 @@ public class TournamentController {
     @PostMapping("/{tournamentId}/events")
     public ResponseEntity<TournamentResponse> addEventsToTournament(@PathVariable("tournamentId") UUID tournamentId, @RequestBody EventRequest eventRequest) {
         EventCommand command = new EventCommand(eventRequest.getEvents().stream()
-                .map(event -> new EventCommand.EventItem(event.getCategoryId(), event.getGender()))
-                .toList());
-        Tournament updatedTournament = eventService.addEventsToTournament(tournamentId, command);
+            .map(event -> new EventCommand.EventItem(event.getId(), event.getCategoryId(), event.getGender(), event.getStages()))
+            .toList());
+        Tournament updatedTournament = eventService.replaceAllEvents(tournamentId, command);
         return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
     }
 
@@ -143,6 +149,26 @@ public class TournamentController {
         TournamentInscriptionsView view = inscriptionService.findByTournament(tournamentId, eventId);
         return ResponseEntity.ok(toTournamentInscriptionsResponse(view));
     }
+
+    @PostMapping("/{tournamentId}/events/{eventId}/generate-draws")
+    public ResponseEntity<TournamentResponse> generateDraws(
+            @PathVariable UUID tournamentId,
+            @PathVariable UUID eventId
+    ) {
+        Tournament updatedTournament = eventService.generateDrawsForEvent(tournamentId, eventId);
+        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+    }
+
+        @PostMapping("/{tournamentId}/matches/{matchId}/result")
+        public ResponseEntity<MatchResponse> recordMatchResult(
+            @PathVariable UUID tournamentId,
+            @PathVariable UUID matchId,
+                @RequestBody MatchResultRequest request
+        ) {
+        return ResponseEntity.ok(matchWebMapper.toResponse(
+            matchService.recordResult(tournamentId, matchId, request.winnerId(), request.scoreString())
+        ));
+        }
 
     private static EventInscriptionResponse toEventInscriptionResponse(EventInscriptionResult result) {
         return new EventInscriptionResponse(

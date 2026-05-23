@@ -1,6 +1,6 @@
 package com.tfm.tennis_platform.application.services;
 
-import com.tfm.tennis_platform.application.dto.CompleteProfileCommand;
+import com.tfm.tennis_platform.application.commands.CompleteProfileCommand;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.PersonRepository;
 import com.tfm.tennis_platform.domain.models.Member;

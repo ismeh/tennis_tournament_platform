@@ -28,4 +28,11 @@ public class InscriptionRepositoryAdapter implements InscriptionRepository {
                 .map(mapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<Inscription> findByEventId(UUID eventId) {
+        return inscriptionRepository.findByEvent_Id(eventId).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }
