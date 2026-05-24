@@ -47,6 +47,8 @@ services:
     environment:
       - PORT=4000
       - NODE_ENV=production
+      - API_URL=http://backend:${BACKEND_PORT:-8080}/api
+      - PRODUCTION=true
       - NG_ALLOWED_HOSTS=${FRONTEND_ALLOWED_HOSTS:-localhost,127.0.0.1}
     depends_on:
       - backend
