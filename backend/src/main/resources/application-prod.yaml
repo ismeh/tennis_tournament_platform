@@ -1,5 +1,35 @@
 spring:
   main:
     lazy-initialization: false
+  datasource:
+    url: ${DATASOURCE_URL:jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:demo-tfm}}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER:postgres-tfm}
+    password: ${DB_PASSWORD:secret}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mail:
+    # SMTP server used only when EMAIL_CONFIRMATION_ENABLED=true.
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+logging:
+  level:
+    org.springframework.web: "debug"
+    org.hibernate: "error"
+  file:
+    name: logs/prod-application.log
+  pattern:
+    level: "%5p [req-id: %X{correlationId}]"
 server:
-  port: 8080
+  port: ${BACKEND_PORT:8080}

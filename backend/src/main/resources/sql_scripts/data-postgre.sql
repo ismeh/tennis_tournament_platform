@@ -1,0 +1,5 @@
+-- PostgreSQL seed data has moved to Flyway:
+-- backend/src/main/resources/db/seed/V1000__seed_dev_data.sql
+--
+-- This file is kept only to avoid breaking references to the old path.
+-- Do not add new PostgreSQL seed data here.
