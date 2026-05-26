@@ -3,6 +3,7 @@ import { HomeComponent } from './features/home';
 import { PlaceholderPage } from './features/placeholder';
 import { LoginComponent } from './features/auth/login';
 import { RegisterComponent } from './features/auth/register';
+import { ConfirmEmailComponent } from './features/auth/confirm-email';
 import { ProfileComponent } from './features/profile/profile';
 import { CreateTournamentComponent } from './features/tournaments/create';
 import { TournamentDetailComponent } from './features/tournaments/detail';
@@ -47,6 +48,11 @@ export const routes: Routes = [
     path: 'register',
     component: RegisterComponent,
     data: { title: 'Registrarse' }
+  },
+  {
+    path: 'confirmar-email',
+    component: ConfirmEmailComponent,
+    data: { title: 'Confirmar email' }
   },
   {
     path: 'perfil',

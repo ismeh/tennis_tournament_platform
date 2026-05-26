@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
@@ -41,6 +41,10 @@ import { AuthService } from '../../core/auth/auth.service';
 						<p class="text-sm text-red-600">{{ errorMessage() }}</p>
 					}
 
+					@if (successMessage()) {
+						<p class="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{{ successMessage() }}</p>
+					}
+
 					<button
 						type="submit"
 						class="w-full rounded-lg bg-primary-500 px-4 py-2 font-medium text-white transition-colors hover:bg-primary-600 disabled:opacity-60"
@@ -61,10 +65,10 @@ import { AuthService } from '../../core/auth/auth.service';
 export class RegisterComponent {
 	private readonly fb = inject(FormBuilder);
 	private readonly authService = inject(AuthService);
-	private readonly router = inject(Router);
 
 	readonly isSubmitting = signal(false);
 	readonly errorMessage = signal<string | null>(null);
+	readonly successMessage = signal<string | null>(null);
 
 	readonly form = this.fb.nonNullable.group({
 		email: ['', [Validators.required, Validators.email]],
@@ -78,11 +82,12 @@ export class RegisterComponent {
 
 		this.isSubmitting.set(true);
 		this.errorMessage.set(null);
+		this.successMessage.set(null);
 
 		this.authService.register(this.form.getRawValue()).subscribe({
-			next: () => {
+			next: (response) => {
 				this.isSubmitting.set(false);
-				this.router.navigateByUrl('/perfil');
+				this.successMessage.set(response.message);
 			},
 			error: () => {
 				this.isSubmitting.set(false);
