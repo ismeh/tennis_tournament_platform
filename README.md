@@ -139,7 +139,7 @@ cd frontend && npm run format
 
 - Automated CI badges still show as not configured for build/test workflows
 - API coverage is partial; several endpoints are planned but not implemented yet
-- Deployment workflow exists but requires repository secrets and AWS setup
+- Deployment automation is planned, but repository workflow wiring, secrets, and AWS setup are still required
 
 ## License
 
