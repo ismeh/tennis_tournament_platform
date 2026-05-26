@@ -37,7 +37,7 @@ npm run start
 Notes:
 
 - `start` uses the `development` configuration defined in `angular.json`.
-- The frontend API target is currently `http://localhost:8080/api` (`src/app/shared/constants.ts`).
+- The frontend API target is currently `http://localhost:8080/api` (`src/app/shared/constants.ts`), so if you run the backend locally (without Docker) start it with `BACKEND_PORT=8080` (default local backend port is `8085`).
 
 ## Production Build and SSR Runtime
 
