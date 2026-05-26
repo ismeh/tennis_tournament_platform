@@ -64,7 +64,7 @@ For non-Docker local development, backend defaults to `http://localhost:8085` un
 
 ### Default Credentials
 
-Sample users are seeded from SQL scripts, but plaintext passwords are not documented in the repository. For local login, use the public registration/login endpoints described in [`/docs/api-spec.md`](./docs/api-spec.md).
+Sample users are seeded from SQL scripts, but plaintext passwords are not documented in the repository. For local login, use the public registration/login endpoints described in [`/docs/api-spec.md`](./docs/api-spec.md) (`http://localhost:8080` with Docker Compose, or `http://localhost:8085` for non-Docker local development unless `BACKEND_PORT` is set).
 
 ## Local Development (Without Docker)
 
