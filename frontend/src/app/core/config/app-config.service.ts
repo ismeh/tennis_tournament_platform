@@ -20,6 +20,7 @@ export class AppConfigService {
     }
 
     if (!isPlatformBrowser(this.platformId)) {
+      AppSettings.configureApiUrl(process.env['API_URL']);
       this.loadPromise = Promise.resolve();
       return this.loadPromise;
     }
