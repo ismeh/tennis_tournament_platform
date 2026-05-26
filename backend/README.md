@@ -39,7 +39,11 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-Default local API URL: `http://localhost:8080/api`
+API URL by common local setup:
+
+- Docker Compose or explicit `BACKEND_PORT=8080`: `http://localhost:8080/api`
+- Plain local `dev` profile default (`BACKEND_PORT` unset): `http://localhost:8085/api`
+- The `dev` profile requires `DATASOURCE_URL`, `DB_USER`, and `DB_PASSWORD` to be set; use `devH2` for a local H2 setup.
 
 ## Useful Commands
 
