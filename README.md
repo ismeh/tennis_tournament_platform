@@ -52,13 +52,15 @@ Detailed architecture: [`/docs/architecture.md`](./docs/architecture.md)
    docker compose up --build
    ```
 
-### Default Local URLs
+### Default Docker Compose URLs
 
 | Service | URL |
 |---|---|
 | Frontend | http://localhost:4200 |
 | Backend API | http://localhost:8080/api |
 | PostgreSQL | localhost:5432 |
+
+For non-Docker local development, backend defaults to `http://localhost:8085` unless `BACKEND_PORT` is set.
 
 ### Default Credentials
 
