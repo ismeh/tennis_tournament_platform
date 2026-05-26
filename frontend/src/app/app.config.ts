@@ -15,6 +15,7 @@ import { RequestLoggerService } from './core/logging/request-logger.service';
 import { environment } from '../environments/environment';
 import { AuthService } from './core/auth/auth.service';
 import { firstValueFrom } from 'rxjs';
+import { AppConfigService } from './core/config/app-config.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -25,6 +26,12 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(
       withInterceptors([requestLoggingInterceptor, authInterceptor])
     ),
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (appConfigService: AppConfigService) => () => appConfigService.load(),
+      deps: [AppConfigService],
+      multi: true
+    },
     {
       provide: APP_INITIALIZER,
       useFactory: (logger: RequestLoggerService) => () =>
@@ -40,8 +47,9 @@ export const appConfig: ApplicationConfig = {
     },
     {
       provide: APP_INITIALIZER,
-      useFactory: (authService: AuthService) => () => firstValueFrom(authService.loadDisplayNameFromProfile()),
-      deps: [AuthService],
+      useFactory: (authService: AuthService, appConfigService: AppConfigService) => () =>
+        appConfigService.load().then(() => firstValueFrom(authService.loadDisplayNameFromProfile())),
+      deps: [AuthService, AppConfigService],
       multi: true
     }
   ]

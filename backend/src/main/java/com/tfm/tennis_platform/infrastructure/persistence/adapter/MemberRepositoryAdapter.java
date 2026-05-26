@@ -7,6 +7,7 @@ import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMemberRe
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,8 +34,18 @@ public class MemberRepositoryAdapter implements MemberRepository {
     }
 
     @Override
+    public Optional<Member> findByEmailConfirmationTokenHash(String tokenHash) {
+        return memberRepository.findByEmailConfirmationTokenHash(tokenHash).map(mapper::toDomain);
+    }
+
+    @Override
     public void updateTokenHash(UUID id, String tokenHash) {
         memberRepository.updateTokenHash(id, tokenHash);
+    }
+
+    @Override
+    public void updateEmailConfirmation(UUID id, boolean emailVerified, String tokenHash, LocalDateTime expiresAt) {
+        memberRepository.updateEmailConfirmation(id, emailVerified, tokenHash, expiresAt);
     }
 
     @Override

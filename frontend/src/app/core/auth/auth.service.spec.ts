@@ -45,15 +45,29 @@ describe('AuthService', () => {
     expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('refresh-token');
   });
 
-  it('stores token after register', () => {
-    service.register({ email: 'new@example.com', password: 'secret123', name: 'New User' }).subscribe();
+  it('does not create a session after register until email is confirmed', () => {
+    service.register({ email: 'new@example.com', password: 'secret123' }).subscribe();
 
     const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/register`);
     expect(req.request.method).toBe('POST');
-    req.flush({ accessToken: 'registered-token', refreshToken: 'register-refresh-token' });
+    req.flush({
+      emailVerificationRequired: true,
+      message: 'Cuenta creada. Revisa tu correo para confirmar el email.'
+    });
 
-    expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('registered-token');
-    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('register-refresh-token');
+    expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBeNull();
+  });
+
+  it('confirms email with token', () => {
+    service.confirmEmail('confirmation-token').subscribe();
+
+    const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/confirm-email?token=confirmation-token`);
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      emailVerificationRequired: false,
+      message: 'Email confirmado correctamente.'
+    });
   });
 
   it('refreshes token when refresh token is available', () => {

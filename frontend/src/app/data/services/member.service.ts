@@ -9,8 +9,6 @@ import { MemberResponse, ProfileRequest, ProfileResponse } from '../interfaces/m
 })
 export class MemberService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = AppSettings.API_URL.replace(/\/api\/?$/, '');
-  private readonly profileUrl = `${AppSettings.API_URL}/auth/profile`;
 
   getMemberByEmail(email: string): Observable<MemberResponse> {
     return this.http.get<MemberResponse>(`${this.baseUrl}/members/${encodeURIComponent(email)}`);
@@ -22,5 +20,13 @@ export class MemberService {
 
   updateMyProfile(payload: ProfileRequest): Observable<ProfileResponse> {
     return this.http.put<ProfileResponse>(this.profileUrl, payload);
+  }
+
+  private get baseUrl(): string {
+    return AppSettings.API_URL.replace(/\/api\/?$/, '');
+  }
+
+  private get profileUrl(): string {
+    return `${AppSettings.API_URL}/auth/profile`;
   }
 }
