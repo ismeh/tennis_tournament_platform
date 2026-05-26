@@ -10,12 +10,12 @@ class RegisterResponseTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void serializesAccessTokenUsingTheSharedAuthContract() throws Exception {
-        RegisterResponse response = new RegisterResponse("registered-token", "refresh-token");
+    void serializesEmailConfirmationContract() throws Exception {
+        RegisterResponse response = new RegisterResponse(true, "Cuenta creada. Revisa tu correo para confirmar el email.");
 
         String json = objectMapper.writeValueAsString(response);
 
-        assertTrue(json.contains("\"accessToken\":\"registered-token\""));
-        assertTrue(json.contains("\"refreshToken\":\"refresh-token\""));
+        assertTrue(json.contains("\"emailVerificationRequired\":true"));
+        assertTrue(json.contains("\"message\":\"Cuenta creada. Revisa tu correo para confirmar el email.\""));
     }
 }

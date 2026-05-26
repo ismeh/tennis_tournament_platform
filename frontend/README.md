@@ -37,7 +37,8 @@ npm run start
 Notas:
 
 - `start` usa la configuración `development` (definida en `angular.json`).
-- Si también levantas backend en local, la API actual está en `http://localhost:8085/api` (ver `src/app/shared/constants.ts`).
+- El frontend lee la API desde `public/config.json` en runtime.
+- Puedes usar `http://localhost:8080/api` para desarrollo local, sin recompilar Angular para cambiarlo.
 
 ## Build y ejecución en producción
 
@@ -80,6 +81,22 @@ Configuración actual del logger:
 	- `minLogLevel: ERROR`
 
 El reemplazo de archivos por entorno está configurado en `angular.json` con `fileReplacements` para `development`.
+
+## Configuración runtime de API (local + Docker)
+
+El frontend lee la URL de API en runtime desde `public/config.json`:
+
+```json
+{
+	"apiUrl": "http://localhost:8080/api",
+	"production": "false"
+}
+```
+
+- En local (`npm run start`): se usa directamente `public/config.json`.
+- En Docker: se usa `public/config.template.json` y el contenedor genera `config.json` al arrancar con variables de entorno (`API_URL`, `PRODUCTION`).
+
+El script de arranque de contenedor está en `scripts/entrypoint.sh`.
 
 ## Scripts útiles
 

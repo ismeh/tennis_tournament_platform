@@ -31,6 +31,16 @@ public class MemberEntity {
     @Column(name = "token_hash", length = 128)
     private String tokenHash;
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    @Column(name = "email_confirmation_token_hash", length = 128)
+    private String emailConfirmationTokenHash;
+
+    @Column(name = "email_confirmation_expires_at")
+    private LocalDateTime emailConfirmationExpiresAt;
+
     @Enumerated(EnumType.STRING)
     private MemberTier tier;
 
