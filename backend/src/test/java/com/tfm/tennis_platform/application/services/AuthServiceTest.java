@@ -1,18 +1,21 @@
 package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.application.commands.CompleteProfileCommand;
+import com.tfm.tennis_platform.domain.exceptions.ExpiredTokenException;
+import com.tfm.tennis_platform.domain.port.out.EmailSender;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.PersonRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.Person;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
+import com.tfm.tennis_platform.infrastructure.email.EmailProperties;
 import com.tfm.tennis_platform.infrastructure.security.JwtService;
 import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
 import com.tfm.tennis_platform.domain.exceptions.UnauthorizedException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,15 +64,40 @@ class AuthServiceTest {
     @Mock
     private UserDetailsService userDetailsService;
 
-    @InjectMocks
+    @Mock
+    private EmailSender emailSender;
+
+    private EmailProperties emailProperties;
+
     private AuthService authService;
+
+    @BeforeEach
+    void setUp() {
+        emailProperties = new EmailProperties(
+                true,
+                false,
+                "no-reply@tennis-platform.local",
+                "http://localhost:4200/confirmar-email",
+                1440
+        );
+        authService = new AuthService(
+                authenticationManager,
+                jwtService,
+                memberRepository,
+                personRepository,
+                passwordEncoder,
+                userDetailsService,
+                emailSender,
+                emailProperties
+        );
+    }
 
     @Test
     void loginShouldReturnJwtTokenForValidCredentials() {
         Authentication authenticationResponse = org.mockito.Mockito.mock(Authentication.class);
         User principal = new User("test@example.com", "hashed", List.of());
         UUID memberId = UUID.randomUUID();
-        Member member = Member.builder().id(memberId).email("test@example.com").build();
+        Member member = Member.builder().id(memberId).email("test@example.com").emailVerified(true).build();
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authenticationResponse);
@@ -84,7 +114,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void registerShouldEncodePasswordPersistMemberAndReturnToken() {
+    void registerShouldEncodePasswordPersistMemberAndSendConfirmationEmail() {
         UUID memberId = UUID.randomUUID();
 
         when(memberRepository.findByEmail("new@example.com"))
@@ -96,23 +126,71 @@ class AuthServiceTest {
                 .email("new@example.com")
                 .password("encoded-password")
                 .tier(MemberTier.FREE)
+                .emailVerified(false)
                 .build();
 
         when(memberRepository.save(any(Member.class))).thenReturn(persistedMember);
-        when(jwtService.generateAccessToken(any(User.class))).thenReturn("new-user-token");
-        when(jwtService.generateRefreshToken(any(User.class))).thenReturn("new-user-refresh-token");
 
-        AuthService.AuthTokens token = authService.register("new@example.com", "secret123", "New User");
+        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User");
 
-        assertEquals("new-user-token", token.accessToken());
-        assertEquals("new-user-refresh-token", token.refreshToken());
+        assertEquals(true, result.emailVerificationRequired());
+        assertEquals("Cuenta creada. Revisa tu correo para confirmar el email.", result.message());
 
         ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
         verify(memberRepository).save(memberCaptor.capture());
-        verify(memberRepository).updateTokenHash(eq(memberId), any());
+        verify(emailSender).sendEmailConfirmation(eq("new@example.com"), org.mockito.ArgumentMatchers.contains("token="));
         assertEquals("new@example.com", memberCaptor.getValue().getEmail());
         assertEquals("encoded-password", memberCaptor.getValue().getPassword());
         assertEquals(MemberTier.FREE, memberCaptor.getValue().getTier());
+        assertEquals(false, memberCaptor.getValue().isEmailVerified());
+    }
+
+    @Test
+    void registerShouldCreateVerifiedMemberAndSkipEmailWhenConfirmationIsNotRequired() {
+        authService = new AuthService(
+                authenticationManager,
+                jwtService,
+                memberRepository,
+                personRepository,
+                passwordEncoder,
+                userDetailsService,
+                emailSender,
+                new EmailProperties(
+                        false,
+                        false,
+                        "no-reply@tennis-platform.local",
+                        "http://localhost:4200/confirmar-email",
+                        1440
+                )
+        );
+
+        UUID memberId = UUID.randomUUID();
+
+        when(memberRepository.findByEmail("new@example.com"))
+            .thenReturn(Optional.empty());
+        when(passwordEncoder.encode("secret123")).thenReturn("encoded-password");
+
+        Member persistedMember = Member.builder()
+                .id(memberId)
+                .email("new@example.com")
+                .password("encoded-password")
+                .tier(MemberTier.FREE)
+                .emailVerified(true)
+                .build();
+
+        when(memberRepository.save(any(Member.class))).thenReturn(persistedMember);
+
+        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User");
+
+        assertEquals(false, result.emailVerificationRequired());
+        assertEquals("Cuenta creada. Ya puedes iniciar sesión.", result.message());
+
+        ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
+        verify(memberRepository).save(memberCaptor.capture());
+        verify(emailSender, never()).sendEmailConfirmation(any(), any());
+        assertEquals(true, memberCaptor.getValue().isEmailVerified());
+        assertEquals(null, memberCaptor.getValue().getEmailConfirmationTokenHash());
+        assertEquals(null, memberCaptor.getValue().getEmailConfirmationExpiresAt());
     }
 
     @Test
@@ -133,13 +211,13 @@ class AuthServiceTest {
         UUID memberId = UUID.randomUUID();
         String validRefreshToken = "valid-refresh-token";
         String validRefreshTokenHash = hashToken(validRefreshToken);
-        Member member = Member.builder().id(memberId).email("test@example.com").build();
         Member memberWithTokenHash = Member.builder()
             .id(memberId)
             .email("test@example.com")
             .password("hashed")
             .tier(MemberTier.FREE)
             .tokenHash(validRefreshTokenHash)
+            .emailVerified(true)
             .build();
 
         when(jwtService.extractUsername(validRefreshToken)).thenReturn("test@example.com");
@@ -181,6 +259,7 @@ class AuthServiceTest {
             .password("hashed")
             .tier(MemberTier.FREE)
             .tokenHash("different-hash")
+            .emailVerified(true)
             .build();
 
         when(jwtService.extractUsername("valid-refresh-token")).thenReturn("test@example.com");
@@ -194,6 +273,72 @@ class AuthServiceTest {
         );
 
         assertEquals("Token de actualización inválido", ex.getMessage());
+    }
+
+    @Test
+    void loginShouldFailWhenEmailIsNotVerified() {
+        Authentication authenticationResponse = org.mockito.Mockito.mock(Authentication.class);
+        User principal = new User("test@example.com", "hashed", List.of());
+        Member member = Member.builder()
+                .id(UUID.randomUUID())
+                .email("test@example.com")
+                .emailVerified(false)
+                .build();
+
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(authenticationResponse);
+        when(authenticationResponse.isAuthenticated()).thenReturn(true);
+        when(authenticationResponse.getPrincipal()).thenReturn(principal);
+        when(memberRepository.findByEmail("test@example.com")).thenReturn(Optional.of(member));
+
+        UnauthorizedException ex = assertThrows(
+                UnauthorizedException.class,
+                () -> authService.login("test@example.com", "secret123")
+        );
+
+        assertEquals("Debes confirmar tu email antes de iniciar sesión", ex.getMessage());
+    }
+
+    @Test
+    void confirmEmailShouldMarkMemberAsVerifiedWhenTokenIsValid() {
+        UUID memberId = UUID.randomUUID();
+        String token = "valid-confirmation-token";
+        Member member = Member.builder()
+                .id(memberId)
+                .email("new@example.com")
+                .emailVerified(false)
+                .emailConfirmationTokenHash(hashToken(token))
+                .emailConfirmationExpiresAt(LocalDateTime.now().plusHours(1))
+                .build();
+
+        when(memberRepository.findByEmailConfirmationTokenHash(hashToken(token))).thenReturn(Optional.of(member));
+
+        AuthService.EmailConfirmationResult result = authService.confirmEmail(token);
+
+        assertEquals(true, result.success());
+        assertEquals("Email confirmado correctamente.", result.message());
+        verify(memberRepository).updateEmailConfirmation(memberId, true, null, null);
+    }
+
+    @Test
+    void confirmEmailShouldFailWhenTokenIsExpired() {
+        String token = "expired-confirmation-token";
+        Member member = Member.builder()
+                .id(UUID.randomUUID())
+                .email("new@example.com")
+                .emailVerified(false)
+                .emailConfirmationTokenHash(hashToken(token))
+                .emailConfirmationExpiresAt(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        when(memberRepository.findByEmailConfirmationTokenHash(hashToken(token))).thenReturn(Optional.of(member));
+
+        ExpiredTokenException ex = assertThrows(
+                ExpiredTokenException.class,
+                () -> authService.confirmEmail(token)
+        );
+
+        assertEquals("Token de confirmación expirado", ex.getMessage());
     }
 
         @Test
