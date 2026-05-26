@@ -7,3 +7,15 @@ application:
   security:
     jwt:
       secret-key: ${JWT_SECRET_KEY:my_very_secret_and_long_key_for_tennis_platform_tfm_project}
+  email:
+    confirmation:
+      # Business rule: true requires users to confirm email before login; false creates accounts already verified.
+      required: ${EMAIL_CONFIRMATION_REQUIRED:true}
+      # Transport switch: true sends real SMTP email; false logs the confirmation link when confirmation is required.
+      enabled: ${EMAIL_CONFIRMATION_ENABLED:false}
+      # Sender address used in confirmation emails. With Gmail, this should normally match MAIL_USERNAME.
+      from: ${EMAIL_FROM:no-reply@tennis-platform.local}
+      # Public frontend URL that receives the confirmation token as query param: ?token=...
+      frontend-confirmation-url: ${FRONTEND_CONFIRMATION_URL:http://localhost:4200/confirmar-email}
+      # Confirmation token lifetime in minutes.
+      token-expiration-minutes: ${EMAIL_CONFIRMATION_TOKEN_EXPIRATION_MINUTES:1440}
