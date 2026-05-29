@@ -2,6 +2,7 @@
 
 ![Build](https://img.shields.io/badge/build-not%20configured-lightgrey)
 ![Tests](https://img.shields.io/badge/tests-not%20configured-lightgrey)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ismeh/tennis_tournament_platform)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 Web platform for managing tennis tournaments, participants, and match workflows.
