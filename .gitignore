@@ -216,7 +216,6 @@ indent.log
 *.swo
 
 .gemini*
-.github*
 .ai
 .codex
 docs/
