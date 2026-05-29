@@ -1,42 +1,74 @@
 # Tennis Tournament Platform - Backend
 
-## Structure
-The backend of the Tennis Tournament Platform is built using Java with Spring Boot. It provides RESTful APIs for managing tournaments, players, matches, and scores. The following packages are included:
-- domain: Contains domain entities, classes representing the data model. Also includes repository interfaces (ports) for data access.
-- application: Contains the application-level logic (use cases/services) that orchestrates the domain models.
-- infrastructure: Contains configurations and implementations for data persistence (@Entity, JPA Repositories and adapters), security, and other infrastructural concerns.
-    - persistence: 
-        - the adapter package contains the implementation of the repository interfaces defined in the domain layer using JPA and the @Entity.
-    - controllers: Contains REST controllers that expose the API endpoints and its DTOs for request and response handling.
+Spring Boot backend for tournament, participant, authentication, and match APIs.
 
-## Versions
+## Architecture and Structure
 
-- **Java**: 25
-- **Maven**: 3.8+
-- **Spring Boot**: 3.x
+The backend follows a ports-and-adapters (hexagonal) style:
 
-## Getting Started
+- `domain/`: core entities and repository contracts (ports)
+- `application/`: services and use-case orchestration
+- `infrastructure/`: adapters (REST controllers, persistence, security, configuration)
+  - `persistence/`: JPA entities, repositories, and adapters
+  - `controller/`: HTTP endpoints and request/response DTOs
+
+## Supported Versions
+
+| Tool | Version |
+|---|---|
+| Java | 25 |
+| Maven | 3.8+ |
+| Spring Boot | 4.0.0 |
+
+> The project is configured for Java 25 (`<java.version>25</java.version>` in `pom.xml`).
+
+## Getting Started (Local)
 
 ### Prerequisites
 
-- Java 17 or higher
-- Maven 3.8 or higher
+- Java 25 installed and active in your shell
+- Maven 3.8+ (or use `./mvnw`)
+- PostgreSQL configured (or run via Docker Compose from project root)
 
-### Running the Project
+### Build, Test, Run
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+```bash
+cd backend
+./mvnw clean install
+./mvnw test
+./mvnw spring-boot:run
+```
 
-2. Build the project:
-   ```bash
-   mvn clean install
-   ```
+API URL by common local setup:
 
-3. Run the application:
-   ```bash
-   mvn spring-boot:run
-   ```
+- Docker Compose or explicit `BACKEND_PORT=8080`: `http://localhost:8080/api`
+- Plain local `dev` profile default (`BACKEND_PORT` unset): `http://localhost:8080/api`
+- The `dev` profile requires `DATASOURCE_URL`, `DB_USER`, and `DB_PASSWORD` to be set; use `devH2` for a local H2 setup.
 
-The application will start on `http://localhost:8080` by default.
+## Useful Commands
+
+```bash
+# Run all tests
+./mvnw test
+
+# Package without tests
+./mvnw clean package -DskipTests
+
+# Run app
+./mvnw spring-boot:run
+```
+
+## API and Documentation
+
+- API specification: [`../docs/api-spec.md`](../docs/api-spec.md)
+- Architecture overview: [`../docs/architecture.md`](../docs/architecture.md)
+- Domain model: [`../docs/domain-model.md`](../docs/domain-model.md)
+
+## Troubleshooting
+
+- `release version 25 not supported`
+  - Your local JDK is older than 25. Switch your Java runtime to JDK 25.
+- Database connection errors on startup
+  - Verify `DB_*` and `DATASOURCE_URL` values in `.env` (or your shell env vars).
+- Port already in use
+  - Change `BACKEND_PORT` in `.env` or stop the process using that port.

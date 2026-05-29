@@ -1,90 +1,89 @@
 # Frontend - Tennis Tournament Platform
 
-Aplicación web en Angular 20 con SSR (Server-Side Rendering) para la plataforma de torneos de tenis.
+Angular 20 SSR application for the Tennis Tournament Platform user interface.
 
-## Requisitos
+## Requirements
 
-- Node.js 20+
+- Node.js 24 (recommended)
 - npm 10+
 
-Comprobar versiones:
+Check versions:
 
 ```bash
 node -v
 npm -v
 ```
 
-## Instalación
+## Installation
 
-Desde la carpeta `frontend/`:
+From the `frontend/` folder:
 
 ```bash
-npm install
+npm ci
 ```
 
-## Puesta en marcha en desarrollo
+## Run in Development
 
-1. Arrancar el frontend:
+1. Start the frontend:
 
 ```bash
 npm run start
 ```
 
-2. Abrir en navegador:
+2. Open in the browser:
 
 - `http://localhost:4200`
 
-Notas:
+Notes:
 
-- `start` usa la configuración `development` (definida en `angular.json`).
-- El frontend lee la API desde `public/config.json` en runtime.
-- Puedes usar `http://localhost:8080/api` para desarrollo local, sin recompilar Angular para cambiarlo.
+- `start` uses the `development` configuration defined in `angular.json`.
+- The frontend API target is currently `http://localhost:8080/api` (`src/app/shared/constants.ts`), so if you run the backend locally (without Docker) start it with `BACKEND_PORT=8080` (default local backend port is `8085`).
 
-## Build y ejecución en producción
+## Production Build and SSR Runtime
 
-### 1) Generar build de producción
+### 1) Build production assets
 
 ```bash
 npm run build
 ```
 
-Esto genera los artefactos en `dist/tfm_front/`.
+Artifacts are generated in `dist/tfm_front/`.
 
-### 2) Ejecutar servidor SSR de producción
+### 2) Run SSR server
 
 ```bash
 npm run serve:ssr:tfm_front
 ```
 
-Por defecto escucha en `http://localhost:4000`.
+Default URL: `http://localhost:4000`
 
-Para cambiar el puerto:
+Change port:
 
 ```bash
 PORT=8080 npm run serve:ssr:tfm_front
 ```
 
-## Entornos y configuración de logs
+## Environments and Logging
 
-Se usa el enfoque nativo de Angular con archivos de entorno:
+The project uses native Angular environment files:
 
-- Producción: `src/environments/environment.ts`
-- Desarrollo: `src/environments/environment.development.ts`
+- Production: `src/environments/environment.ts`
+- Development: `src/environments/environment.development.ts`
 
-Configuración actual del logger:
+Current logger behavior:
 
-- Desarrollo:
-	- `enableConsole: true`
-	- `minLogLevel: INFO`
-- Producción:
-	- `enableConsole: false`
-	- `minLogLevel: ERROR`
+- Development:
+  - `enableConsole: true`
+  - `minLogLevel: INFO`
+- Production:
+  - `enableConsole: false`
+  - `minLogLevel: ERROR`
 
-El reemplazo de archivos por entorno está configurado en `angular.json` con `fileReplacements` para `development`.
+Environment file replacement is configured in `angular.json` via `fileReplacements`.
 
-## Configuración runtime de API (local + Docker)
+## Runtime API Configuration (Local + Docker)
 
-El frontend lee la URL de API en runtime desde `public/config.json`:
+The frontend reads the API URL at runtime from `public/config.json`:
 
 ```json
 {
@@ -93,63 +92,61 @@ El frontend lee la URL de API en runtime desde `public/config.json`:
 }
 ```
 
-- En local (`npm run start`): se usa directamente `public/config.json`.
-- En Docker: se usa `public/config.template.json` y el contenedor genera `config.json` al arrancar con variables de entorno (`API_URL`, `PRODUCTION`).
+- Local (`npm run start`): uses `public/config.json` directly.
+- Docker: uses `public/config.template.json` and the container generates `config.json` at startup using environment variables (`API_URL`, `PRODUCTION`).
 
-El script de arranque de contenedor está en `scripts/entrypoint.sh`.
+The container startup script is located at `scripts/entrypoint.sh`.
 
-## Scripts útiles
+## Useful Scripts
 
 ```bash
-# Servidor de desarrollo
+# Development server
 npm run start
 
-# Build de producción
+# Production build
 npm run build
 
-# Build en modo desarrollo (watch)
+# Development build with watch
 npm run watch
 
-# Tests unitarios
+# Unit tests
 npm run test
+
+# CI-style tests
+npm run test:ci
+
+# Formatting
+npm run format
 ```
 
-## Estructura principal
+## Main Structure
 
 ```text
 src/app/
-	core/         # Auth, interceptores y servicios globales
-	data/         # Interfaces y servicios HTTP
-	features/     # Páginas funcionales
-	components/   # Componentes compartidos de UI
-	layout/       # Layout base
-	shared/       # Constantes y utilidades reutilizables
+  core/         # Authentication, interceptors, global services
+  data/         # Interfaces and HTTP services
+  features/     # Feature/page components
+  components/   # Shared UI components
+  layout/       # Base application layout
+  shared/       # Constants and reusable utilities
 ```
 
-## Diagrama de arquitectura frontend
+## Frontend Architecture
 
-![arquitectura-front](docs/images/frontend-data-flow.png)
+Flow summary:
 
-Resumen del flujo:
+1. Router loads the active feature view.
+2. Feature components call `data/services` for API interactions.
+3. Auth interceptor adds JWT tokens to outgoing HTTP requests.
+4. API responses are rendered by the component layer.
 
-1. El router carga la feature según la ruta activa.
-2. La feature usa servicios de la capa data para solicitar datos.
-3. El interceptor añade token JWT a las peticiones HTTP.
-4. La API responde y los datos vuelven al componente para renderizar UI.
+See full system architecture in [`../docs/architecture.md`](../docs/architecture.md).
 
-## Troubleshooting rápido
+## Troubleshooting
 
 - `EADDRINUSE: address already in use`
-	- El puerto está ocupado. Cambia el puerto o cierra el proceso previo.
-- Errores CORS o llamadas API fallando
-	- Verifica que el backend esté activo en el puerto esperado (`8085` en dev).
-- Build funciona pero no arranca SSR
-	- Ejecuta primero `npm run build` y después `npm run serve:ssr:tfm_front`.
-
-## Mejoras recomendadas para este README
-
-1. Añadir diagrama simple de arquitectura frontend (routing, auth interceptor, capa data).
-2. Incluir una sección "Primer flujo funcional" (login -> listado torneos -> detalle).
-3. Documentar estrategia de despliegue (PM2, Docker o reverse proxy) para producción real.
-4. Añadir tabla de compatibilidad de versiones (Node, Angular CLI, npm).
-5. Incluir checklist de validación antes de PR (`npm run build` y `npm run test`).
+  - The port is already occupied. Change the port or stop the existing process.
+- CORS errors or failing API requests
+  - Verify that backend is running on the configured API URL (`http://localhost:8080/api`).
+- SSR does not start after a successful build
+  - Run `npm run build` first, then `npm run serve:ssr:tfm_front`.
