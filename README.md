@@ -1,7 +1,7 @@
 # Tennis Tournament Platform
 
-![Build](https://img.shields.io/badge/build-not%20configured-lightgrey)
-![Tests](https://img.shields.io/badge/tests-not%20configured-lightgrey)
+[![Build](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/build.yml/badge.svg)](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/build.yml)
+[![Tests](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/test.yml/badge.svg)](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/test.yml)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ismeh/tennis_tournament_platform)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -140,7 +140,6 @@ cd frontend && npm run format
 
 ## Known Limitations / Roadmap
 
-- Automated CI badges still show as not configured for build/test workflows
 - API coverage is partial; several endpoints are planned but not implemented yet
 - Deployment automation is planned, but repository workflow wiring, secrets, and AWS setup are still required
 
