@@ -99,6 +99,8 @@ public class MatchRepositoryAdapter implements MatchRepository {
         target.setWinner(source.getWinner());
         target.setRoundNumber(source.getRoundNumber());
         target.setScheduledAt(source.getScheduledAt());
+        target.setScheduleTimeType(source.getScheduleTimeType());
+        target.setCourtResource(source.getCourtResource());
         target.setCourt(source.getCourt());
         target.setResult(source.getResult());
     }

@@ -47,6 +47,14 @@ public class MatchEntity {
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "schedule_type")
+    private com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType scheduleTimeType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "court_id")
+    private CourtEntity courtResource;
+
     @Column(name = "court")
     private String court;
 
