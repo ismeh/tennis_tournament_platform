@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
-import { Router, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { LoginComponent } from './login';
 import { AuthService } from '../../core/auth/auth.service';
 
@@ -9,14 +9,26 @@ describe('LoginComponent', () => {
   let component: LoginComponent;
   let authServiceSpy: jasmine.SpyObj<AuthService>;
   let router: Router;
+  let returnUrl: string | null;
 
   beforeEach(async () => {
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['login']);
+    returnUrl = null;
 
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
       providers: [
         provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: {
+                get: (key: string) => key === 'returnUrl' ? returnUrl : null
+              }
+            }
+          }
+        },
         { provide: AuthService, useValue: authServiceSpy }
       ]
     }).compileComponents();
@@ -28,15 +40,25 @@ describe('LoginComponent', () => {
     fixture.detectChanges();
   });
 
-  it('calls login and navigates to home on success', () => {
+  it('calls login and navigates to tournaments on success when there is no return url', () => {
     authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token' }));
 
     component.form.setValue({ email: 'test@example.com', password: 'secret123' });
     component.submit();
 
     expect(authServiceSpy.login).toHaveBeenCalledWith({ email: 'test@example.com', password: 'secret123' });
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');
     expect(component.errorMessage()).toBeNull();
+  });
+
+  it('navigates to the previous route after login when return url is present', () => {
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token' }));
+    returnUrl = '/torneos/tournament-id?tab=inscriptions';
+
+    component.form.setValue({ email: 'test@example.com', password: 'secret123' });
+    component.submit();
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos/tournament-id?tab=inscriptions');
   });
 
   it('shows an error message on login failure', () => {
@@ -45,6 +67,6 @@ describe('LoginComponent', () => {
     component.form.setValue({ email: 'test@example.com', password: 'secret123' });
     component.submit();
 
-    expect(component.errorMessage()).toContain('No se pudo iniciar sesion');
+    expect(component.errorMessage()).toContain('No se pudo iniciar sesión');
   });
 });
