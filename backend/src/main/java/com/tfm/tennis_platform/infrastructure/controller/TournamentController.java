@@ -5,6 +5,7 @@ import com.tfm.tennis_platform.application.services.TournamentService;
 import com.tfm.tennis_platform.application.services.MatchService;
 import com.tfm.tennis_platform.application.services.InscriptionService;
 import com.tfm.tennis_platform.application.services.EventService;
+import com.tfm.tennis_platform.application.services.CourtService;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionCommand;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionResult;
 import com.tfm.tennis_platform.domain.models.inscription.ManualEventInscriptionCommand;
@@ -13,10 +14,15 @@ import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionEv
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionGenderCount;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionPlayerView;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionsView;
+import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
+import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.infrastructure.controller.dto.CourtRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.CourtResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ManualEventInscriptionRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.MatchScheduleRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
@@ -50,12 +56,13 @@ public class TournamentController {
     private final MatchWebMapper matchWebMapper;
     private final EventService eventService;
     private final InscriptionService inscriptionService;
+    private final CourtService courtService;
 
     @PostMapping
     public ResponseEntity<TournamentResponse> create(@RequestBody TournamentRequest request, Principal principal) {
         Tournament tournament = tournamentWebMapper.toDomain(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(tournamentWebMapper.toResponse(tournamentService.create(tournament, principal.getName())));
+                .body(tournamentWebMapper.toResponse(tournamentService.create(tournament, principal.getName(), request.courtCount())));
     }
 
     @GetMapping
@@ -67,9 +74,9 @@ public class TournamentController {
 
     @GetMapping("/{id}")
     public ResponseEntity<TournamentResponse> getById(@PathVariable UUID id) {
-        return tournamentService.findById(id)
-                .map(t -> ResponseEntity.ok(tournamentWebMapper.toResponse(t)))
-                .orElse(ResponseEntity.notFound().build());
+        Tournament tournament = tournamentService.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", id));
+        return ResponseEntity.ok(tournamentWebMapper.toResponse(tournament));
     }
 
     @PostMapping("/{tournamentId}/events")
@@ -94,6 +101,38 @@ public class TournamentController {
     public ResponseEntity<TournamentResponse> updateStatus(@PathVariable UUID id, @RequestBody TournamentStatusUpdateRequest request) {
         Tournament updatedTournament = tournamentService.updateStatus(id, request.status());
         return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+    }
+
+    @GetMapping("/{tournamentId}/courts")
+    public ResponseEntity<List<CourtResponse>> getCourts(@PathVariable UUID tournamentId) {
+        return ResponseEntity.ok(courtService.findByTournamentId(tournamentId).stream()
+                .map(TournamentController::toCourtResponse)
+                .toList());
+    }
+
+    @PostMapping("/{tournamentId}/courts")
+    public ResponseEntity<CourtResponse> createCourt(@PathVariable UUID tournamentId, @RequestBody CourtRequest request) {
+        Court court = courtService.create(tournamentId, request.name());
+        return ResponseEntity.status(HttpStatus.CREATED).body(toCourtResponse(court));
+    }
+
+    @PatchMapping("/{tournamentId}/courts/{courtId}")
+    public ResponseEntity<CourtResponse> updateCourt(
+            @PathVariable UUID tournamentId,
+            @PathVariable UUID courtId,
+            @RequestBody CourtRequest request
+    ) {
+        Court court = courtService.update(tournamentId, courtId, request.name());
+        return ResponseEntity.ok(toCourtResponse(court));
+    }
+
+    @DeleteMapping("/{tournamentId}/courts/{courtId}")
+    public ResponseEntity<Void> deleteCourt(
+            @PathVariable UUID tournamentId,
+            @PathVariable UUID courtId
+    ) {
+        courtService.delete(tournamentId, courtId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{tournamentId}/events/{eventId}/inscriptions")
@@ -170,6 +209,17 @@ public class TournamentController {
         ));
         }
 
+        @PatchMapping("/{tournamentId}/matches/{matchId}/schedule")
+        public ResponseEntity<MatchResponse> scheduleMatch(
+            @PathVariable UUID tournamentId,
+            @PathVariable UUID matchId,
+            @RequestBody MatchScheduleRequest request
+        ) {
+        return ResponseEntity.ok(matchWebMapper.toResponse(
+            matchService.schedule(tournamentId, matchId, request.courtId(), request.scheduledAt(), request.scheduleTimeType())
+        ));
+        }
+
     private static EventInscriptionResponse toEventInscriptionResponse(EventInscriptionResult result) {
         return new EventInscriptionResponse(
                 result.id(),
@@ -178,6 +228,15 @@ public class TournamentController {
                 result.status(),
                 result.paymentStatus(),
                 result.registeredAt()
+        );
+    }
+
+    private static CourtResponse toCourtResponse(Court court) {
+        return new CourtResponse(
+                court.getId(),
+                court.getTournamentId(),
+                court.getName(),
+                court.isActive()
         );
     }
 
