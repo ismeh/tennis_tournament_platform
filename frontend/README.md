@@ -81,6 +81,22 @@ Current logger behavior:
 
 Environment file replacement is configured in `angular.json` via `fileReplacements`.
 
+## Runtime API Configuration (Local + Docker)
+
+The frontend reads the API URL at runtime from `public/config.json`:
+
+```json
+{
+	"apiUrl": "http://localhost:8080/api",
+	"production": "false"
+}
+```
+
+- Local (`npm run start`): uses `public/config.json` directly.
+- Docker: uses `public/config.template.json` and the container generates `config.json` at startup using environment variables (`API_URL`, `PRODUCTION`).
+
+The container startup script is located at `scripts/entrypoint.sh`.
+
 ## Useful Scripts
 
 ```bash

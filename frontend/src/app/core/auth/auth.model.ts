@@ -14,8 +14,8 @@ export interface RegisterRequest {
 }
 
 export interface RegisterResponse {
-  accessToken: string;
-  refreshToken?: string;
+  emailVerificationRequired: boolean;
+  message: string;
 }
 
 export interface RefreshTokenRequest {

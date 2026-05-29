@@ -18,17 +18,12 @@ import { ProfileResponse } from '../../data/interfaces/member.model';
 export class AuthService {
   private http = inject(HttpClient);
   private readonly platformId = inject(PLATFORM_ID);
-  private readonly API_URL = `${AppSettings.API_URL}/auth`;
   private readonly TOKEN_KEY = AppSettings.TOKEN_KEY;
   private readonly REFRESH_TOKEN_KEY = AppSettings.REFRESH_TOKEN_KEY;
   private readonly USER_NAME_KEY = AppSettings.USER_NAME_KEY;
 
   private authStatus$ = new BehaviorSubject<boolean>(this.checkToken());
   private userDisplayName$ = new BehaviorSubject<string | null>(this.getInitialDisplayName());
-
-  constructor() {
-    this.verifyTokensOnStartup();
-  }
 
   get isLoggedIn$(): Observable<boolean> {
     return this.authStatus$.asObservable();
@@ -39,7 +34,7 @@ export class AuthService {
   }
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.API_URL}/login`, credentials).pipe(
+    return this.http.post<LoginResponse>(`${this.authUrl}/login`, credentials).pipe(
       tap(response => {
         this.setSession(response.accessToken, response.refreshToken);
       }),
@@ -53,17 +48,17 @@ export class AuthService {
   }
 
   register(payload: RegisterRequest): Observable<RegisterResponse> {
-    return this.http.post<RegisterResponse>(`${this.API_URL}/register`, payload).pipe(
-      tap(response => {
-        this.setSession(response.accessToken, response.refreshToken);
-      }),
-      switchMap(response =>
-        this.loadDisplayNameFromProfile().pipe(
-          map(() => response),
-          catchError(() => of(response))
-        )
-      )
-    );
+    return this.http.post<RegisterResponse>(`${this.authUrl}/register`, payload);
+  }
+
+  confirmEmail(token: string): Observable<RegisterResponse> {
+    return this.http.get<RegisterResponse>(`${this.authUrl}/confirm-email`, {
+      params: { token }
+    });
+  }
+
+  resendConfirmation(email: string): Observable<RegisterResponse> {
+    return this.http.post<RegisterResponse>(`${this.authUrl}/resend-confirmation`, { email });
   }
 
   setDisplayName(name: string | null): void {
@@ -88,7 +83,7 @@ export class AuthService {
       return of(void 0);
     }
 
-    return this.http.get<ProfileResponse>(`${this.API_URL}/profile`).pipe(
+    return this.http.get<ProfileResponse>(`${this.authUrl}/profile`).pipe(
       tap(profile => {
         this.setDisplayName(this.resolveProfileDisplayName(profile));
       }),
@@ -104,7 +99,7 @@ export class AuthService {
     }
 
     return this.http
-      .post<RefreshTokenResponse>(`${this.API_URL}/refresh`, { refreshToken })
+      .post<RefreshTokenResponse>(`${this.authUrl}/refresh`, { refreshToken })
       .pipe(
         tap(response => {
           const accessToken = response.accessToken;
@@ -154,7 +149,7 @@ export class AuthService {
   logout(): Observable<void> {
     const refreshToken = this.getRefreshToken();
     const logoutRequest$: Observable<void> = refreshToken
-      ? this.http.post<void>(`${this.API_URL}/logout`, { refreshToken })
+      ? this.http.post<void>(`${this.authUrl}/logout`, { refreshToken })
       : of(void 0);
 
     return logoutRequest$.pipe(
@@ -352,6 +347,10 @@ export class AuthService {
 
     this.authStatus$.next(false);
     this.userDisplayName$.next(null);
+  }
+
+  private get authUrl(): string {
+    return `${AppSettings.API_URL}/auth`;
   }
 
   private verifyTokensOnStartup(): void {

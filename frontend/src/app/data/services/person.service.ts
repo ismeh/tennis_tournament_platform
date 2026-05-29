@@ -9,12 +9,15 @@ import { PersonSearchResponse } from '../interfaces/person.model';
 })
 export class PersonService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = `${AppSettings.API_URL}/persons`;
 
   searchPersons(query: string): Observable<PersonSearchResponse[]> {
     const normalizedQuery = query.trim();
     const queryParam = normalizedQuery ? `?query=${encodeURIComponent(normalizedQuery)}` : '';
 
     return this.http.get<PersonSearchResponse[]>(`${this.apiUrl}${queryParam}`);
+  }
+
+  private get apiUrl(): string {
+    return `${AppSettings.API_URL}/persons`;
   }
 }

@@ -20,8 +20,6 @@ import {
 })
 export class TournamentService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = `${AppSettings.API_URL}/tournaments`;
-  private readonly eventCatalogUrl = `${AppSettings.API_URL}/age-categories`;
 
   getTournaments(): Observable<TournamentResponse[]> {
     return this.http.get<TournamentResponse[]>(this.apiUrl);
@@ -73,5 +71,13 @@ export class TournamentService {
     payload: { winnerId: string; scoreString: string }
   ): Observable<MatchResponse> {
     return this.http.post<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/result`, payload);
+  }
+
+  private get apiUrl(): string {
+    return `${AppSettings.API_URL}/tournaments`;
+  }
+
+  private get eventCatalogUrl(): string {
+    return `${AppSettings.API_URL}/age-categories`;
   }
 }

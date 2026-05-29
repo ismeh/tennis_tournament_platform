@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -38,14 +39,26 @@ public class LoginController {
 
     @PostMapping("/api/auth/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest registerRequest) {
-        AuthService.AuthTokens tokens = authService.register(
+        AuthService.RegistrationResult result = authService.register(
                 registerRequest.email(),
                 registerRequest.password(),
                 registerRequest.name()
         );
         log.info("User registered: {}", registerRequest.email());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new RegisterResponse(tokens.accessToken(), tokens.refreshToken()));
+                .body(new RegisterResponse(result.emailVerificationRequired(), result.message()));
+    }
+
+    @GetMapping("/api/auth/confirm-email")
+    public ResponseEntity<RegisterResponse> confirmEmail(@RequestParam String token) {
+        AuthService.EmailConfirmationResult result = authService.confirmEmail(token);
+        return ResponseEntity.ok(new RegisterResponse(false, result.message()));
+    }
+
+    @PostMapping("/api/auth/resend-confirmation")
+    public ResponseEntity<RegisterResponse> resendConfirmation(@RequestBody RegisterRequest request) {
+        AuthService.EmailConfirmationResult result = authService.resendEmailConfirmation(request.email());
+        return ResponseEntity.ok(new RegisterResponse(result.success(), result.message()));
     }
 
     @PostMapping("/api/auth/refresh")

@@ -30,11 +30,14 @@ CREATE TABLE persons (
 
 CREATE TABLE users (
     id            UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    email         VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    token_hash    VARCHAR(128),
-    tier          VARCHAR(20) DEFAULT 'FREE',
-    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	    email         VARCHAR(255) UNIQUE NOT NULL,
+	    password_hash VARCHAR(255) NOT NULL,
+	    token_hash    VARCHAR(128),
+	    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+	    email_confirmation_token_hash VARCHAR(128),
+	    email_confirmation_expires_at TIMESTAMP,
+	    tier          VARCHAR(20) DEFAULT 'FREE',
+	    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     person_id     UUID,
     FOREIGN KEY (person_id) REFERENCES persons(id)
 );
