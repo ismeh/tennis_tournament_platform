@@ -1,7 +1,7 @@
 import { Component, EventEmitter, HostListener, Input, Output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatchResponse } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
 
 @Component({
   selector: 'app-match-detail-modal',
@@ -10,11 +10,11 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
   template: `
     @if (isOpen()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="w-full max-w-md rounded-lg bg-white shadow-lg">
+        <div class="w-full max-w-2xl rounded-lg bg-white shadow-lg">
           <!-- Header -->
           <div class="border-b border-neutral-200 bg-neutral-50 px-6 py-4">
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-neutral-900">Detalles del Enfrentamiento</h3>
+              <h3 class="text-lg font-semibold text-neutral-900">Detalles del partido</h3>
               <button
                 (click)="onClose()"
                 class="text-neutral-500 hover:text-neutral-700"
@@ -36,7 +36,7 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
 
                 <!-- Participants -->
                 <div class="space-y-2">
-                  <p class="text-xs font-semibold text-neutral-600">PARTICIPANTES</p>
+                  <p class="text-xs font-semibold text-neutral-600">JUGADORES</p>
                   <div class="space-y-2">
                     @if (match()?.firstInscriptionId) {
                       <div class="rounded bg-neutral-50 px-3 py-2">
@@ -44,7 +44,7 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                       </div>
                     } @else {
                       <div class="rounded bg-neutral-50 px-3 py-2">
-                        <p class="text-sm italic text-neutral-500">Sin participante asignado</p>
+                        <p class="text-sm italic text-neutral-500">Bye</p>
                       </div>
                     }
                     <div class="text-center text-xs text-neutral-500">vs</div>
@@ -54,30 +54,67 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                       </div>
                     } @else {
                       <div class="rounded bg-neutral-50 px-3 py-2">
-                        <p class="text-sm italic text-neutral-500">Sin participante asignado</p>
+                        <p class="text-sm italic text-neutral-500">Bye</p>
                       </div>
                     }
                   </div>
                 </div>
 
                 <!-- Schedule Info -->
-                @if (match()?.scheduledAt || match()?.court) {
-                  <div class="space-y-2">
-                    <p class="text-xs font-semibold text-neutral-600">INFORMACIÓN DE PROGRAMACIÓN</p>
-                    @if (match()?.scheduledAt) {
-                      <div>
-                        <p class="text-xs text-neutral-600">Hora programada:</p>
-                        <p class="text-sm text-neutral-900">{{ match()?.scheduledAt }}</p>
-                      </div>
-                    }
-                    @if (match()?.court) {
-                      <div>
-                        <p class="text-xs text-neutral-600">Cancha:</p>
-                        <p class="text-sm text-neutral-900">{{ match()?.court }}</p>
-                      </div>
-                    }
+                <div class="border-t border-neutral-200 pt-4">
+                  <p class="mb-3 text-xs font-semibold text-neutral-600">PROGRAMACIÓN</p>
+                  <div class="grid gap-3 sm:grid-cols-3">
+                    <label class="block">
+                      <span class="text-xs font-semibold text-neutral-600">Tipo</span>
+                      <select
+                        [(ngModel)]="selectedScheduleTimeType"
+                        class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                      >
+                        <option value="EXACT">A esta hora</option>
+                        <option value="NOT_BEFORE">No antes de</option>
+                      </select>
+                    </label>
+
+                    <label class="block">
+                      <span class="text-xs font-semibold text-neutral-600">Inicio</span>
+                      <input
+                        type="datetime-local"
+                        [(ngModel)]="scheduledAtInput"
+                        class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                      />
+                    </label>
+
+                    <label class="block">
+                      <span class="text-xs font-semibold text-neutral-600">Pista</span>
+                      <select
+                        [(ngModel)]="selectedCourtId"
+                        class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                      >
+                        <option value="">Selecciona pista</option>
+                        @for (court of activeCourts(); track court.id) {
+                          <option [value]="court.id">{{ court.name }}</option>
+                        }
+                      </select>
+                    </label>
                   </div>
-                }
+
+                  @if (activeCourts().length === 0) {
+                    <p class="mt-2 text-xs text-amber-700">Crea una pista en el torneo antes de programar partidos.</p>
+                  }
+
+                  @if (scheduleValidationMessage()) {
+                    <p class="mt-2 text-xs font-medium text-red-600">{{ scheduleValidationMessage() }}</p>
+                  }
+
+                  <button
+                    type="button"
+                    (click)="onSaveSchedule()"
+                    [disabled]="!isScheduleValid()"
+                    class="mt-3 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                  >
+                    Guardar programación
+                  </button>
+                </div>
 
                 <!-- Result Entry Section -->
                 <div class="border-t border-neutral-200 pt-4">
@@ -91,7 +128,7 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                         [(ngModel)]="selectedWinnerId"
                         class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
                       >
-                        <option value="">-- Seleccionar ganador --</option>
+                        <option value="">Selecciona ganador</option>
                         @if (match()?.firstInscriptionId) {
                           <option [value]="match()!.firstInscriptionId">
                             {{ getParticipantName(match()?.firstInscriptionId) }}
@@ -139,7 +176,7 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                 [disabled]="!isFormValid()"
                 class="flex-1 rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
               >
-                Guardar Resultado
+                Guardar resultado
               </button>
             </div>
           </div>
@@ -151,24 +188,39 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
 })
 export class MatchDetailModalComponent {
   @Input() participantNamesInput: Record<string, string> = {};
+  @Input() courtsInput: CourtResponse[] = [];
 
   @Input() set matchInput(value: MatchResponse | null) {
     if (value) {
       this.match.set(value);
       this.selectedWinnerId = value.winnerId || '';
       this.matchResult = value.result || '';
+      this.selectedCourtId = value.courtId || '';
+      this.scheduledAtInput = this.toDatetimeLocalValue(value.scheduledAt);
+      this.selectedScheduleTimeType = value.scheduleTimeType || 'EXACT';
       this.validationMessage.set(null);
+      this.scheduleValidationMessage.set(null);
     }
   }
   match = signal<MatchResponse | null>(null);
   isOpen = signal(false);
   validationMessage = signal<string | null>(null);
+  scheduleValidationMessage = signal<string | null>(null);
 
   selectedWinnerId = '';
   matchResult = '';
+  selectedCourtId = '';
+  scheduledAtInput = '';
+  selectedScheduleTimeType: MatchScheduleTimeType = 'EXACT';
 
   @Output() close = new EventEmitter<void>();
   @Output() saveResult = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() saveSchedule = new EventEmitter<{
+    matchId: string;
+    courtId: string;
+    scheduledAt: string;
+    scheduleTimeType: MatchScheduleTimeType;
+  }>();
 
   @HostListener('document:keydown.escape', ['$event'])
   onEscapeKeyDown(event: Event): void {
@@ -215,6 +267,25 @@ export class MatchDetailModalComponent {
     this.isOpen.set(false);
   }
 
+  onSaveSchedule() {
+    if (!this.isScheduleValid()) {
+      this.scheduleValidationMessage.set('Selecciona tipo, fecha, hora y pista antes de guardar.');
+      return;
+    }
+
+    this.saveSchedule.emit({
+      matchId: this.match()!.id,
+      courtId: this.selectedCourtId,
+      scheduledAt: this.scheduledAtInput,
+      scheduleTimeType: this.selectedScheduleTimeType
+    });
+    this.scheduleValidationMessage.set(null);
+  }
+
+  activeCourts(): CourtResponse[] {
+    return this.courtsInput.filter(court => court.active);
+  }
+
   getParticipantName(inscriptionId: string | undefined): string {
     if (!inscriptionId) {
       return 'Participante';
@@ -225,5 +296,17 @@ export class MatchDetailModalComponent {
 
   isFormValid(): boolean {
     return !!this.match() && !!this.selectedWinnerId && this.matchResult.trim().length > 0;
+  }
+
+  isScheduleValid(): boolean {
+    return !!this.match() && !!this.selectedCourtId && this.scheduledAtInput.trim().length > 0;
+  }
+
+  private toDatetimeLocalValue(value?: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    return value.slice(0, 16);
   }
 }

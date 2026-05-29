@@ -8,10 +8,10 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
   imports: [CommonModule, DatePipe],
   template: `
     <div class="space-y-2">
-      <h5 class="text-sm font-medium text-neutral-900">Enfrentamientos</h5>
+      <h5 class="text-sm font-medium text-neutral-900">Partidos</h5>
       
       @if (matches().length === 0) {
-        <p class="text-xs text-neutral-600">Sin enfrentamientos</p>
+        <p class="text-xs text-neutral-600">Sin partidos</p>
       } @else {
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -21,7 +21,7 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Partido</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Jugadores</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Estado</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Cancha</th>
+                <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Pista</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Hora</th>
               </tr>
             </thead>
@@ -51,7 +51,13 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                     }
                   </td>
                   <td class="px-3 py-2">{{ match.court || '—' }}</td>
-                  <td class="px-3 py-2">{{ match.scheduledAt ? (match.scheduledAt | date : 'short') : '—' }}</td>
+                  <td class="px-3 py-2">
+                    @if (match.scheduledAt) {
+                      <span>{{ getSchedulePrefix(match.scheduleTimeType) }} {{ match.scheduledAt | date : 'short' }}</span>
+                    } @else {
+                      <span>—</span>
+                    }
+                  </td>
                 </tr>
               }
             </tbody>
@@ -94,6 +100,10 @@ export class MatchesComponent {
     }
 
     return this.participantNamesInput[inscriptionId] ?? inscriptionId.substring(0, 8);
+  }
+
+  getSchedulePrefix(scheduleTimeType: string | null | undefined): string {
+    return scheduleTimeType === 'NOT_BEFORE' ? 'No antes de' : 'A las';
   }
 
   private compareMatches(left: MatchResponse, right: MatchResponse, leftIndex: number, rightIndex: number): number {

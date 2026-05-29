@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { StageResponse, DrawResponse } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
 import { DrawsComponent } from './draws.component';
 
 type DrawGenerationFeedback = {
@@ -13,9 +13,7 @@ type DrawGenerationFeedback = {
   standalone: true,
   imports: [CommonModule, DrawsComponent],
   template: `
-    <div class="mt-8 space-y-6">
-      <h2 class="text-2xl font-bold text-neutral-900">Fases del Evento</h2>
-      
+    <div class="space-y-4">
       @if (stages().length === 0) {
         <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-6 text-center text-neutral-600">
           No hay fases generadas aún
@@ -26,7 +24,7 @@ type DrawGenerationFeedback = {
             <div class="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
               <div class="flex items-center justify-between">
                 <div>
-                  <h3 class="text-lg font-semibold text-neutral-900">{{ stage.stageType }}</h3>
+                  <h3 class="text-lg font-semibold text-neutral-900">{{ getStageTypeLabel(stage.stageType) }}</h3>
                   <p class="mt-1 text-sm text-neutral-600">{{ stage.description }}</p>
                   <p class="mt-2 text-xs text-neutral-500">Fase {{ stage.order }}</p>
                 </div>
@@ -62,8 +60,10 @@ type DrawGenerationFeedback = {
                     [drawsInput]="stage.draws || []"
                     [participantNamesInput]="participantNamesInput"
                     [participantOrderInput]="participantOrderInput"
+                    [courtsInput]="courtsInput"
                     (matchSelected)="onMatchSelected($event)"
                     (matchResultSaved)="onMatchResultSaved($event)"
+                    (matchScheduleSaved)="onMatchScheduleSaved($event)"
                   ></app-draws>
                 </div>
               }
@@ -90,6 +90,7 @@ type DrawGenerationFeedback = {
 export class StagesComponent {
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() participantOrderInput: Record<string, number> = {};
+  @Input() courtsInput: CourtResponse[] = [];
 
   @Input() set stagesInput(value: StageResponse[]) {
     this._stages.set(value);
@@ -106,6 +107,12 @@ export class StagesComponent {
   @Output() generateDraws = new EventEmitter<{ tournamentId: string; stageId: string }>();
   @Output() matchSelected = new EventEmitter<string>();
   @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() matchScheduleSaved = new EventEmitter<{
+    matchId: string;
+    courtId: string;
+    scheduledAt: string;
+    scheduleTimeType: MatchScheduleTimeType;
+  }>();
 
   expandedStageId = signal<string | null>(null);
 
@@ -139,6 +146,15 @@ export class StagesComponent {
 
   onMatchResultSaved(event: { matchId: string; winnerId: string; result: string }) {
     this.matchResultSaved.emit(event);
+  }
+
+  onMatchScheduleSaved(event: {
+    matchId: string;
+    courtId: string;
+    scheduledAt: string;
+    scheduleTimeType: MatchScheduleTimeType;
+  }) {
+    this.matchScheduleSaved.emit(event);
   }
 
   isGeneratingDraws(stageId: string): boolean {
@@ -175,5 +191,16 @@ export class StagesComponent {
     }
 
     return `${baseClass} bg-primary-600 hover:bg-primary-700`;
+  }
+
+  getStageTypeLabel(stageType: string): string {
+    const labels: Record<string, string> = {
+      SINGLE_ELIMINATION: 'Eliminatoria simple',
+      ROUND_ROBIN: 'Liga',
+      DOUBLE_ELIMINATION: 'Doble eliminación',
+      CONSOLATION: 'Consolación'
+    };
+
+    return labels[stageType] ?? stageType;
   }
 }
