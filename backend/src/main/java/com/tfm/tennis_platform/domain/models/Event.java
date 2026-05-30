@@ -24,16 +24,16 @@ public class Event {
     public static class EventBuilder {
         public Event build() {
             if (gender == null || gender.isEmpty()) {
-                throw new IllegalArgumentException("gender is null or empty");
+                throw new IllegalArgumentException("El género del evento es obligatorio.");
             }
 
             String normalizedGender = gender.trim().toUpperCase();
             if (!normalizedGender.equals("MALE") && !normalizedGender.equals("FEMALE") && !normalizedGender.equals("MIXED")) {
-                throw new IllegalArgumentException("gender must be 'MALE', 'FEMALE' or 'MIXED'");
+                throw new IllegalArgumentException("El género debe ser masculino, femenino o mixto.");
             }
 
             if (categoryId == null || categoryId < 0) {
-                throw new IllegalArgumentException("categoryId is null or negative");
+                throw new IllegalArgumentException("La categoría del evento es obligatoria.");
             }
 
             this.gender = normalizedGender;
