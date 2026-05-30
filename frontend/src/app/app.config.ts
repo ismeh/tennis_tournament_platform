@@ -10,6 +10,7 @@ import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './core/auth/auth.interceptor';
+import { apiErrorInterceptor } from './core/errors/api-error.interceptor';
 import { requestLoggingInterceptor } from './core/logging/request-logging.interceptor';
 import { RequestLoggerService } from './core/logging/request-logger.service';
 import { environment } from '../environments/environment';
@@ -24,7 +25,7 @@ export const appConfig: ApplicationConfig = {
     provideClientHydration(withEventReplay()),
     provideRouter(routes),
     provideHttpClient(
-      withInterceptors([requestLoggingInterceptor, authInterceptor])
+      withInterceptors([requestLoggingInterceptor, authInterceptor, apiErrorInterceptor])
     ),
     {
       provide: APP_INITIALIZER,

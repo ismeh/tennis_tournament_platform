@@ -202,7 +202,7 @@ class AuthServiceTest {
                 () -> authService.register("used@example.com", "secret123", "Used User")
         );
 
-        assertEquals("Member con email 'used@example.com' ya existe", ex.getMessage());
+        assertEquals("Ya existe una cuenta registrada con ese email.", ex.getMessage());
     }
 
     @Test
@@ -246,7 +246,7 @@ class AuthServiceTest {
                 () -> authService.refresh("invalid-refresh-token")
         );
 
-        assertEquals("Token de actualización inválido", ex.getMessage());
+        assertEquals("Tu sesión no es válida. Inicia sesión de nuevo.", ex.getMessage());
     }
 
     @Test
@@ -272,7 +272,7 @@ class AuthServiceTest {
                 () -> authService.refresh("valid-refresh-token")
         );
 
-        assertEquals("Token de actualización inválido", ex.getMessage());
+        assertEquals("Tu sesión no es válida. Inicia sesión de nuevo.", ex.getMessage());
     }
 
     @Test
@@ -296,7 +296,7 @@ class AuthServiceTest {
                 () -> authService.login("test@example.com", "secret123")
         );
 
-        assertEquals("Debes confirmar tu email antes de iniciar sesión", ex.getMessage());
+        assertEquals("Confirma tu email antes de iniciar sesión.", ex.getMessage());
     }
 
     @Test
@@ -338,7 +338,7 @@ class AuthServiceTest {
                 () -> authService.confirmEmail(token)
         );
 
-        assertEquals("Token de confirmación expirado", ex.getMessage());
+        assertEquals("El enlace de confirmación ha caducado. Solicita uno nuevo.", ex.getMessage());
     }
 
         @Test

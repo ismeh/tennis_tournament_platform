@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -91,16 +90,6 @@ public class LoginController {
         );
         AuthService.UserProfile profile = authService.completeProfile(principal.getName(), command);
         return ResponseEntity.ok(toProfileResponse(profile));
-    }
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<String> handleConflict(IllegalStateException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleUnauthorized(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
     private ProfileResponse toProfileResponse(AuthService.UserProfile profile) {

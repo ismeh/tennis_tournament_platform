@@ -54,6 +54,7 @@ CREATE TABLE tournaments (
     name                    VARCHAR(255) NOT NULL,
     start_date              DATE NOT NULL,
     end_date                DATE NOT NULL,
+    start_time              TIME,
     inscription_start_date  DATE,
     inscription_end_date    DATE,
     surface                 VARCHAR(20),
@@ -155,6 +156,15 @@ CREATE TABLE draws (
 
 COMMENT ON COLUMN draws.label IS 'Draw visible name';
 
+CREATE TABLE courts (
+    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    tournament_id   UUID NOT NULL,
+    name            VARCHAR(100) NOT NULL,
+    active          BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+    UNIQUE (tournament_id, name)
+);
+
 CREATE TABLE matches (
     id                      UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     draw_id                 UUID NOT NULL,
@@ -164,6 +174,8 @@ CREATE TABLE matches (
     round_number            INTEGER,
     next_match_id           UUID,
     scheduled_at            TIMESTAMP,
+    schedule_type           VARCHAR(20),
+    court_id                UUID,
     court                   VARCHAR(100),
     result                  VARCHAR(255),
     version                 BIGINT NOT NULL DEFAULT 0,
@@ -171,7 +183,8 @@ CREATE TABLE matches (
     FOREIGN KEY (first_inscription_id) REFERENCES inscriptions(id),
     FOREIGN KEY (second_inscription_id) REFERENCES inscriptions(id),
     FOREIGN KEY (winner_id) REFERENCES inscriptions(id),
-    FOREIGN KEY (next_match_id) REFERENCES matches(id)
+    FOREIGN KEY (next_match_id) REFERENCES matches(id),
+    FOREIGN KEY (court_id) REFERENCES courts(id) ON DELETE SET NULL
 );
 
 CREATE TABLE rankings (

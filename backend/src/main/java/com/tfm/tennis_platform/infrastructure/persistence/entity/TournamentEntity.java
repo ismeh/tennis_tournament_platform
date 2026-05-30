@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +30,9 @@ public class TournamentEntity {
 
     @Column(name = "end_date", nullable = false)
     private LocalDate playEndDate;
+
+    @Column(name = "start_time")
+    private LocalTime startTime;
 
     @Column(name = "inscription_start_date")    
     private LocalDate inscriptionStartDate;

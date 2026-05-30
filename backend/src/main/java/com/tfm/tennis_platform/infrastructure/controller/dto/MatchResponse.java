@@ -10,6 +10,8 @@ public record MatchResponse(
     UUID winnerId,
     Integer roundNumber,
     LocalDateTime scheduledAt,
+    String scheduleTimeType,
+    UUID courtId,
     String court,
     String result
 ) {}

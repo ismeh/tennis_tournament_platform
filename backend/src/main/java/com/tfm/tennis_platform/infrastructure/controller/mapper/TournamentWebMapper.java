@@ -31,6 +31,7 @@ public interface TournamentWebMapper {
     @Mapping(target = "state", ignore = true)
     @Mapping(target = "name", source = "formalName")
     @Mapping(target = "playPeriod", expression = "java(toPeriod(request.playStartDate(), request.playEndDate()))")
+    @Mapping(target = "startTime", source = "tournamentStartTime")
     @Mapping(target = "inscriptionPeriod", expression = "java(toPeriod(request.inscriptionStartDate(), request.inscriptionEndDate()))")
     @Mapping(target = "surface", source = "surfaceCategory")
     Tournament toDomain(TournamentRequest request);
@@ -38,6 +39,7 @@ public interface TournamentWebMapper {
     @Mapping(target = "formalName", source = "name")
     @Mapping(target = "playStartDate", source = "playPeriod.startDate")
     @Mapping(target = "playEndDate", source = "playPeriod.endDate")
+    @Mapping(target = "tournamentStartTime", source = "startTime")
     @Mapping(target = "inscriptionStartDate", source = "inscriptionPeriod.startDate")
     @Mapping(target = "inscriptionEndDate", source = "inscriptionPeriod.endDate")
     @Mapping(target = "surfaceCategory", source = "surface")
@@ -59,6 +61,7 @@ public interface TournamentWebMapper {
                 .id(t.getId())
                 .name(t.getName())
                 .playPeriod(t.getPlayPeriod())
+                .startTime(t.getStartTime())
                 .inscriptionPeriod(t.getInscriptionPeriod())
                 .surface(t.getSurface())
                 .maxPlayers(t.getMaxPlayers())
@@ -146,6 +149,8 @@ public interface TournamentWebMapper {
                     match.getWinnerId(),
                     match.getRoundNumber(),
                     match.getScheduledAt(),
+                    match.getScheduleTimeType() != null ? match.getScheduleTimeType().name() : null,
+                    match.getCourtId(),
                     match.getCourt(),
                     match.getResult()
                 ))

@@ -3,9 +3,13 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AppSettings } from '../../shared/constants';
 import {
+  CourtCreateRequest,
+  CourtResponse,
+  CourtUpdateRequest,
   EventInscriptionRequest,
   EventInscriptionResponse,
   ManualEventInscriptionRequest,
+  MatchScheduleRequest,
   MatchResponse,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
@@ -33,12 +37,28 @@ export class TournamentService {
     return this.http.post<TournamentResponse>(this.apiUrl, payload);
   }
 
+  getCourts(tournamentId: string): Observable<CourtResponse[]> {
+    return this.http.get<CourtResponse[]>(`${this.apiUrl}/${tournamentId}/courts`);
+  }
+
+  createCourt(tournamentId: string, payload: CourtCreateRequest): Observable<CourtResponse> {
+    return this.http.post<CourtResponse>(`${this.apiUrl}/${tournamentId}/courts`, payload);
+  }
+
+  updateCourt(tournamentId: string, courtId: string, payload: CourtUpdateRequest): Observable<CourtResponse> {
+    return this.http.patch<CourtResponse>(`${this.apiUrl}/${tournamentId}/courts/${courtId}`, payload);
+  }
+
+  deleteCourt(tournamentId: string, courtId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${tournamentId}/courts/${courtId}`);
+  }
+
   getEventCatalog(): Observable<TournamentEventCatalogItem[]> {
     return this.http.get<TournamentEventCatalogItem[]>(this.eventCatalogUrl);
   }
 
-  saveTournamentEvents(tournamentId: string, payload: TournamentEventsConfigRequest): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/${tournamentId}/events`, payload);
+  saveTournamentEvents(tournamentId: string, payload: TournamentEventsConfigRequest): Observable<TournamentResponse> {
+    return this.http.post<TournamentResponse>(`${this.apiUrl}/${tournamentId}/events`, payload);
   }
 
   updateTournamentStatus(tournamentId: string, payload: TournamentStatusUpdateRequest): Observable<TournamentResponse> {
@@ -71,6 +91,14 @@ export class TournamentService {
     payload: { winnerId: string; scoreString: string }
   ): Observable<MatchResponse> {
     return this.http.post<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/result`, payload);
+  }
+
+  scheduleMatch(
+    tournamentId: string,
+    matchId: string,
+    payload: MatchScheduleRequest
+  ): Observable<MatchResponse> {
+    return this.http.patch<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/schedule`, payload);
   }
 
   private get apiUrl(): string {

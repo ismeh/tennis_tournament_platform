@@ -31,7 +31,27 @@ describe('CreateTournamentComponent', () => {
         description: 'Dobles mixto open'
       }
     ]));
-    tournamentServiceSpy.saveTournamentEvents.and.returnValue(of(void 0));
+    tournamentServiceSpy.saveTournamentEvents.and.returnValue(of({
+      id: 'tournament-id',
+      formalName: 'Open de Primavera',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      tournamentStartTime: '09:00',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      status: 'DRAFT',
+      providerOrganisationId: 'member-id',
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          gender: 'MALE'
+        }
+      ]
+    }));
 
     await TestBed.configureTestingModule({
       imports: [CreateTournamentComponent],
@@ -89,6 +109,7 @@ describe('CreateTournamentComponent', () => {
       formalName: 'Open de Primavera',
       playStartDate: '2026-05-01',
       playEndDate: '2026-05-10',
+      tournamentStartTime: '09:00',
       inscriptionStartDate: '2026-04-01',
       inscriptionEndDate: '2026-04-20',
       surfaceCategory: 'CLAY',
@@ -102,6 +123,7 @@ describe('CreateTournamentComponent', () => {
       {
         categoryId: 1,
         eventCategory: 'Absoluto Individual Masculino',
+        eventsByGender: [],
         genders: ['MALE', 'MIXED'],
         stages: [
           { stageType: 'SINGLE_ELIMINATION' },
@@ -114,11 +136,13 @@ describe('CreateTournamentComponent', () => {
       formalName: 'Open de Primavera',
       playStartDate: '2026-05-01',
       playEndDate: '2026-05-10',
+      tournamentStartTime: '09:00',
       inscriptionStartDate: '2026-04-01',
       inscriptionEndDate: '2026-04-20',
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
-      location: 'Club Central'
+      location: 'Club Central',
+      courtCount: 4
     });
 
     component.submit();
@@ -127,27 +151,31 @@ describe('CreateTournamentComponent', () => {
       formalName: 'Open de Primavera',
       playStartDate: '2026-05-01',
       playEndDate: '2026-05-10',
+      tournamentStartTime: '09:00',
       inscriptionStartDate: '2026-04-01',
       inscriptionEndDate: '2026-04-20',
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
-      location: 'Club Central'
+      location: 'Club Central',
+      courtCount: 4
     });
     expect(tournamentServiceSpy.saveTournamentEvents).toHaveBeenCalledWith('tournament-id', {
       events: [
         {
+          id: null,
           categoryId: 1,
           gender: 'MALE',
           stages: ['SINGLE_ELIMINATION', 'CONSOLATION']
         },
         {
+          id: null,
           categoryId: 1,
           gender: 'MIXED',
           stages: ['SINGLE_ELIMINATION', 'CONSOLATION']
         }
       ]
     });
-    expect(component.successMessage()).toBe('Torneo creado correctamente y eventos preparados para guardar en backend.');
+    expect(component.successMessage()).toBe('Torneo creado correctamente con sus pruebas.');
     expect(component.createdTournament()?.id).toBe('tournament-id');
     expect(component.errorMessage()).toBeNull();
     expect(navigateSpy).toHaveBeenCalledWith(['/torneos', 'tournament-id']);
@@ -160,11 +188,13 @@ describe('CreateTournamentComponent', () => {
       formalName: 'Open de Primavera',
       playStartDate: '2026-05-01',
       playEndDate: '2026-05-10',
+      tournamentStartTime: '09:00',
       inscriptionStartDate: '2026-04-01',
       inscriptionEndDate: '2026-04-20',
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
-      location: 'Club Central'
+      location: 'Club Central',
+      courtCount: 4
     });
 
     component.submit();
@@ -176,8 +206,10 @@ describe('CreateTournamentComponent', () => {
     component.form.patchValue({
       playStartDate: '2026-06-01',
       playEndDate: '2026-06-02',
+      tournamentStartTime: '11:30',
       inscriptionStartDate: '2026-05-01',
-      inscriptionEndDate: '2026-05-02'
+      inscriptionEndDate: '2026-05-02',
+      courtCount: 8
     });
 
     component.resetForm();
@@ -186,6 +218,8 @@ describe('CreateTournamentComponent', () => {
     expect(component.form.controls.inscriptionEndDate.value).toBe('2026-04-19');
     expect(component.form.controls.playStartDate.value).toBe('2026-04-20');
     expect(component.form.controls.playEndDate.value).toBe('2026-04-21');
+    expect(component.form.controls.tournamentStartTime.value).toBe('09:00');
+    expect(component.form.controls.courtCount.value).toBe(4);
   });
 
   it('should require at least one gender per selected event before submit', () => {
@@ -193,6 +227,7 @@ describe('CreateTournamentComponent', () => {
       {
         categoryId: 1,
         eventCategory: 'Absoluto Individual Masculino',
+        eventsByGender: [],
         genders: [],
         stages: [{ stageType: 'SINGLE_ELIMINATION' }]
       }
@@ -202,16 +237,18 @@ describe('CreateTournamentComponent', () => {
       formalName: 'Open de Primavera',
       playStartDate: '2026-05-01',
       playEndDate: '2026-05-10',
+      tournamentStartTime: '09:00',
       inscriptionStartDate: '2026-04-01',
       inscriptionEndDate: '2026-04-20',
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
-      location: 'Club Central'
+      location: 'Club Central',
+      courtCount: 4
     });
 
     component.submit();
 
     expect(tournamentServiceSpy.createTournament).not.toHaveBeenCalled();
-    expect(component.errorMessage()).toContain('al menos un género en cada evento');
+    expect(component.errorMessage()).toContain('al menos una modalidad en cada prueba');
   });
 });

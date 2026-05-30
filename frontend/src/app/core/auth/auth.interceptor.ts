@@ -6,7 +6,7 @@ import { AuthService } from './auth.service';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
 
-  if (req.url.endsWith('/auth/refresh')) {
+  if (isPublicAuthRequest(req.url)) {
     return next(req);
   }
 
@@ -53,3 +53,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     })
   );
 };
+
+function isPublicAuthRequest(url: string): boolean {
+  return [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/confirm-email',
+    '/auth/resend-confirmation'
+  ].some(path => url.endsWith(path) || url.includes(`${path}?`));
+}

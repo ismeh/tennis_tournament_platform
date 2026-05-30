@@ -10,7 +10,7 @@ public class DuplicateResourceException extends BaseException {
 
     public DuplicateResourceException(String resourceName, String fieldName, Object fieldValue) {
         super(
-            String.format("%s con %s '%s' ya existe", resourceName, fieldName, fieldValue),
+            buildMessage(resourceName, fieldName),
             "DUPLICATE_RESOURCE",
             HttpStatus.CONFLICT.value()
         );
@@ -22,5 +22,12 @@ public class DuplicateResourceException extends BaseException {
             "DUPLICATE_RESOURCE",
             HttpStatus.CONFLICT.value()
         );
+    }
+
+    private static String buildMessage(String resourceName, String fieldName) {
+        if ("Member".equals(resourceName) && "email".equals(fieldName)) {
+            return "Ya existe una cuenta registrada con ese email.";
+        }
+        return "Ya existe un recurso con esos datos.";
     }
 }

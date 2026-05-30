@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
 	selector: 'app-confirm-email-page',
@@ -23,7 +24,7 @@ import { AuthService } from '../../core/auth/auth.service';
 						routerLink="/login"
 						class="mt-6 inline-flex w-full justify-center rounded-lg bg-primary-500 px-4 py-2 font-medium text-white transition-colors hover:bg-primary-600"
 					>
-						Ir a iniciar sesion
+						Ir a iniciar sesión
 					</a>
 				}
 			</div>
@@ -42,7 +43,7 @@ export class ConfirmEmailComponent {
 		const token = this.route.snapshot.queryParamMap.get('token');
 		if (!token) {
 			this.isLoading.set(false);
-			this.message.set('El enlace de confirmacion no es valido.');
+			this.message.set('El enlace de confirmación no es válido.');
 			return;
 		}
 
@@ -52,9 +53,9 @@ export class ConfirmEmailComponent {
 				this.isSuccess.set(true);
 				this.message.set(response.message);
 			},
-			error: () => {
+			error: (error) => {
 				this.isLoading.set(false);
-				this.message.set('El enlace de confirmacion no es valido o ha expirado.');
+				this.message.set(getApiErrorMessage(error, 'El enlace de confirmación no es válido o ha caducado.'));
 			}
 		});
 	}

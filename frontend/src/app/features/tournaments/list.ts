@@ -3,6 +3,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { getTournamentSurfaceCategoryLabel, TournamentResponse } from '../../data/interfaces/tournament.model';
 import { TournamentService } from '../../data/services/tournament.service';
+import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
   selector: 'app-tournaments-list-page',
@@ -13,8 +14,8 @@ import { TournamentService } from '../../data/services/tournament.service';
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <header class="mb-8">
           <p class="text-sm font-semibold uppercase tracking-[0.22em] text-primary-600">Torneos</p>
-          <h1 class="mt-2 text-3xl font-black text-neutral-900 sm:text-4xl">Listado de torneos</h1>
-          <p class="mt-3 text-neutral-600">Consulta tus torneos y crea uno nuevo en segundos.</p>
+          <h1 class="mt-2 text-3xl font-black text-neutral-900 sm:text-4xl">Calendario de torneos</h1>
+          <p class="mt-3 text-neutral-600">Consulta los torneos del club y prepara uno nuevo cuando lo necesites.</p>
         </header>
 
         <a
@@ -25,12 +26,12 @@ import { TournamentService } from '../../data/services/tournament.service';
           <div class="absolute -bottom-10 left-0 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
           <div class="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">Accion rapida</p>
-              <h2 class="mt-2 text-2xl font-extrabold">Crear nuevo torneo</h2>
-              <p class="mt-2 text-white/90">Define fechas, superficie y cupo con el formulario completo.</p>
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">Gestión</p>
+              <h2 class="mt-2 text-2xl font-extrabold">Crear torneo</h2>
+              <p class="mt-2 text-white/90">Define fechas, superficie, pistas y límite de inscritos.</p>
             </div>
             <span class="inline-flex items-center rounded-full border border-white/50 bg-white/10 px-5 py-3 font-semibold">
-              Ir a crear torneo
+              Nuevo torneo
             </span>
           </div>
         </a>
@@ -41,8 +42,8 @@ import { TournamentService } from '../../data/services/tournament.service';
           <div class="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">{{ errorMessage() }}</div>
         } @else if (tournaments().length === 0) {
           <div class="rounded-2xl border border-neutral-200 bg-white p-8 text-center">
-            <p class="text-lg font-semibold text-neutral-900">Aun no hay torneos</p>
-            <p class="mt-2 text-neutral-600">Empieza creando el primero desde el bloque superior.</p>
+            <p class="text-lg font-semibold text-neutral-900">Aún no hay torneos</p>
+            <p class="mt-2 text-neutral-600">Crea el primer torneo para abrir pruebas, inscripciones y cuadros.</p>
           </div>
         } @else {
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -51,17 +52,17 @@ import { TournamentService } from '../../data/services/tournament.service';
                 [routerLink]="['/torneos', tournament.id]"
                 class="group block rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md"
               >
-                <p class="text-xs font-semibold uppercase tracking-widest text-primary-600">{{ tournament.status }}</p>
+                <p class="text-xs font-semibold uppercase tracking-widest text-primary-600">{{ getStatusLabel(tournament.status) }}</p>
                 <h3 class="mt-2 text-lg font-bold text-neutral-900">{{ tournament.formalName }}</h3>
                 <p class="mt-1 text-sm text-neutral-600">{{ tournament.location }}</p>
 
                 <div class="mt-4 space-y-1 text-sm text-neutral-700">
                   <p><span class="font-medium">Superficie:</span> {{ getSurfaceLabel(tournament.surfaceCategory) }}</p>
-                  <p><span class="font-medium">Jugadores max:</span> {{ tournament.maxPlayers }}</p>
-                  <p><span class="font-medium">Juego:</span> {{ tournament.playStartDate }} - {{ tournament.playEndDate }}</p>
+                  <p><span class="font-medium">Límite de inscritos:</span> {{ tournament.maxPlayers }}</p>
+                  <p><span class="font-medium">Fechas de juego:</span> {{ tournament.playStartDate }} - {{ tournament.playEndDate }}</p>
                 </div>
 
-                <p class="mt-4 text-sm font-semibold text-primary-700 transition-colors group-hover:text-primary-800">Ver detalle del torneo -></p>
+                <p class="mt-4 text-sm font-semibold text-primary-700 transition-colors group-hover:text-primary-800">Abrir torneo -></p>
               </a>
             }
           </div>
@@ -79,14 +80,28 @@ export class TournamentsListComponent implements OnInit {
 
   getSurfaceLabel = getTournamentSurfaceCategoryLabel;
 
+  getStatusLabel(status: TournamentResponse['status']): string {
+    const labels: Record<TournamentResponse['status'], string> = {
+      DRAFT: 'Borrador',
+      OPEN: 'Inscripciones abiertas',
+      ACTIVE: 'Activo',
+      CLOSED: 'Inscripciones cerradas',
+      IN_PROGRESS: 'En juego',
+      COMPLETED: 'Finalizado',
+      CANCELLED: 'Cancelado'
+    };
+
+    return labels[status] ?? status;
+  }
+
   ngOnInit(): void {
     this.tournamentService.getTournaments().subscribe({
       next: data => {
         this.tournaments.set(data);
         this.isLoading.set(false);
       },
-      error: () => {
-        this.errorMessage.set('No se pudo cargar el listado de torneos.');
+      error: (error) => {
+        this.errorMessage.set(getApiErrorMessage(error, 'No se pudo cargar el listado de torneos.'));
         this.isLoading.set(false);
       }
     });

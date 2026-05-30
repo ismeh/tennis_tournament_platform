@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
 	selector: 'app-login-page',
@@ -11,7 +12,7 @@ import { AuthService } from '../../core/auth/auth.service';
 	template: `
 		<section class="mx-auto max-w-md px-4 py-10 sm:py-16">
 			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-				<h1 class="text-2xl font-bold text-neutral-900">Iniciar sesion</h1>
+				<h1 class="text-2xl font-bold text-neutral-900">Iniciar sesión</h1>
 				<p class="mt-2 text-sm text-neutral-600">Accede para gestionar torneos y partidos.</p>
 
 				<form class="mt-6 space-y-4" [formGroup]="form" (ngSubmit)="submit()">
@@ -46,13 +47,13 @@ import { AuthService } from '../../core/auth/auth.service';
 						class="w-full rounded-lg bg-primary-500 px-4 py-2 font-medium text-white transition-colors hover:bg-primary-600 disabled:opacity-60"
 						[disabled]="form.invalid || isSubmitting()"
 					>
-						{{ isSubmitting() ? 'Entrando...' : 'Iniciar sesion' }}
+						{{ isSubmitting() ? 'Entrando...' : 'Iniciar sesión' }}
 					</button>
 				</form>
 
 				<p class="mt-6 text-sm text-neutral-600">
-					Aun no tienes cuenta?
-					<a routerLink="/register" class="font-medium text-primary-600 hover:text-primary-700">Registrate</a>
+					¿Aún no tienes cuenta?
+					<a routerLink="/register" class="font-medium text-primary-600 hover:text-primary-700">Regístrate</a>
 				</p>
 			</div>
 		</section>
@@ -62,6 +63,7 @@ export class LoginComponent {
 	private readonly fb = inject(FormBuilder);
 	private readonly authService = inject(AuthService);
 	private readonly router = inject(Router);
+	private readonly route = inject(ActivatedRoute);
 
 	readonly isSubmitting = signal(false);
 	readonly errorMessage = signal<string | null>(null);
@@ -82,12 +84,30 @@ export class LoginComponent {
 		this.authService.login(this.form.getRawValue()).subscribe({
 			next: () => {
 				this.isSubmitting.set(false);
-				this.router.navigateByUrl('/');
+				this.router.navigateByUrl(this.getRedirectUrl());
 			},
-			error: () => {
+			error: (error) => {
 				this.isSubmitting.set(false);
-				this.errorMessage.set('No se pudo iniciar sesion. Revisa tus credenciales.');
+				this.errorMessage.set(getApiErrorMessage(error, 'No se pudo iniciar sesión. Revisa tus credenciales.'));
 			}
 		});
+	}
+
+	private getRedirectUrl(): string {
+		return this.normalizeRedirectUrl(this.route.snapshot.queryParamMap.get('returnUrl')) ?? '/torneos';
+	}
+
+	private normalizeRedirectUrl(returnUrl: string | null): string | null {
+		const redirectUrl = returnUrl?.trim();
+		if (!redirectUrl || !redirectUrl.startsWith('/') || redirectUrl.startsWith('//')) {
+			return null;
+		}
+
+		const path = redirectUrl.split(/[?#]/)[0];
+		if (path === '/login' || path === '/register' || path === '/confirmar-email') {
+			return null;
+		}
+
+		return redirectUrl;
 	}
 }

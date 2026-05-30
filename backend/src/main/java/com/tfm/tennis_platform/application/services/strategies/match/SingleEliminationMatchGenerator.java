@@ -23,21 +23,18 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
         }
 
         int participantCount = inscriptions.size();
-        int rounds = calculateRounds(participantCount);
+        int bracketSize = calculateBracketSize(participantCount);
+        int rounds = calculateRounds(bracketSize);
 
-        // Store match IDs by position for linking
-        Map<String, UUID> matchPositions = new LinkedHashMap<>();
         Map<String, Match> matchMap = new LinkedHashMap<>();
 
-        // First pass: Generate all matches with IDs
         for (int round = 1; round <= rounds; round++) {
-            int matchesInRound = calculateMatchesInRound(participantCount, round);
+            int matchesInRound = calculateMatchesInRound(bracketSize, round);
             
             for (int matchIndex = 0; matchIndex < matchesInRound; matchIndex++) {
                 String position = round + "-" + matchIndex;
                 UUID matchId = UUID.randomUUID();
-                matchPositions.put(position, matchId);
-                
+
                 Match match = Match.builder()
                     .id(matchId)
                     .drawId(draw.getId())
@@ -47,9 +44,8 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
             }
         }
 
-        // Second pass: connect each match with its next-round destination.
         for (int round = 1; round < rounds; round++) {
-            int matchesInRound = calculateMatchesInRound(participantCount, round);
+            int matchesInRound = calculateMatchesInRound(bracketSize, round);
 
             for (int matchIndex = 0; matchIndex < matchesInRound; matchIndex++) {
                 String currentPosition = round + "-" + matchIndex;
@@ -66,28 +62,48 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
             }
         }
 
-        // Third pass: seed inscriptions into first-round matches (firstInscription / secondInscription)
-        int matchesInFirstRound = calculateMatchesInRound(participantCount, 1);
-        for (int i = 0; i < inscriptions.size(); i++) {
-            Inscription inscription = inscriptions.get(i);
-            int matchIndex = i / 2;
+        int matchesInFirstRound = calculateMatchesInRound(bracketSize, 1);
+        int byeCount = bracketSize - participantCount;
+        int inscriptionIndex = 0;
+        for (int matchIndex = 0; matchIndex < matchesInFirstRound; matchIndex++) {
             String position = 1 + "-" + matchIndex;
             Match existing = matchMap.get(position);
             if (existing == null) {
                 continue;
             }
 
-            Match updated;
-            if (i % 2 == 0) {
-                updated = existing.toBuilder().firstInscription(inscription).build();
+            if (matchIndex < byeCount) {
+                Inscription inscription = inscriptions.get(inscriptionIndex++);
+                matchMap.put(position, existing.toBuilder()
+                        .firstInscription(inscription)
+                        .winner(inscription)
+                        .build());
             } else {
-                updated = existing.toBuilder().secondInscription(inscription).build();
+                Inscription firstInscription = inscriptions.get(inscriptionIndex++);
+                Inscription secondInscription = inscriptionIndex < inscriptions.size()
+                        ? inscriptions.get(inscriptionIndex++)
+                        : null;
+                matchMap.put(position, existing.toBuilder()
+                        .firstInscription(firstInscription)
+                        .secondInscription(secondInscription)
+                        .build());
             }
-            matchMap.put(position, updated);
+        }
+
+        for (int matchIndex = 0; matchIndex < matchesInFirstRound; matchIndex++) {
+            Match match = matchMap.get(1 + "-" + matchIndex);
+            if (match == null) {
+                continue;
+            }
+
+            Inscription advancingInscription = getByeAdvancingInscription(match);
+            if (advancingInscription != null) {
+                advanceInscription(matchMap, 1, matchIndex, advancingInscription);
+            }
         }
 
         for (int round = 1; round <= rounds; round++) {
-            int matchesInRound = calculateMatchesInRound(participantCount, round);
+            int matchesInRound = calculateMatchesInRound(bracketSize, round);
             for (int matchIndex = 0; matchIndex < matchesInRound; matchIndex++) {
                 Match match = matchMap.get(round + "-" + matchIndex);
                 if (match != null) {
@@ -98,28 +114,52 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
         return allMatches;
     }
 
-    private int calculateRounds(int participantCount) {
-        if (participantCount <= 0) {
-            return 0;
+    private void advanceInscription(Map<String, Match> matchMap, int round, int matchIndex, Inscription inscription) {
+        String nextPosition = (round + 1) + "-" + (matchIndex / 2);
+        Match nextMatch = matchMap.get(nextPosition);
+        if (nextMatch == null) {
+            return;
         }
-        if (participantCount == 1) {
-            return 0;
-        }
-        return (int) Math.ceil(Math.log(participantCount) / Math.log(2));
+
+        Match updatedNextMatch = matchIndex % 2 == 0
+                ? nextMatch.toBuilder().firstInscription(inscription).build()
+                : nextMatch.toBuilder().secondInscription(inscription).build();
+        matchMap.put(nextPosition, updatedNextMatch);
     }
 
-    private int calculateMatchesInRound(int participantCount, int round) {
-        int rounds = calculateRounds(participantCount);
+    private Inscription getByeAdvancingInscription(Match match) {
+        if (match.getFirstInscription() != null && match.getSecondInscription() == null) {
+            return match.getFirstInscription();
+        }
+
+        if (match.getFirstInscription() == null && match.getSecondInscription() != null) {
+            return match.getSecondInscription();
+        }
+
+        return null;
+    }
+
+    private int calculateBracketSize(int participantCount) {
+        int bracketSize = 1;
+        while (bracketSize < participantCount) {
+            bracketSize *= 2;
+        }
+        return bracketSize;
+    }
+
+    private int calculateRounds(int bracketSize) {
+        if (bracketSize <= 1) {
+            return 0;
+        }
+        return (int) (Math.log(bracketSize) / Math.log(2));
+    }
+
+    private int calculateMatchesInRound(int bracketSize, int round) {
+        int rounds = calculateRounds(bracketSize);
         if (round <= 0 || round > rounds) {
             return 0;
         }
-        
-        // First round: ceil(participantCount / 2)
-        if (round == 1) {
-            return (participantCount + 1) / 2;
-        }
-        
-        // Subsequent rounds: half of previous round
-        return calculateMatchesInRound(participantCount, round - 1) / 2;
+
+        return bracketSize / (int) Math.pow(2, round);
     }
 }

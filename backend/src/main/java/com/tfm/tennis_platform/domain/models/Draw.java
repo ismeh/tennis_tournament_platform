@@ -26,7 +26,7 @@ public class Draw {
     public static class DrawBuilder {
         public Draw build() {
             if (drawType == null) {
-                throw new IllegalArgumentException("drawType must not be null");
+                throw new IllegalArgumentException("El tipo de cuadro es obligatorio.");
             }
             if (id == null) {
                 this.id = UUID.randomUUID();

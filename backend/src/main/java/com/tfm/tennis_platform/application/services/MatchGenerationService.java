@@ -2,6 +2,7 @@ package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.application.services.strategies.match.MatchGenerationStrategy;
 import com.tfm.tennis_platform.application.services.strategies.match.SingleEliminationMatchGenerator;
+import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.models.Draw;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
@@ -28,7 +29,7 @@ public class MatchGenerationService {
             // TODO: Implement other strategies
             // case ROUND_ROBIN -> roundRobinMatchGenerator;
             // case DOUBLE_ELIMINATION -> doubleEliminationMatchGenerator;
-            default -> throw new IllegalArgumentException("Unsupported draw type: " + drawType);
+            default -> throw new InvalidArgumentException("El tipo de cuadro seleccionado todavía no está disponible.");
         };
     }
 }

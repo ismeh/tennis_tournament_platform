@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.application.service;
 
 import com.tfm.tennis_platform.application.services.EventService;
+import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Event;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
@@ -15,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,6 +45,7 @@ class EventServiceTest {
                 .id(tournamentId)
                 .name("Open Primavera")
                 .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
                 .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
                 .surface(Surface.CLAY)
                 .maxPlayers(32)
@@ -78,6 +81,7 @@ class EventServiceTest {
                 .id(tournamentId)
                 .name("Open Primavera")
                 .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
                 .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
                 .surface(Surface.CLAY)
                 .maxPlayers(32)
@@ -90,11 +94,11 @@ class EventServiceTest {
 
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
                 () -> eventService.removeEventFromTournament(tournamentId, missingEventId)
         );
 
-        assertEquals("Event not found in tournament", exception.getMessage());
+        assertEquals("No se encontró el evento dentro del torneo.", exception.getMessage());
     }
 }

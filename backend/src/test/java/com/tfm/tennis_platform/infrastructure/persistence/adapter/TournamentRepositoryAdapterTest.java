@@ -24,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +72,7 @@ class TournamentRepositoryAdapterTest {
                 .id(tournamentId)
                 .name("Open Primavera")
                 .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
                 .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
                 .surface(Surface.CLAY)
                 .maxPlayers(32)
@@ -119,6 +121,7 @@ class TournamentRepositoryAdapterTest {
                 .id(tournamentId)
                 .name("Open Primavera")
                 .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
                 .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
                 .surface(Surface.CLAY)
                 .maxPlayers(32)
@@ -180,6 +183,7 @@ class TournamentRepositoryAdapterTest {
                 .id(tournamentId)
                 .name("Open Primavera")
                 .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
                 .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
                 .surface(Surface.CLAY)
                 .maxPlayers(32)

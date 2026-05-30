@@ -12,7 +12,7 @@ spring:
     hibernate:
       ddl-auto: none # update: Automatically update the database schema to match the entity definitions
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration,classpath:db/seed
 logging:
   level:

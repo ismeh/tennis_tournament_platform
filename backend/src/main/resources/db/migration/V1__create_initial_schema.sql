@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
     name VARCHAR(200) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
+    start_time TIME,
     inscription_start_date DATE,
     inscription_end_date DATE,
     surface VARCHAR(20),

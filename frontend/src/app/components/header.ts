@@ -66,7 +66,11 @@ import { AppSettings } from '../shared/constants';
                 </button>
               </div>
             } @else {
-              <a routerLink="/login" class="px-4 py-2 text-primary-600 font-medium text-sm hover:text-primary-700 transition-colors">
+              <a
+                routerLink="/login"
+                [queryParams]="loginQueryParams()"
+                class="px-4 py-2 text-primary-600 font-medium text-sm hover:text-primary-700 transition-colors"
+              >
                 Iniciar Sesión
               </a>
               <a routerLink="/register" class="px-4 py-2 sm:px-6 bg-primary-500 text-white font-medium text-sm rounded-lg hover:bg-primary-600 transition-colors">
@@ -110,9 +114,24 @@ export class HeaderComponent {
     return 'Player';
   }
 
+  loginQueryParams(): { returnUrl: string } {
+    return { returnUrl: this.resolveLoginReturnUrl() };
+  }
+
   onLogout(): void {
     this.authService.logout().subscribe(() => {
       this.router.navigateByUrl('/');
     });
+  }
+
+  private resolveLoginReturnUrl(): string {
+    const currentUrl = this.router.url || '/torneos';
+    const path = currentUrl.split(/[?#]/)[0];
+
+    if (path === '/login' || path === '/register' || path === '/confirmar-email') {
+      return '/torneos';
+    }
+
+    return currentUrl;
   }
 }

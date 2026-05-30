@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MemberService } from '../../data/services/member.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
   selector: 'app-profile-page',
@@ -107,8 +108,8 @@ export class ProfileComponent implements OnInit {
         });
         this.isLoading.set(false);
       },
-      error: () => {
-        this.errorMessage.set('No se pudo cargar tu perfil actual.');
+      error: (error) => {
+        this.errorMessage.set(getApiErrorMessage(error, 'No se pudo cargar tu perfil actual.'));
         this.isLoading.set(false);
       }
     });
@@ -140,9 +141,9 @@ export class ProfileComponent implements OnInit {
         this.authService.setDisplayName(fullName || null);
         this.router.navigateByUrl('/torneos');
       },
-      error: () => {
+      error: (error) => {
         this.isSubmitting.set(false);
-        this.errorMessage.set('No se pudo guardar el perfil. Revisa los datos e intentalo de nuevo.');
+        this.errorMessage.set(getApiErrorMessage(error, 'No se pudo guardar el perfil. Revisa los datos e inténtalo de nuevo.'));
       }
     });
   }
