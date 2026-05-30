@@ -54,12 +54,12 @@ public class AuthService {
         Authentication authenticationResponse = authenticationManager.authenticate(authenticationRequest);
 
         if (!authenticationResponse.isAuthenticated()) {
-            throw new UnauthorizedException("Credenciales inválidas");
+            throw new UnauthorizedException("Email o contraseña incorrectos.");
         }
 
         UserDetails userDetails = (UserDetails) authenticationResponse.getPrincipal();
         Member member = memberRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+                .orElseThrow(() -> new UnauthorizedException("Email o contraseña incorrectos."));
         ensureEmailVerified(member);
         return issueTokens(userDetails, member.getId());
     }
@@ -91,7 +91,7 @@ public class AuthService {
         Member savedMember = memberRepository.save(member);
 
         if (savedMember.getId() == null) {
-            throw new UnauthorizedException("No se pudo registrar el usuario");
+            throw new UnauthorizedException("No se pudo crear la cuenta. Inténtalo de nuevo.");
         }
 
         if (!emailProperties.required()) {
@@ -107,21 +107,21 @@ public class AuthService {
         try {
             userEmail = jwtService.extractUsername(refreshToken);
         } catch (RuntimeException ex) {
-            throw new UnauthorizedException("Token de actualización inválido", ex);
+            throw new UnauthorizedException("Tu sesión no es válida. Inicia sesión de nuevo.", ex);
         }
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
 
         if (!jwtService.isRefreshTokenValid(refreshToken, userDetails)) {
-            throw new UnauthorizedException("Token de actualización inválido");
+            throw new UnauthorizedException("Tu sesión no es válida. Inicia sesión de nuevo.");
         }
 
         Member member = memberRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+                .orElseThrow(() -> new UnauthorizedException("Email o contraseña incorrectos."));
         ensureEmailVerified(member);
         String refreshTokenHash = hashToken(refreshToken);
         if (!refreshTokenHash.equals(member.getTokenHash())) {
-            throw new UnauthorizedException("Token de actualización inválido");
+            throw new UnauthorizedException("Tu sesión no es válida. Inicia sesión de nuevo.");
         }
 
         return issueTokens(userDetails, member.getId());
@@ -151,18 +151,18 @@ public class AuthService {
         }
 
         if (token == null || token.isBlank()) {
-            throw new InvalidTokenException("Token de confirmación inválido");
+            throw new InvalidTokenException("El enlace de confirmación no es válido.");
         }
 
         Member member = memberRepository.findByEmailConfirmationTokenHash(hashToken(token))
-                .orElseThrow(() -> new InvalidTokenException("Token de confirmación inválido"));
+                .orElseThrow(() -> new InvalidTokenException("El enlace de confirmación no es válido."));
 
         if (member.isEmailVerified()) {
             return new EmailConfirmationResult(true, "El email ya estaba confirmado.");
         }
 
         if (member.getEmailConfirmationExpiresAt() == null || member.getEmailConfirmationExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new ExpiredTokenException("Token de confirmación expirado");
+            throw new ExpiredTokenException("El enlace de confirmación ha caducado. Solicita uno nuevo.");
         }
 
         Member confirmedMember = member.confirmEmail();
@@ -182,7 +182,7 @@ public class AuthService {
         }
 
         Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new UnauthorizedException("No se pudo reenviar la confirmación"));
+                .orElseThrow(() -> new UnauthorizedException("No se encontró una cuenta pendiente de confirmar con ese email."));
 
         if (member.isEmailVerified()) {
             return new EmailConfirmationResult(false, "El email ya está confirmado.");
@@ -199,7 +199,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public UserProfile getProfile(String email) {
         Member member = memberRepository.findByEmailWithPersonId(email)
-                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+                .orElseThrow(() -> new UnauthorizedException("No se pudo cargar tu perfil. Inicia sesión de nuevo."));
 
         Person person = null;
         if (member.getPersonId() != null) {
@@ -212,7 +212,7 @@ public class AuthService {
     @Transactional
     public UserProfile completeProfile(String email, CompleteProfileCommand request) {
         Member member = memberRepository.findByEmailWithPersonId(email)
-                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+                .orElseThrow(() -> new UnauthorizedException("No se pudo cargar tu perfil. Inicia sesión de nuevo."));
 
         Person existing = null;
         if (member.getPersonId() != null) {
@@ -239,7 +239,7 @@ public class AuthService {
         memberRepository.updatePersonId(member.getId(), savedPerson.getId());
 
         Member updatedMember = memberRepository.findByEmailWithPersonId(email)
-                .orElseThrow(() -> new UnauthorizedException("Credenciales inválidas"));
+                .orElseThrow(() -> new UnauthorizedException("No se pudo cargar tu perfil. Inicia sesión de nuevo."));
 
         return toUserProfile(updatedMember, savedPerson);
     }
@@ -256,7 +256,7 @@ public class AuthService {
 
     private void ensureEmailVerified(Member member) {
         if (emailProperties.required() && !member.isEmailVerified()) {
-            throw new UnauthorizedException("Debes confirmar tu email antes de iniciar sesión");
+            throw new UnauthorizedException("Confirma tu email antes de iniciar sesión.");
         }
     }
 
@@ -283,14 +283,14 @@ public class AuthService {
             byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (NoSuchAlgorithmException ex) {
-            throw new UnauthorizedException("Algoritmo de hash de token no disponible", ex);
+            throw new UnauthorizedException("No se pudo validar la sesión. Inténtalo de nuevo.", ex);
         }
     }
 
     private String normalizeGender(String gender) {
         String normalized = gender.trim().toUpperCase(Locale.ROOT);
         if (!normalized.equals("MALE") && !normalized.equals("FEMALE") && !normalized.equals("MIXED")) {
-            throw new IllegalArgumentException("gender debe ser MALE, FEMALE o MIXED");
+            throw new IllegalArgumentException("El género debe ser masculino, femenino o mixto.");
         }
         return normalized;
     }

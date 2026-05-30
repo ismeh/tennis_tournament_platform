@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
 import com.tfm.tennis_platform.application.services.MemberService;
+import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MemberRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MemberResponse;
@@ -26,8 +27,8 @@ public class MemberController {
 
     @GetMapping("/{email}")
     public ResponseEntity<MemberResponse> getByEmail(@PathVariable String email) {
-        return memberService.findByEmail(email)
-                .map(member -> ResponseEntity.ok(memberMapper.toResponse(member)))
-                .orElse(ResponseEntity.notFound().build());
+        Member member = memberService.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Member", email));
+        return ResponseEntity.ok(memberMapper.toResponse(member));
     }
 }
