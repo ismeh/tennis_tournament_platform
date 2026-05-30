@@ -3,7 +3,10 @@ package com.tfm.tennis_platform.application.service;
 import com.tfm.tennis_platform.application.services.MatchService;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
+import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
+import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +19,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
@@ -36,11 +41,14 @@ class MatchServiceTest {
     @Mock
     private TournamentRepository tournamentRepository;
 
+    @Mock
+    private CourtRepository courtRepository;
+
     private MatchService matchService;
 
     @BeforeEach
     void setUp() {
-        matchService = new MatchService(matchRepository, tournamentRepository);
+        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository);
     }
 
     @Test
@@ -53,12 +61,13 @@ class MatchServiceTest {
 
         Tournament tournament = Tournament.builder()
                 .id(tournamentId)
-            .name("Open de Primavera")
-            .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
-            .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
-            .surface(Surface.CLAY)
-            .maxPlayers(32)
-            .location("Club Central")
+                .name("Open de Primavera")
+                .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
+                .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
+                .surface(Surface.CLAY)
+                .maxPlayers(32)
+                .location("Club Central")
                 .build();
 
         Match nextMatch = Match.builder()
@@ -91,5 +100,81 @@ class MatchServiceTest {
             assertNotNull(match.getFirstInscriptionId());
             return winnerId.equals(match.getFirstInscriptionId());
         }));
+    }
+
+    @Test
+    void should_schedule_match_when_court_is_available() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID matchId = UUID.randomUUID();
+        UUID courtId = UUID.randomUUID();
+        LocalDateTime scheduledAt = LocalDateTime.of(2026, 5, 2, 10, 0);
+        Tournament tournament = tournament(tournamentId);
+        Court court = Court.builder()
+                .id(courtId)
+                .tournamentId(tournamentId)
+                .name("Pista 1")
+                .active(true)
+                .build();
+        Match match = Match.builder()
+                .id(matchId)
+                .build();
+
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        when(courtRepository.findByIdAndTournamentId(courtId, tournamentId)).thenReturn(Optional.of(court));
+        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(match));
+        when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Match scheduledMatch = matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.NOT_BEFORE);
+
+        assertEquals(scheduledAt, scheduledMatch.getScheduledAt());
+        assertEquals(ScheduleTimeType.NOT_BEFORE, scheduledMatch.getScheduleTimeType());
+        assertEquals(courtId, scheduledMatch.getCourtId());
+        assertEquals("Pista 1", scheduledMatch.getCourt());
+    }
+
+    @Test
+    void should_reject_schedule_when_court_is_already_busy_at_same_time() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID matchId = UUID.randomUUID();
+        UUID otherMatchId = UUID.randomUUID();
+        UUID courtId = UUID.randomUUID();
+        LocalDateTime scheduledAt = LocalDateTime.of(2026, 5, 2, 10, 0);
+        Tournament tournament = tournament(tournamentId);
+        Court court = Court.builder()
+                .id(courtId)
+                .tournamentId(tournamentId)
+                .name("Pista 1")
+                .active(true)
+                .build();
+        Match match = Match.builder()
+                .id(matchId)
+                .build();
+        Match busyMatch = Match.builder()
+                .id(otherMatchId)
+                .courtId(courtId)
+                .scheduledAt(scheduledAt)
+                .build();
+
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        when(courtRepository.findByIdAndTournamentId(courtId, tournamentId)).thenReturn(Optional.of(court));
+        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(match, busyMatch));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException.class,
+                () -> matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.EXACT)
+        );
+    }
+
+    private Tournament tournament(UUID tournamentId) {
+        return Tournament.builder()
+                .id(tournamentId)
+                .name("Open de Primavera")
+                .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
+                .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
+                .surface(Surface.CLAY)
+                .maxPlayers(32)
+                .location("Club Central")
+                .build();
     }
 }

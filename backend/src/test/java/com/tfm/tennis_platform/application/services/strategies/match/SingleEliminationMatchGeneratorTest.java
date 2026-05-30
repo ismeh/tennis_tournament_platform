@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SingleEliminationMatchGeneratorTest {
 
@@ -23,7 +24,6 @@ class SingleEliminationMatchGeneratorTest {
                 .drawType(DrawType.ELIMINATION)
                 .build();
 
-        // 5 inscriptions -> 3 matches in first round, one bye
         List<Inscription> inscriptions = List.of(
                 Inscription.builder().id(UUID.randomUUID()).eventId(UUID.randomUUID()).participantId(UUID.randomUUID()).registeredAt(LocalDateTime.now()).build(),
                 Inscription.builder().id(UUID.randomUUID()).eventId(UUID.randomUUID()).participantId(UUID.randomUUID()).registeredAt(LocalDateTime.now()).build(),
@@ -34,16 +34,64 @@ class SingleEliminationMatchGeneratorTest {
 
         List<Match> matches = generator.generateMatches(draw, inscriptions);
 
-        // Count matches in first round
         int firstRoundMatches = (int) matches.stream().filter(m -> m.getRoundNumber() != null && m.getRoundNumber() == 1).count();
-        assertEquals((inscriptions.size() + 1) / 2, firstRoundMatches);
+        assertEquals(4, firstRoundMatches);
 
-        // Ensure all inscriptions have been placed into first round slots (some second slots may be null for byes)
         int placed = matches.stream()
                 .filter(m -> m.getRoundNumber() != null && m.getRoundNumber() == 1)
                 .mapToInt(m -> (m.getFirstInscriptionId() != null ? 1 : 0) + (m.getSecondInscriptionId() != null ? 1 : 0))
                 .sum();
 
         assertEquals(inscriptions.size(), placed);
+
+        int secondRoundPlaced = matches.stream()
+                .filter(m -> m.getRoundNumber() != null && m.getRoundNumber() == 2)
+                .mapToInt(m -> (m.getFirstInscriptionId() != null ? 1 : 0) + (m.getSecondInscriptionId() != null ? 1 : 0))
+                .sum();
+
+        assertEquals(3, secondRoundPlaced);
+    }
+
+    @Test
+    void advances_single_first_round_bye_for_seven_inscriptions() {
+        SingleEliminationMatchGenerator generator = new SingleEliminationMatchGenerator();
+
+        Draw draw = Draw.builder()
+                .id(UUID.randomUUID())
+                .drawType(DrawType.ELIMINATION)
+                .build();
+
+        List<Inscription> inscriptions = List.of(
+                inscription(),
+                inscription(),
+                inscription(),
+                inscription(),
+                inscription(),
+                inscription(),
+                inscription()
+        );
+
+        List<Match> matches = generator.generateMatches(draw, inscriptions);
+
+        List<Match> firstRoundMatches = matches.stream()
+                .filter(m -> m.getRoundNumber() != null && m.getRoundNumber() == 1)
+                .toList();
+        List<Match> secondRoundMatches = matches.stream()
+                .filter(m -> m.getRoundNumber() != null && m.getRoundNumber() == 2)
+                .toList();
+
+        assertEquals(4, firstRoundMatches.size());
+        assertEquals(2, secondRoundMatches.size());
+        assertEquals(1, firstRoundMatches.stream().filter(m -> m.getFirstInscriptionId() != null && m.getSecondInscriptionId() == null).count());
+        assertTrue(secondRoundMatches.stream().anyMatch(m -> m.getFirstInscriptionId() != null || m.getSecondInscriptionId() != null));
+    }
+
+    private Inscription inscription() {
+        return Inscription.builder()
+                .id(UUID.randomUUID())
+                .eventId(UUID.randomUUID())
+                .participantId(UUID.randomUUID())
+                .registeredAt(LocalDateTime.now())
+                .build();
     }
 }
