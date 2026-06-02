@@ -89,6 +89,72 @@ describe('TournamentService', () => {
     ]);
   });
 
+  it('should get published tournament calendar with filters', () => {
+    service.getPublishedTournamentCalendar({
+      from: '2026-06-01',
+      to: '2026-08-30',
+      surface: 'CLAY',
+      location: 'Central'
+    }).subscribe(response => {
+      expect(response.length).toBe(1);
+      expect(response[0].formalName).toBe('Open de Verano');
+    });
+
+    const request = httpMock.expectOne(
+      `${AppSettings.API_URL}/calendar/tournaments?from=2026-06-01&to=2026-08-30&surface=CLAY&location=Central`
+    );
+    expect(request.request.method).toBe('GET');
+
+    request.flush([
+      {
+        id: 'tournament-id',
+        formalName: 'Open de Verano',
+        playStartDate: '2026-06-10',
+        playEndDate: '2026-06-15',
+        tournamentStartTime: '09:00',
+        location: 'Club Central',
+        surfaceCategory: 'CLAY',
+        maxPlayers: 32,
+        status: 'OPEN'
+      }
+    ]);
+  });
+
+  it('should get authenticated player match calendar using date filters only', () => {
+    service.getMyMatchCalendar({
+      from: '2026-06-01',
+      to: '2026-08-30',
+      surface: 'CLAY',
+      location: 'Central'
+    }).subscribe(response => {
+      expect(response.length).toBe(1);
+      expect(response[0].matchId).toBe('match-id');
+    });
+
+    const request = httpMock.expectOne(`${AppSettings.API_URL}/calendar/my-matches?from=2026-06-01&to=2026-08-30`);
+    expect(request.request.method).toBe('GET');
+
+    request.flush([
+      {
+        tournamentId: 'tournament-id',
+        tournamentName: 'Open de Verano',
+        eventId: 'event-id',
+        eventName: 'Absoluto - Masculino',
+        matchId: 'match-id',
+        roundNumber: 1,
+        scheduledAt: '2026-06-10T10:00:00',
+        scheduleTimeType: 'EXACT',
+        courtId: 'court-id',
+        court: 'Pista 1',
+        firstInscriptionId: 'player-1',
+        firstParticipantName: 'Carlos Lopez',
+        secondInscriptionId: 'player-2',
+        secondParticipantName: 'Luis Garcia',
+        result: null
+      }
+    ]);
+  });
+
   it('should post a tournament court to the backend endpoint', () => {
     service.createCourt('tournament-id', { name: 'Pista 2' }).subscribe(response => {
       expect(response.id).toBe('court-id');
