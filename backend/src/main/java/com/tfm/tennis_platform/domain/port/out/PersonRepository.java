@@ -9,6 +9,6 @@ import java.util.UUID;
 public interface PersonRepository {
     Person save(Person person);
     Optional<Person> findById(UUID id);
-    List<Person> findTop20();
+    List<Person> findTop10();
     List<Person> searchByQuery(String query);
 }
