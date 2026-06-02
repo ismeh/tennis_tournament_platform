@@ -94,7 +94,7 @@ export class MatchesComponent {
     return matchesInRound.indexOf(match) + 1;
   }
 
-  getParticipantName(inscriptionId: string | undefined): string {
+  getParticipantName(inscriptionId: string | null | undefined): string {
     if (!inscriptionId) {
       return 'Bye';
     }
@@ -131,7 +131,7 @@ export class MatchesComponent {
     return Math.min(firstOrder, secondOrder);
   }
 
-  private getParticipantOrder(inscriptionId: string | undefined): number {
+  private getParticipantOrder(inscriptionId: string | null | undefined): number {
     if (!inscriptionId) {
       return Number.MAX_SAFE_INTEGER;
     }
