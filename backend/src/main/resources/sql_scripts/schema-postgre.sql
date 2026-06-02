@@ -43,6 +43,7 @@ CREATE TABLE tournaments (
     name                    VARCHAR(200) NOT NULL,
     start_date              DATE NOT NULL,
     end_date                DATE NOT NULL,
+    start_time              TIME,
     inscription_start_date   DATE,
     inscription_end_date     DATE,
     surface                  VARCHAR(20),                -- CLAY / HARD / GRASS / CARPET
@@ -141,6 +142,14 @@ CREATE TABLE draws (
 
 COMMENT ON COLUMN draws.label IS 'Draw visible name';
 
+CREATE TABLE courts (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tournament_id   UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    name            VARCHAR(100) NOT NULL,
+    active          BOOLEAN NOT NULL DEFAULT TRUE,
+    UNIQUE (tournament_id, name)
+);
+
 -- MATCHES (individual matches)
 CREATE TABLE matches (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -150,7 +159,10 @@ CREATE TABLE matches (
     winner_id               UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
     round_number            INTEGER,
     next_match_id           UUID REFERENCES matches(id) ON DELETE SET NULL,
+    loser_next_match_id     UUID REFERENCES matches(id) ON DELETE SET NULL,
     scheduled_at            TIMESTAMP,
+    schedule_type           VARCHAR(20),
+    court_id                UUID REFERENCES courts(id) ON DELETE SET NULL,
     court                   VARCHAR(50),
     result                  VARCHAR(255),
     version                 BIGINT NOT NULL DEFAULT 0

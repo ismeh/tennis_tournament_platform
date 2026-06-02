@@ -1,8 +1,10 @@
 package com.tfm.tennis_platform.infrastructure.persistence.repository;
 
 import com.tfm.tennis_platform.infrastructure.persistence.entity.PersonEntity;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -12,7 +14,7 @@ import java.util.UUID;
 public interface JpaPersonRepository extends JpaRepository<PersonEntity, UUID> {
     PersonEntity saveAndFlush(PersonEntity entity);
 
-    List<PersonEntity> findTop20ByOrderByFirstNameAscLastNameAsc();
+    List<PersonEntity> findTop10ByOrderByFirstNameAscLastNameAsc();
 
     @Query("""
             SELECT p
@@ -24,5 +26,5 @@ public interface JpaPersonRepository extends JpaRepository<PersonEntity, UUID> {
                OR LOWER(COALESCE(p.tennisId, '')) LIKE LOWER(CONCAT('%', :query, '%'))
             ORDER BY p.firstName ASC, p.lastName ASC
             """)
-    List<PersonEntity> searchByQuery(String query);
+    List<PersonEntity> searchByQuery(@Param("query") String query, Pageable pageable);
 }

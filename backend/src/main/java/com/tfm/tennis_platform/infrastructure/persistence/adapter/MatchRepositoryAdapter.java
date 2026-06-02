@@ -40,6 +40,9 @@ public class MatchRepositoryAdapter implements MatchRepository {
         if (match.getNextMatch() != null && match.getNextMatch().getId() != null) {
             entity.setNextMatch(matchRepository.getReferenceById(match.getNextMatch().getId()));
         }
+        if (match.getLoserNextMatch() != null && match.getLoserNextMatch().getId() != null) {
+            entity.setLoserNextMatch(matchRepository.getReferenceById(match.getLoserNextMatch().getId()));
+        }
         return mapper.toDomain(matchRepository.save(entity));
     }
 
@@ -64,8 +67,15 @@ public class MatchRepositoryAdapter implements MatchRepository {
                 if (next != null) {
                     entity.setNextMatch(next);
                 } else {
-                    // fallback to a reference if next match not in this batch
                     entity.setNextMatch(matchRepository.getReferenceById(domain.getNextMatch().getId()));
+                }
+            }
+            if (domain.getLoserNextMatch() != null && domain.getLoserNextMatch().getId() != null) {
+                com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity next = entityById.get(domain.getLoserNextMatch().getId());
+                if (next != null) {
+                    entity.setLoserNextMatch(next);
+                } else {
+                    entity.setLoserNextMatch(matchRepository.getReferenceById(domain.getLoserNextMatch().getId()));
                 }
             }
         }
@@ -99,6 +109,8 @@ public class MatchRepositoryAdapter implements MatchRepository {
         target.setWinner(source.getWinner());
         target.setRoundNumber(source.getRoundNumber());
         target.setScheduledAt(source.getScheduledAt());
+        target.setScheduleTimeType(source.getScheduleTimeType());
+        target.setCourtResource(source.getCourtResource());
         target.setCourt(source.getCourt());
         target.setResult(source.getResult());
     }

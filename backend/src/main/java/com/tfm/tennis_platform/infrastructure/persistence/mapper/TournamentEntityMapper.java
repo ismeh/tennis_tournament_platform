@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 public interface TournamentEntityMapper {
     @Mapping(target = "name", source = "formalName")
     @Mapping(target = "playPeriod", expression = "java(toPeriod(entity.getPlayStartDate(), entity.getPlayEndDate()))")
+    @Mapping(target = "startTime", source = "startTime")
     @Mapping(target = "inscriptionPeriod", expression = "java(toPeriod(entity.getInscriptionStartDate(), entity.getInscriptionEndDate()))")
     @Mapping(target = "createdBy", source = "createdBy.id")
     @Mapping(target = "state", source = "status")
@@ -40,6 +41,7 @@ public interface TournamentEntityMapper {
     @Mapping(target = "formalName", source = "name")
     @Mapping(target = "playStartDate", source = "playPeriod.startDate")
     @Mapping(target = "playEndDate", source = "playPeriod.endDate")
+    @Mapping(target = "startTime", source = "startTime")
     @Mapping(target = "inscriptionStartDate", source = "inscriptionPeriod.startDate")
     @Mapping(target = "inscriptionEndDate", source = "inscriptionPeriod.endDate")
     @Mapping(target = "status", source = "state")
@@ -67,6 +69,7 @@ public interface TournamentEntityMapper {
     @Mapping(target = "events", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target= "status", source = "state")
+    @Mapping(target = "startTime", source = "startTime")
     void updateEntityFromDomain(Tournament domain, @MappingTarget TournamentEntity entity);
 
     default List<Event> toDomainEvents(List<EventEntity> entities) {
@@ -192,8 +195,11 @@ public interface TournamentEntityMapper {
                 .winner(mapInscriptionDomain(entity.getWinner() != null ? entity.getWinner().getId() : null))
                 .roundNumber(entity.getRoundNumber())
                 .nextMatch(toDomain(entity.getNextMatch()))
+                .loserNextMatch(toDomain(entity.getLoserNextMatch()))
                 .scheduledAt(entity.getScheduledAt())
-                .court(entity.getCourt())
+                .scheduleTimeType(entity.getScheduleTimeType())
+                .courtId(entity.getCourtResource() != null ? entity.getCourtResource().getId() : null)
+                .court(entity.getCourtResource() != null ? entity.getCourtResource().getName() : entity.getCourt())
                 .result(entity.getResult())
                 .build();
     }

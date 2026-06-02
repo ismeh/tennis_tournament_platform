@@ -7,6 +7,17 @@ application:
   security:
     jwt:
       secret-key: ${JWT_SECRET_KEY:my_very_secret_and_long_key_for_tennis_platform_tfm_project}
+  pro-players:
+    import:
+      enabled: ${PRO_PLAYERS_IMPORT_ENABLED:false}
+      run-on-startup: ${PRO_PLAYERS_IMPORT_RUN_ON_STARTUP:false}
+      cron: "${PRO_PLAYERS_IMPORT_CRON:0 0 4 * * MON}"
+      batch-size: ${PRO_PLAYERS_IMPORT_BATCH_SIZE:1000}
+      sources:
+        - name: male
+          location: ${PRO_PLAYERS_MALE_CSV_LOCATION:classpath:db/seed/pro_players_male.csv}
+        - name: female
+          location: ${PRO_PLAYERS_FEMALE_CSV_LOCATION:classpath:db/seed/pro_players_female.csv}
   email:
     confirmation:
       # Business rule: true requires users to confirm email before login; false creates accounts already verified.

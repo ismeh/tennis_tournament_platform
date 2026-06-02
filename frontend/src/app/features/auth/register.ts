@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
 	selector: 'app-register-page',
@@ -12,7 +13,7 @@ import { AuthService } from '../../core/auth/auth.service';
 		<section class="mx-auto max-w-md px-4 py-10 sm:py-16">
 			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
 				<h1 class="text-2xl font-bold text-neutral-900">Crear cuenta</h1>
-				<p class="mt-2 text-sm text-neutral-600">Registrate para empezar a usar la plataforma.</p>
+				<p class="mt-2 text-sm text-neutral-600">Regístrate para empezar a usar la plataforma.</p>
 
 				<form class="mt-6 space-y-4" [formGroup]="form" (ngSubmit)="submit()">
 					<div>
@@ -33,7 +34,7 @@ import { AuthService } from '../../core/auth/auth.service';
 							type="password"
 							formControlName="password"
 							class="w-full rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:border-primary-500"
-							placeholder="Minimo 6 caracteres"
+							placeholder="Mínimo 6 caracteres"
 						/>
 					</div>
 
@@ -55,8 +56,8 @@ import { AuthService } from '../../core/auth/auth.service';
 				</form>
 
 				<p class="mt-6 text-sm text-neutral-600">
-					Ya tienes cuenta?
-					<a routerLink="/login" class="font-medium text-primary-600 hover:text-primary-700">Inicia sesion</a>
+					¿Ya tienes cuenta?
+					<a routerLink="/login" class="font-medium text-primary-600 hover:text-primary-700">Inicia sesión</a>
 				</p>
 			</div>
 		</section>
@@ -89,9 +90,9 @@ export class RegisterComponent {
 				this.isSubmitting.set(false);
 				this.successMessage.set(response.message);
 			},
-			error: () => {
+			error: (error) => {
 				this.isSubmitting.set(false);
-				this.errorMessage.set('No se pudo registrar la cuenta. Prueba con otro email.');
+				this.errorMessage.set(getApiErrorMessage(error, 'No se pudo registrar la cuenta. Revisa los datos e inténtalo de nuevo.'));
 			}
 		});
 	}

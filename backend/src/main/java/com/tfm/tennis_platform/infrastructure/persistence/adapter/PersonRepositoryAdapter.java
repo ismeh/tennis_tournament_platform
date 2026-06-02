@@ -6,6 +6,7 @@ import com.tfm.tennis_platform.infrastructure.persistence.entity.PersonEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.mapper.PersonMapper;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaPersonRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,6 +16,8 @@ import java.util.UUID;
 @Repository
 @RequiredArgsConstructor
 public class PersonRepositoryAdapter implements PersonRepository {
+
+    private static final int SEARCH_LIMIT = 10;
 
     private final JpaPersonRepository jpaPersonRepository;
     private final PersonMapper personMapper;
@@ -32,8 +35,8 @@ public class PersonRepositoryAdapter implements PersonRepository {
     }
 
     @Override
-    public List<Person> findTop20() {
-        return jpaPersonRepository.findTop20ByOrderByFirstNameAscLastNameAsc()
+    public List<Person> findTop10() {
+        return jpaPersonRepository.findTop10ByOrderByFirstNameAscLastNameAsc()
                 .stream()
                 .map(personMapper::toDomain)
                 .toList();
@@ -41,7 +44,7 @@ public class PersonRepositoryAdapter implements PersonRepository {
 
     @Override
     public List<Person> searchByQuery(String query) {
-        return jpaPersonRepository.searchByQuery(query)
+        return jpaPersonRepository.searchByQuery(query, PageRequest.of(0, SEARCH_LIMIT))
                 .stream()
                 .map(personMapper::toDomain)
                 .toList();

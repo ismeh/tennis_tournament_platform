@@ -9,7 +9,7 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
   template: `
     <div class="space-y-4">
       @if (showTitleInput) {
-        <h5 class="text-sm font-medium text-neutral-900">Árbol de Enfrentamientos</h5>
+        <h5 class="text-sm font-medium text-neutral-900">Cuadro de partidos</h5>
       }
       
       @if (draws().length === 0) {
@@ -69,9 +69,10 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
                                 <span
                                   class="bracket-player"
                                   [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
-                                  [class.bracket-player-empty]="!match.firstInscriptionId"
+                                  [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                  [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
                                 >
-                                  <span class="truncate">{{ getParticipantName(match.firstInscriptionId) }}</span>
+                                  <span class="truncate">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
                                   @if (isWinner(match, match.firstInscriptionId)) {
                                     <span class="bracket-winner-mark">G</span>
                                   }
@@ -80,9 +81,10 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
                                 <span
                                   class="bracket-player"
                                   [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
-                                  [class.bracket-player-empty]="!match.secondInscriptionId"
+                                  [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                  [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
                                 >
-                                  <span class="truncate">{{ getParticipantName(match.secondInscriptionId) }}</span>
+                                  <span class="truncate">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
                                   @if (isWinner(match, match.secondInscriptionId)) {
                                     <span class="bracket-winner-mark">G</span>
                                   }
@@ -100,7 +102,7 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
                   </div>
                 </div>
               } @else {
-                <p class="text-xs text-neutral-600">Sin enfrentamientos generados</p>
+                <p class="text-xs text-neutral-600">Sin partidos generados</p>
               }
             </div>
           }
@@ -261,6 +263,13 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
       color: rgb(148 163 184);
       font-style: italic;
       font-weight: 600;
+    }
+
+    .bracket-player-bye {
+      border-style: dashed;
+      color: rgb(100 116 139);
+      font-style: italic;
+      font-weight: 700;
     }
 
     .bracket-player-winner {
@@ -425,11 +434,31 @@ export class BracketComponent {
     return (matchesInRound.indexOf(match) + 1) || 1;
   }
 
-  isWinner(match: MatchResponse, inscriptionId: string | undefined): boolean {
+  isWinner(match: MatchResponse, inscriptionId: string | null | undefined): boolean {
     return !!inscriptionId && match.winnerId === inscriptionId;
   }
 
-  getParticipantName(inscriptionId: string | undefined): string {
+  getMatchSlotLabel(
+    match: MatchResponse,
+    inscriptionId: string | null | undefined,
+    opponentInscriptionId: string | null | undefined
+  ): string {
+    if (this.isByeSlot(match, inscriptionId, opponentInscriptionId)) {
+      return 'Bye';
+    }
+
+    return this.getParticipantName(inscriptionId);
+  }
+
+  isByeSlot(
+    match: MatchResponse,
+    inscriptionId: string | null | undefined,
+    opponentInscriptionId: string | null | undefined
+  ): boolean {
+    return !inscriptionId && !!opponentInscriptionId && (match.roundNumber ?? 1) === 1;
+  }
+
+  getParticipantName(inscriptionId: string | null | undefined): string {
     if (!inscriptionId) {
       return 'Por definir';
     }
@@ -462,7 +491,7 @@ export class BracketComponent {
     return Math.min(firstOrder, secondOrder);
   }
 
-  private getParticipantOrder(inscriptionId: string | undefined): number {
+  private getParticipantOrder(inscriptionId: string | null | undefined): number {
     if (!inscriptionId) {
       return Number.MAX_SAFE_INTEGER;
     }

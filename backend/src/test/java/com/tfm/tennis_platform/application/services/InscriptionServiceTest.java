@@ -69,7 +69,8 @@ class InscriptionServiceTest {
                 "FEMALE",
                 LocalDate.of(1998, 3, 5),
                 "ESP",
-                "LIC-77"
+                "LIC-77",
+                null
         );
 
         EventInscriptionResult expected = new EventInscriptionResult(

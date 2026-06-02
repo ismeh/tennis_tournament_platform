@@ -17,11 +17,13 @@ export interface TournamentCreateRequest {
   formalName: string;
   playStartDate: string;
   playEndDate: string;
+  tournamentStartTime: string;
   inscriptionStartDate: string;
   inscriptionEndDate: string;
   surfaceCategory: TournamentSurfaceCategory;
   maxPlayers: number;
   location: string;
+  courtCount: number;
 }
 
 export interface TournamentProviderSummary {
@@ -33,6 +35,7 @@ export interface TournamentResponse {
   formalName: string;
   playStartDate: string;
   playEndDate: string;
+  tournamentStartTime?: string | null;
   inscriptionStartDate: string;
   inscriptionEndDate: string;
   surfaceCategory: TournamentSurfaceCategory;
@@ -41,6 +44,58 @@ export interface TournamentResponse {
   status: TournamentStatus;
   providerOrganisationId?: string | TournamentProviderSummary | null;
   events?: TournamentEventResponse[];
+}
+
+export interface TournamentCalendarFilters {
+  from?: string | null;
+  to?: string | null;
+  surface?: TournamentSurfaceCategory | null;
+  location?: string | null;
+}
+
+export interface TournamentCalendarResponse {
+  id: string;
+  formalName: string;
+  playStartDate: string;
+  playEndDate: string;
+  tournamentStartTime?: string | null;
+  location: string;
+  surfaceCategory: TournamentSurfaceCategory;
+  maxPlayers: number;
+  status: TournamentStatus;
+}
+
+export interface PlayerMatchCalendarResponse {
+  tournamentId: string;
+  tournamentName: string;
+  eventId: string;
+  eventName: string;
+  matchId: string;
+  roundNumber: number;
+  scheduledAt: string;
+  scheduleTimeType?: MatchScheduleTimeType | null;
+  courtId?: string | null;
+  court?: string | null;
+  firstInscriptionId?: string | null;
+  firstParticipantName: string;
+  secondInscriptionId?: string | null;
+  secondParticipantName: string;
+  result?: string | null;
+}
+
+export interface CourtResponse {
+  id: string;
+  tournamentId: string;
+  name: string;
+  active: boolean;
+}
+
+export interface CourtCreateRequest {
+  name: string;
+}
+
+export interface CourtUpdateRequest {
+  name: string;
 }
 
 export interface TournamentEventResponse {
@@ -69,13 +124,23 @@ export interface DrawResponse {
 
 export interface MatchResponse {
   id: string;
-  firstInscriptionId: string;
-  secondInscriptionId: string;
+  firstInscriptionId: string | null;
+  secondInscriptionId: string | null;
   winnerId?: string | null;
   roundNumber: number;
   scheduledAt?: string | null;
+  scheduleTimeType?: MatchScheduleTimeType | null;
+  courtId?: string | null;
   court?: string | null;
   result?: string | null;
+}
+
+export type MatchScheduleTimeType = 'EXACT' | 'NOT_BEFORE';
+
+export interface MatchScheduleRequest {
+  courtId: string;
+  scheduledAt: string;
+  scheduleTimeType: MatchScheduleTimeType;
 }
 
 export type TournamentEventGender = 'MALE' | 'FEMALE' | 'MIXED';
@@ -154,6 +219,7 @@ export interface ManualEventInscriptionRequest {
   birthDate?: string | null;
   nationality?: string | null;
   tennisId?: string | null;
+  proPlayerId?: number | null;
 }
 
 export interface EventInscriptionResponse {

@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
 import { MatchesComponent } from './matches.component';
 import { BracketComponent } from './bracket.component';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
@@ -24,8 +24,8 @@ type DrawViewMode = 'tree' | 'list';
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p class="font-medium text-neutral-900">{{ draw.label }}</p>
-                  <p class="text-xs text-neutral-500">Tipo: {{ draw.drawType }}</p>
-                  <p class="text-xs text-neutral-500">{{ (draw.matches || []).length }} enfrentamientos</p>
+                  <p class="text-xs text-neutral-500">Formato: {{ getDrawTypeLabel(draw.drawType) }}</p>
+                  <p class="text-xs text-neutral-500">{{ (draw.matches || []).length }} partidos</p>
                 </div>
                 <button
                   type="button"
@@ -61,7 +61,7 @@ type DrawViewMode = 'tree' | 'list';
 
               @if ((draw.matches || []).length === 0) {
                 <div class="mt-3 border-t border-neutral-200 pt-3 text-sm text-neutral-600">
-                  Sin enfrentamientos
+                  Sin partidos
                 </div>
               }
             </div>
@@ -75,7 +75,9 @@ type DrawViewMode = 'tree' | 'list';
       #matchModal 
       [matchInput]="selectedMatch()"
       [participantNamesInput]="participantNamesInput"
+      [courtsInput]="courtsInput"
       (saveResult)="onSaveMatchResult($event)"
+      (saveSchedule)="onSaveMatchSchedule($event)"
       (close)="onModalClose()"
     ></app-match-detail-modal>
   `
@@ -83,6 +85,7 @@ type DrawViewMode = 'tree' | 'list';
 export class DrawsComponent {
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() participantOrderInput: Record<string, number> = {};
+  @Input() courtsInput: CourtResponse[] = [];
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
@@ -94,6 +97,12 @@ export class DrawsComponent {
 
   @Output() matchSelected = new EventEmitter<string>();
   @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() matchScheduleSaved = new EventEmitter<{
+    matchId: string;
+    courtId: string;
+    scheduledAt: string;
+    scheduleTimeType: MatchScheduleTimeType;
+  }>();
 
   drawViewModes = signal<Record<string, DrawViewMode>>({});
   selectedMatch = signal<MatchResponse | null>(null);
@@ -113,6 +122,16 @@ export class DrawsComponent {
     return this.getDrawViewMode(drawId) === 'tree' ? 'Ver listado' : 'Ver árbol';
   }
 
+  getDrawTypeLabel(drawType: string): string {
+    const labels: Record<string, string> = {
+      ELIMINATION: 'Eliminatoria',
+      ROUND_ROBIN: 'Liga',
+      DOUBLE_ELIMINATION: 'Doble eliminación'
+    };
+
+    return labels[drawType] ?? drawType;
+  }
+
   onMatchSelected(match: MatchResponse) {
     this.selectedMatch.set(match);
     if (this.matchModal) {
@@ -127,5 +146,14 @@ export class DrawsComponent {
   onSaveMatchResult(event: { matchId: string; winnerId: string; result: string }) {
     this.matchResultSaved.emit(event);
     this.selectedMatch.set(null);
+  }
+
+  onSaveMatchSchedule(event: {
+    matchId: string;
+    courtId: string;
+    scheduledAt: string;
+    scheduleTimeType: MatchScheduleTimeType;
+  }) {
+    this.matchScheduleSaved.emit(event);
   }
 }

@@ -8,11 +8,13 @@ import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionEv
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionGenderCount;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionPlayerView;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionsView;
+import com.tfm.tennis_platform.domain.models.ProPlayer;
 import com.tfm.tennis_platform.domain.models.enums.EntryStatus;
 import com.tfm.tennis_platform.domain.models.enums.ParticipantSource;
 import com.tfm.tennis_platform.domain.models.enums.ParticipantType;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.domain.port.out.InscriptionManagementRepository;
+import com.tfm.tennis_platform.domain.port.out.ProPlayerRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.EventEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.InscriptionEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MemberEntity;
@@ -36,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Repository
@@ -48,45 +51,46 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
     private final JpaMemberRepository memberRepository;
     private final JpaPersonRepository personRepository;
     private final JpaParticipantRepository participantRepository;
+    private final ProPlayerRepository proPlayerRepository;
 
     @Override
     @Transactional
     public EventInscriptionResult register(UUID tournamentId, UUID eventId, EventInscriptionCommand request, String requesterEmail) {
         TournamentEntity tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró el torneo solicitado."));
 
         if (tournament.getStatus() != TournamentStatus.OPEN) {
-            throw new IllegalArgumentException("Las inscripciones solo estan permitidas con el torneo en estado OPEN");
+            throw new IllegalArgumentException("Las inscripciones solo están permitidas cuando el torneo está abierto.");
         }
 
         EventEntity event = eventRepository.findByIdAndTournament_Id(eventId, tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Event not found for tournament"));
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró el evento dentro del torneo."));
 
         MemberEntity member = memberRepository.findByEmail(requesterEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found"));
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró tu cuenta. Inicia sesión de nuevo."));
 
         validateProfileComplete(member);
         PersonEntity requesterPerson = personRepository.findById(member.getPersonId())
-                .orElseThrow(() -> new IllegalStateException("Profile data not found"));
+                .orElseThrow(() -> new IllegalStateException("Completa tu perfil antes de inscribirte."));
 
         ParticipantEntity participant;
         if (request.partnerId() == null) {
             participant = getOrCreateIndividualParticipant(tournament, requesterPerson, ParticipantSource.EXISTING_PERSON);
         } else {
             if (request.partnerId().equals(member.getId())) {
-                throw new IllegalArgumentException("El partner no puede ser el mismo miembro solicitante");
+                throw new IllegalArgumentException("Selecciona un compañero distinto a tu propia cuenta.");
             }
             MemberEntity partnerMember = memberRepository.findById(request.partnerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Partner not found"));
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró el compañero seleccionado."));
             validateProfileComplete(partnerMember);
             PersonEntity partnerPerson = personRepository.findById(partnerMember.getPersonId())
-                    .orElseThrow(() -> new IllegalStateException("Partner profile data not found"));
+                    .orElseThrow(() -> new IllegalStateException("El compañero debe completar su perfil antes de inscribirse."));
 
             participant = getOrCreatePairParticipant(tournament, requesterPerson, partnerPerson);
         }
 
         if (inscriptionRepository.existsByEvent_IdAndParticipant_Id(eventId, participant.getId())) {
-            throw new IllegalStateException("Ya existe una inscripcion para este participante en este evento");
+            throw new IllegalStateException("Este participante ya está inscrito en el evento.");
         }
 
         InscriptionEntity inscription = InscriptionEntity.builder()
@@ -104,24 +108,24 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
     @Transactional
     public EventInscriptionResult registerManual(UUID tournamentId, UUID eventId, ManualEventInscriptionCommand request, String requesterEmail) {
         TournamentEntity tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró el torneo solicitado."));
 
         if (tournament.getStatus() != TournamentStatus.OPEN) {
-            throw new IllegalArgumentException("Las inscripciones solo estan permitidas con el torneo en estado OPEN");
+            throw new IllegalArgumentException("Las inscripciones solo están permitidas cuando el torneo está abierto.");
         }
 
         EventEntity event = eventRepository.findByIdAndTournament_Id(eventId, tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Event not found for tournament"));
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró el evento dentro del torneo."));
 
         MemberEntity requester = memberRepository.findByEmail(requesterEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found"));
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró tu cuenta. Inicia sesión de nuevo."));
 
         validateTournamentOwner(tournament, requester);
 
         ParticipantEntity participant = resolveManualParticipant(tournament, request);
 
         if (inscriptionRepository.existsByEvent_IdAndParticipant_Id(eventId, participant.getId())) {
-            throw new IllegalStateException("Ya existe una inscripcion para este participante en este evento");
+            throw new IllegalStateException("Este participante ya está inscrito en el evento.");
         }
 
         InscriptionEntity inscription = InscriptionEntity.builder()
@@ -139,7 +143,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
     @Transactional(readOnly = true)
     public List<EventInscriptionResult> findByEvent(UUID tournamentId, UUID eventId) {
         eventRepository.findByIdAndTournament_Id(eventId, tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Event not found for tournament"));
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró el evento dentro del torneo."));
 
         return inscriptionRepository.findByEvent_Id(eventId).stream()
                 .sorted(Comparator.comparing(InscriptionEntity::getRegisteredAt, Comparator.nullsLast(Comparator.naturalOrder())))
@@ -151,12 +155,12 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
     @Transactional(readOnly = true)
     public TournamentInscriptionsView findByTournament(UUID tournamentId, UUID eventId) {
         if (!tournamentRepository.existsById(tournamentId)) {
-            throw new IllegalArgumentException("Tournament not found");
+            throw new IllegalArgumentException("No se encontró el torneo solicitado.");
         }
 
         if (eventId != null) {
             eventRepository.findByIdAndTournament_Id(eventId, tournamentId)
-                    .orElseThrow(() -> new IllegalArgumentException("Event not found for tournament"));
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró el evento dentro del torneo."));
         }
 
         List<EventEntity> tournamentEvents = eventRepository.findAllByTournamentId(tournamentId);
@@ -273,29 +277,30 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
     private ParticipantEntity resolveManualParticipant(TournamentEntity tournament, ManualEventInscriptionCommand request) {
         ParticipantSource participantSource = request.playerSource();
         if (participantSource == null) {
-            throw new IllegalArgumentException("playerSource is required");
+            throw new IllegalArgumentException("Indica el origen del jugador.");
         }
 
         return switch (participantSource) {
             case EXISTING_PERSON -> resolveExistingPersonParticipant(tournament, request.personId());
-            case MANUAL, PROFESSIONAL -> resolveManualSnapshotParticipant(tournament, request);
+            case MANUAL -> resolveManualSnapshotParticipant(tournament, request);
+            case PROFESSIONAL -> resolveProfessionalParticipant(tournament, request);
         };
     }
 
     private ParticipantEntity resolveExistingPersonParticipant(TournamentEntity tournament, UUID personId) {
         if (personId == null) {
-            throw new IllegalArgumentException("personId is required for existing players");
+            throw new IllegalArgumentException("Selecciona un jugador existente de la lista.");
         }
 
         PersonEntity person = personRepository.findById(personId)
-                .orElseThrow(() -> new IllegalArgumentException("Person not found"));
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró el jugador seleccionado."));
 
         return getOrCreateIndividualParticipant(tournament, person, ParticipantSource.EXISTING_PERSON);
     }
 
     private ParticipantEntity resolveManualSnapshotParticipant(TournamentEntity tournament, ManualEventInscriptionCommand request) {
         if (isBlank(request.firstName()) || isBlank(request.gender())) {
-            throw new IllegalArgumentException("firstName and gender are required for manual players");
+            throw new IllegalArgumentException("Indica al menos el nombre y el género del jugador.");
         }
 
         return participantRepository.findByTournamentId(tournament.getId()).stream()
@@ -319,6 +324,54 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                         .displayTennisId(normalizeNullable(request.tennisId()))
                         .members(List.of())
                         .build()));
+    }
+
+    private ParticipantEntity resolveProfessionalParticipant(TournamentEntity tournament, ManualEventInscriptionCommand request) {
+        ProPlayer proPlayer = findProfessionalPlayer(request);
+
+        return participantRepository.findByTournamentId(tournament.getId()).stream()
+                .filter(participant -> participant.getParticipantType() == ParticipantType.INDIVIDUAL)
+                .filter(participant -> participant.getParticipantSource() == ParticipantSource.PROFESSIONAL)
+                .filter(participant -> matchesProfessionalParticipant(participant, proPlayer))
+                .findFirst()
+                .orElseGet(() -> participantRepository.save(ParticipantEntity.builder()
+                        .tournament(tournament)
+                        .participantType(ParticipantType.INDIVIDUAL)
+                        .participantSource(ParticipantSource.PROFESSIONAL)
+                        .entryStatus(EntryStatus.DIRECT_ACCEPTANCE)
+                        .displayFirstName(proPlayer.getFirstName())
+                        .displayLastName(proPlayer.getLastName())
+                        .displayGender(normalizeNullable(proPlayer.getGender()))
+                        .displayBirthDate(proPlayer.getBirthDate())
+                        .displayNationality("ESP")
+                        .displayTennisId(proPlayer.getLicense())
+                        .members(List.of())
+                        .build()));
+    }
+
+    private ProPlayer findProfessionalPlayer(ManualEventInscriptionCommand request) {
+        if (request.proPlayerId() != null) {
+            return proPlayerRepository.findById(request.proPlayerId())
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró el jugador profesional seleccionado."));
+        }
+
+        if (!isBlank(request.tennisId())) {
+            return proPlayerRepository.findByLicense(request.tennisId())
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró el jugador profesional seleccionado."));
+        }
+
+        throw new IllegalArgumentException("Selecciona un jugador profesional de la lista.");
+    }
+
+    private boolean matchesProfessionalParticipant(ParticipantEntity participant, ProPlayer proPlayer) {
+        if (!isBlank(proPlayer.getLicense())) {
+            return equalsNormalized(participant.getDisplayTennisId(), proPlayer.getLicense());
+        }
+
+        return equalsNormalized(participant.getDisplayFirstName(), proPlayer.getFirstName())
+                && equalsNormalized(participant.getDisplayLastName(), proPlayer.getLastName())
+                && equalsNormalized(participant.getDisplayGender(), proPlayer.getGender())
+                && Objects.equals(participant.getDisplayBirthDate(), proPlayer.getBirthDate());
     }
 
     private ParticipantEntity getOrCreateIndividualParticipant(TournamentEntity tournament, PersonEntity person, ParticipantSource participantSource) {
@@ -435,24 +488,24 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
 
     private void validateProfileComplete(MemberEntity member) {
         if (member.getPersonId() == null) {
-            throw new IllegalStateException("Debes completar tu perfil antes de inscribirte");
+            throw new IllegalStateException("Completa tu perfil antes de inscribirte.");
         }
 
         PersonEntity person = personRepository.findById(member.getPersonId())
-                .orElseThrow(() -> new IllegalStateException("Debes completar tu perfil antes de inscribirte"));
+                .orElseThrow(() -> new IllegalStateException("Completa tu perfil antes de inscribirte."));
 
         if (isBlank(person.getFirstName()) || isBlank(person.getGender()) || person.getBirthDate() == null) {
-            throw new IllegalStateException("Debes completar tu perfil antes de inscribirte");
+            throw new IllegalStateException("Completa tu perfil antes de inscribirte.");
         }
     }
 
     private void validateTournamentOwner(TournamentEntity tournament, MemberEntity requester) {
         if (tournament.getCreatedBy() == null || tournament.getCreatedBy().getId() == null) {
-            throw new IllegalStateException("El torneo no tiene creador asociado");
+            throw new IllegalStateException("El torneo no tiene un creador asociado.");
         }
 
         if (!tournament.getCreatedBy().getId().equals(requester.getId())) {
-            throw new IllegalArgumentException("Solo el creador puede añadir jugadores manualmente al torneo");
+            throw new IllegalArgumentException("Solo el creador del torneo puede añadir jugadores manualmente.");
         }
     }
 

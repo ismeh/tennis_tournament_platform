@@ -1,12 +1,19 @@
 package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.application.commands.EventCommand;
+import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
+import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Draw;
+import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Event;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.domain.models.Stage;
 import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.domain.models.enums.DrawType;
+import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
+import com.tfm.tennis_platform.domain.models.enums.StageType;
+import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.InscriptionRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
@@ -23,6 +30,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
+import java.time.LocalDateTime;
 import static com.tfm.tennis_platform.domain.models.Event.buildEventName;
 import static com.tfm.tennis_platform.domain.models.Event.createOrUpdateEvent;
 
@@ -33,6 +41,7 @@ public class EventService {
     private final TournamentRepository tournamentRepository;
     private final InscriptionRepository inscriptionRepository;
     private final MatchRepository matchRepository;
+    private final CourtRepository courtRepository;
     private final StageGenerationService stageGenerationService;
     private final DrawGenerationService drawGenerationService;
     private final MatchGenerationService matchGenerationService;
@@ -41,7 +50,7 @@ public class EventService {
     @Transactional
     public Tournament replaceAllEvents(UUID tournamentId, EventCommand eventCommand) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
 
         List<Event> events = eventCommand.events().stream()
                 .map(item -> {
@@ -62,14 +71,14 @@ public class EventService {
     @Transactional
     public Tournament removeEventFromTournament(UUID tournamentId, UUID eventId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
 
         List<Event> updatedEvents = tournament.getEvents().stream()
                 .filter(event -> !eventId.equals(event.getId()))
                 .toList();
 
         if (updatedEvents.size() == tournament.getEvents().size()) {
-            throw new IllegalArgumentException("Event not found in tournament");
+            throw new ResourceNotFoundException("No se encontró el evento dentro del torneo.");
         }
 
         Tournament tournamentWithoutEvent = tournament.toBuilder()
@@ -83,17 +92,17 @@ public class EventService {
     public Tournament generateDrawsForEvent(UUID tournamentId, UUID eventId) {
         log.info("Generating draws for event {} in tournament {}", eventId, tournamentId);
         Tournament tournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
 
         Event event = tournament.getEvents().stream()
                 .filter(e -> e.getId().equals(eventId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Event not found in tournament"));
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró el evento dentro del torneo."));
 
         List<Inscription> eventInscriptions = inscriptionRepository.findByEventId(eventId);
 
         if (eventInscriptions.isEmpty()) {
-            throw new IllegalArgumentException("No inscriptions found for event");
+            throw new InvalidArgumentException("Este evento todavía no tiene jugadores inscritos.");
         }
 
         List<Stage> updatedStages = event.getStages().stream()
@@ -150,6 +159,11 @@ public class EventService {
 
                 // Now generate and persist matches for each draw. Use retries on optimistic lock failures.
                 Map<UUID, List<Match>> matchesByDraw = new java.util.HashMap<>();
+                List<Court> courts = courtRepository.findByTournamentId(tournamentId);
+                LocalDateTime firstMatchStart = tournament.getStartTime() != null
+                        ? LocalDateTime.of(tournament.getPlayPeriod().startDate(), tournament.getStartTime())
+                        : null;
+                java.util.concurrent.atomic.AtomicInteger scheduleIndex = new java.util.concurrent.atomic.AtomicInteger(0);
                 for (Event ev : persistedTournament.getEvents()) {
                         if (!ev.getId().equals(eventId)) continue;
 
@@ -159,21 +173,19 @@ public class EventService {
                                 log.debug(" Processing stage id={} current stagesCount={}", st.getId(), ev.getStages() == null ? 0 : ev.getStages().size());
                                 for (Draw dr : st.getDraws()) {
                                         log.debug("  Processing draw id={} current stagesCount={}", dr.getId(), ev.getStages() == null ? 0 : ev.getStages().size());
-                                        List<Match> matches = matchGenerationService.generateMatchesForDraw(dr, eventInscriptions);
-
-                                        // Sort matches so that referenced nextMatch (higher rounds) are saved first
-                                        List<Match> sortedMatches = matches.stream()
-                                                        .sorted((a, b) -> Integer.compare(b.getRoundNumber() == null ? 0 : b.getRoundNumber(), a.getRoundNumber() == null ? 0 : a.getRoundNumber()))
-                                                        .toList();
-
-                                        // Persist matches in a separate transaction to avoid flush/order interactions
-                                        matchPersistenceService.saveMatches(sortedMatches);
-
-                                        log.debug("  After persisting matches for draw {} stagesCount={}", dr.getId(), ev.getStages() == null ? 0 : ev.getStages().size());
+                                        List<Match> matches = scheduleGeneratedMatches(
+                                                        matchGenerationService.generateMatchesForDraw(dr, eventInscriptions),
+                                                        courts,
+                                                        firstMatchStart,
+                                                        scheduleIndex
+                                        );
 
                                         matchesByDraw.put(dr.getId(), matches);
                                 }
                         }
+
+                        linkConsolationLoserDestinations(ev, matchesByDraw);
+                        matchPersistenceService.saveMatches(sortMatchesForPersistence(ev, matchesByDraw));
                 }
 
                 // Rebuild returned Tournament domain object with matches attached to draws
@@ -219,5 +231,139 @@ public class EventService {
                                 Tournament returned = persistedTournament.toBuilder().events(rebuiltEvents).build();
                                 log.info("Returning tournament events count={}", returned.getEvents() == null ? 0 : returned.getEvents().size());
                                 return returned;
+    }
+
+    private void linkConsolationLoserDestinations(Event event, Map<UUID, List<Match>> matchesByDraw) {
+        if (event.getStages() == null || event.getStages().isEmpty()) {
+            return;
+        }
+
+        List<Draw> mainDraws = event.getStages().stream()
+                .filter(stage -> StageType.MAIN.equals(stage.getStageType()))
+                .flatMap(stage -> stage.getDraws().stream())
+                .filter(draw -> DrawType.ELIMINATION.equals(draw.getDrawType()))
+                .toList();
+
+        List<Draw> consolationDraws = event.getStages().stream()
+                .filter(stage -> StageType.CONSOLATION.equals(stage.getStageType()))
+                .flatMap(stage -> stage.getDraws().stream())
+                .filter(draw -> DrawType.CONSOLATION.equals(draw.getDrawType()))
+                .toList();
+
+        int pairs = Math.min(mainDraws.size(), consolationDraws.size());
+        for (int index = 0; index < pairs; index++) {
+            Draw mainDraw = mainDraws.get(index);
+            Draw consolationDraw = consolationDraws.get(index);
+            List<Match> sourceMatches = firstRoundContestedMatches(matchesByDraw.get(mainDraw.getId()));
+            List<Match> targetMatches = firstRoundMatches(matchesByDraw.get(consolationDraw.getId()));
+
+            if (sourceMatches.isEmpty() || targetMatches.isEmpty()) {
+                continue;
+            }
+
+            List<Match> linkedSourceMatches = new java.util.ArrayList<>(matchesByDraw.get(mainDraw.getId()));
+            int limit = Math.min(sourceMatches.size(), targetMatches.size() * 2);
+
+            for (int sourceIndex = 0; sourceIndex < limit; sourceIndex++) {
+                Match sourceMatch = sourceMatches.get(sourceIndex);
+                Match targetMatch = targetMatches.get(sourceIndex / 2);
+                int originalIndex = linkedSourceMatches.indexOf(sourceMatch);
+
+                if (originalIndex >= 0) {
+                    linkedSourceMatches.set(originalIndex, sourceMatch.toBuilder()
+                            .loserNextMatch(targetMatch)
+                            .build());
+                }
+            }
+
+            matchesByDraw.put(mainDraw.getId(), linkedSourceMatches);
+        }
+    }
+
+    private List<Match> sortMatchesForPersistence(Event event, Map<UUID, List<Match>> matchesByDraw) {
+        if (event.getStages() == null) {
+            return List.of();
+        }
+
+        List<Draw> draws = event.getStages().stream()
+                .flatMap(stage -> stage.getDraws().stream())
+                .toList();
+
+        List<Match> sortedMatches = new java.util.ArrayList<>();
+        draws.stream()
+                .filter(draw -> DrawType.CONSOLATION.equals(draw.getDrawType()))
+                .forEach(draw -> sortedMatches.addAll(sortMatchesByRoundDescending(matchesByDraw.get(draw.getId()))));
+        draws.stream()
+                .filter(draw -> !DrawType.CONSOLATION.equals(draw.getDrawType()))
+                .forEach(draw -> sortedMatches.addAll(sortMatchesByRoundDescending(matchesByDraw.get(draw.getId()))));
+
+        return sortedMatches;
+    }
+
+    private List<Match> sortMatchesByRoundDescending(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return List.of();
+        }
+
+        return matches.stream()
+                .sorted((a, b) -> Integer.compare(
+                        b.getRoundNumber() == null ? 0 : b.getRoundNumber(),
+                        a.getRoundNumber() == null ? 0 : a.getRoundNumber()
+                ))
+                .toList();
+    }
+
+    private List<Match> firstRoundContestedMatches(List<Match> matches) {
+        return firstRoundMatches(matches).stream()
+                .filter(match -> match.getFirstInscriptionId() != null && match.getSecondInscriptionId() != null)
+                .toList();
+    }
+
+    private List<Match> firstRoundMatches(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return List.of();
+        }
+
+        return matches.stream()
+                .filter(match -> match.getRoundNumber() != null && match.getRoundNumber() == 1)
+                .toList();
+    }
+
+    private List<Match> scheduleGeneratedMatches(
+            List<Match> matches,
+            List<Court> courts,
+            LocalDateTime firstMatchStart,
+            java.util.concurrent.atomic.AtomicInteger scheduleIndex
+    ) {
+        if (matches == null || matches.isEmpty() || firstMatchStart == null || courts == null || courts.isEmpty()) {
+            return matches;
+        }
+
+        return matches.stream()
+                .map(match -> {
+                    if (isByeMatch(match)) {
+                        return match;
+                    }
+
+                    int index = scheduleIndex.getAndIncrement();
+                    int courtIndex = index % courts.size();
+                    int courtSlot = index / courts.size();
+                    Court court = courts.get(courtIndex);
+                    return match.toBuilder()
+                            .scheduledAt(firstMatchStart.plusHours(courtSlot))
+                            .scheduleTimeType(courtSlot == 0 ? ScheduleTimeType.EXACT : ScheduleTimeType.NOT_BEFORE)
+                            .courtId(court.getId())
+                            .court(court.getName())
+                            .build();
+                })
+                .toList();
+    }
+
+    private boolean isByeMatch(Match match) {
+        if (match == null || match.getWinnerId() == null) {
+            return false;
+        }
+
+        return (match.getFirstInscriptionId() == null) != (match.getSecondInscriptionId() == null);
     }
 }

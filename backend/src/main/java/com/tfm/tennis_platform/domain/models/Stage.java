@@ -25,10 +25,10 @@ public class Stage {
     public static class StageBuilder {
         public Stage build() {
             if (stageNumber == null || stageNumber <= 0) {
-                throw new IllegalArgumentException("stageNumber must be greater than 0");
+                throw new IllegalArgumentException("El número de fase debe ser mayor que cero.");
             }
             if (stageType == null) {
-                throw new IllegalArgumentException("stageType must not be null");
+                throw new IllegalArgumentException("El tipo de fase es obligatorio.");
             }
             if (id == null) {
                 this.id = UUID.randomUUID();
