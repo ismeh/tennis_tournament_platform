@@ -8,11 +8,13 @@ import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionEv
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionGenderCount;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionPlayerView;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionsView;
+import com.tfm.tennis_platform.domain.models.ProPlayer;
 import com.tfm.tennis_platform.domain.models.enums.EntryStatus;
 import com.tfm.tennis_platform.domain.models.enums.ParticipantSource;
 import com.tfm.tennis_platform.domain.models.enums.ParticipantType;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.domain.port.out.InscriptionManagementRepository;
+import com.tfm.tennis_platform.domain.port.out.ProPlayerRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.EventEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.InscriptionEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MemberEntity;
@@ -36,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Repository
@@ -48,6 +51,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
     private final JpaMemberRepository memberRepository;
     private final JpaPersonRepository personRepository;
     private final JpaParticipantRepository participantRepository;
+    private final ProPlayerRepository proPlayerRepository;
 
     @Override
     @Transactional
@@ -278,7 +282,8 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
 
         return switch (participantSource) {
             case EXISTING_PERSON -> resolveExistingPersonParticipant(tournament, request.personId());
-            case MANUAL, PROFESSIONAL -> resolveManualSnapshotParticipant(tournament, request);
+            case MANUAL -> resolveManualSnapshotParticipant(tournament, request);
+            case PROFESSIONAL -> resolveProfessionalParticipant(tournament, request);
         };
     }
 
@@ -319,6 +324,54 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                         .displayTennisId(normalizeNullable(request.tennisId()))
                         .members(List.of())
                         .build()));
+    }
+
+    private ParticipantEntity resolveProfessionalParticipant(TournamentEntity tournament, ManualEventInscriptionCommand request) {
+        ProPlayer proPlayer = findProfessionalPlayer(request);
+
+        return participantRepository.findByTournamentId(tournament.getId()).stream()
+                .filter(participant -> participant.getParticipantType() == ParticipantType.INDIVIDUAL)
+                .filter(participant -> participant.getParticipantSource() == ParticipantSource.PROFESSIONAL)
+                .filter(participant -> matchesProfessionalParticipant(participant, proPlayer))
+                .findFirst()
+                .orElseGet(() -> participantRepository.save(ParticipantEntity.builder()
+                        .tournament(tournament)
+                        .participantType(ParticipantType.INDIVIDUAL)
+                        .participantSource(ParticipantSource.PROFESSIONAL)
+                        .entryStatus(EntryStatus.DIRECT_ACCEPTANCE)
+                        .displayFirstName(proPlayer.getFirstName())
+                        .displayLastName(proPlayer.getLastName())
+                        .displayGender(normalizeNullable(proPlayer.getGender()))
+                        .displayBirthDate(proPlayer.getBirthDate())
+                        .displayNationality("ESP")
+                        .displayTennisId(proPlayer.getLicense())
+                        .members(List.of())
+                        .build()));
+    }
+
+    private ProPlayer findProfessionalPlayer(ManualEventInscriptionCommand request) {
+        if (request.proPlayerId() != null) {
+            return proPlayerRepository.findById(request.proPlayerId())
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró el jugador profesional seleccionado."));
+        }
+
+        if (!isBlank(request.tennisId())) {
+            return proPlayerRepository.findByLicense(request.tennisId())
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró el jugador profesional seleccionado."));
+        }
+
+        throw new IllegalArgumentException("Selecciona un jugador profesional de la lista.");
+    }
+
+    private boolean matchesProfessionalParticipant(ParticipantEntity participant, ProPlayer proPlayer) {
+        if (!isBlank(proPlayer.getLicense())) {
+            return equalsNormalized(participant.getDisplayTennisId(), proPlayer.getLicense());
+        }
+
+        return equalsNormalized(participant.getDisplayFirstName(), proPlayer.getFirstName())
+                && equalsNormalized(participant.getDisplayLastName(), proPlayer.getLastName())
+                && equalsNormalized(participant.getDisplayGender(), proPlayer.getGender())
+                && Objects.equals(participant.getDisplayBirthDate(), proPlayer.getBirthDate());
     }
 
     private ParticipantEntity getOrCreateIndividualParticipant(TournamentEntity tournament, PersonEntity person, ParticipantSource participantSource) {

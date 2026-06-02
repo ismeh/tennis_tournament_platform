@@ -17,7 +17,7 @@ public class PersonQueryService {
     @Transactional(readOnly = true)
     public List<Person> search(String query) {
         if (query == null || query.isBlank()) {
-            return personRepository.findTop20();
+            return personRepository.findTop10();
         }
 
         return personRepository.searchByQuery(query.trim());

@@ -163,7 +163,8 @@ public class TournamentController {
             request.gender(),
             request.birthDate(),
             request.nationality(),
-            request.tennisId()
+            request.tennisId(),
+            request.proPlayerId()
         );
         EventInscriptionResult result = inscriptionService.registerManual(tournamentId, eventId, command, principal.getName());
         EventInscriptionResponse response = toEventInscriptionResponse(result);

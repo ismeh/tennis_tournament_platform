@@ -13,6 +13,7 @@ public record ManualEventInscriptionRequest(
         String gender,
         LocalDate birthDate,
         String nationality,
-        String tennisId
+        String tennisId,
+        Integer proPlayerId
 ) {
 }

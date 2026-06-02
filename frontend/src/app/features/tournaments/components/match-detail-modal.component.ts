@@ -286,7 +286,7 @@ export class MatchDetailModalComponent {
     return this.courtsInput.filter(court => court.active);
   }
 
-  getParticipantName(inscriptionId: string | undefined): string {
+  getParticipantName(inscriptionId: string | null | undefined): string {
     if (!inscriptionId) {
       return 'Participante';
     }

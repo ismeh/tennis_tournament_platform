@@ -41,8 +41,9 @@ public class MatchController {
                 .scheduledAt(match.getScheduledAt())
                 .court(match.getCourt())
                 .result(match.getResult())
-            .nextMatch(existingMatch != null ? existingMatch.getNextMatch() : null)
-                .build();
+	            .nextMatch(existingMatch != null ? existingMatch.getNextMatch() : null)
+                .loserNextMatch(existingMatch != null ? existingMatch.getLoserNextMatch() : null)
+	                .build();
         
         return ResponseEntity.ok(matchMapper.toResponse(matchService.update(updatedMatch)));
     }

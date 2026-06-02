@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AppSettings } from '../../shared/constants';
@@ -11,6 +11,9 @@ import {
   ManualEventInscriptionRequest,
   MatchScheduleRequest,
   MatchResponse,
+  PlayerMatchCalendarResponse,
+  TournamentCalendarFilters,
+  TournamentCalendarResponse,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
   TournamentEventsConfigRequest,
@@ -27,6 +30,21 @@ export class TournamentService {
 
   getTournaments(): Observable<TournamentResponse[]> {
     return this.http.get<TournamentResponse[]>(this.apiUrl);
+  }
+
+  getPublishedTournamentCalendar(filters: TournamentCalendarFilters = {}): Observable<TournamentCalendarResponse[]> {
+    return this.http.get<TournamentCalendarResponse[]>(this.calendarTournamentsUrl, {
+      params: this.toCalendarParams(filters)
+    });
+  }
+
+  getMyMatchCalendar(filters: TournamentCalendarFilters = {}): Observable<PlayerMatchCalendarResponse[]> {
+    return this.http.get<PlayerMatchCalendarResponse[]>(this.myMatchesCalendarUrl, {
+      params: this.toCalendarParams({
+        from: filters.from,
+        to: filters.to
+      })
+    });
   }
 
   getTournamentById(id: string): Observable<TournamentResponse> {
@@ -107,5 +125,32 @@ export class TournamentService {
 
   private get eventCatalogUrl(): string {
     return `${AppSettings.API_URL}/age-categories`;
+  }
+
+  private get calendarTournamentsUrl(): string {
+    return `${AppSettings.API_URL}/calendar/tournaments`;
+  }
+
+  private get myMatchesCalendarUrl(): string {
+    return `${AppSettings.API_URL}/calendar/my-matches`;
+  }
+
+  private toCalendarParams(filters: TournamentCalendarFilters): HttpParams {
+    let params = new HttpParams();
+
+    if (filters.from) {
+      params = params.set('from', filters.from);
+    }
+    if (filters.to) {
+      params = params.set('to', filters.to);
+    }
+    if (filters.surface) {
+      params = params.set('surface', filters.surface);
+    }
+    if (filters.location?.trim()) {
+      params = params.set('location', filters.location.trim());
+    }
+
+    return params;
   }
 }

@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { PersonService } from '../../data/services/person.service';
+import { ProPlayerService } from '../../data/services/pro-player.service';
 import {
   CourtResponse,
   TournamentInscriptionCategoryCount,
@@ -28,7 +29,6 @@ import {
   getTournamentSurfaceCategoryLabel,
   TournamentStageType
 } from '../../data/interfaces/tournament.model';
-import { PersonSearchResponse } from '../../data/interfaces/person.model';
 import { MemberService } from '../../data/services/member.service';
 import { TournamentService } from '../../data/services/tournament.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
@@ -39,6 +39,19 @@ type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'register
 type DrawGenerationFeedback = {
   status: 'success' | 'error';
   message: string;
+};
+
+type ManualPlayerLookupResult = {
+  id: string;
+  tennisId: string | null;
+  firstName: string;
+  lastName: string | null;
+  nationality: string | null;
+  birthDate: string | null;
+  gender: string | null;
+  rankingPosition?: number | null;
+  ageCategory?: string | null;
+  clubName?: string | null;
 };
 
 type MatchScheduleDraft = {
@@ -421,7 +434,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Alta manual</p>
                       <h3 class="mt-2 text-xl font-bold text-neutral-900">Añadir jugador a una prueba</h3>
-                      <p class="mt-2 text-sm text-neutral-600">Puedes añadir un jugador existente, crear un jugador manual o dejarlo preparado como profesional.</p>
+                      <p class="mt-2 text-sm text-neutral-600">Puedes añadir un jugador existente, crear un jugador manual o seleccionar un profesional cargado.</p>
                     </div>
 
                     <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-neutral-600">
@@ -482,11 +495,11 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       <p class="mt-3 text-xs text-neutral-500">{{ getManualPlayerSourceDescription(manualPlayerSource()) }}</p>
                     </div>
 
-                    @if (manualPlayerSource() === 'EXISTING_PERSON') {
+                    @if (manualPlayerSource() !== 'MANUAL') {
                       <div class="lg:col-span-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
                           <label class="block flex-1">
-                            <span class="mb-1 block text-sm font-medium text-neutral-700">Buscar jugador existente</span>
+                            <span class="mb-1 block text-sm font-medium text-neutral-700">Buscar {{ manualPlayerSource() === 'PROFESSIONAL' ? 'jugador profesional' : 'jugador existente' }}</span>
                             <input
                               type="search"
                               class="w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
@@ -495,7 +508,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                               name="manualPlayerSearchQuery"
                               placeholder="Nombre, apellido o licencia"
                               autocomplete="off"
-                              (keyup.enter)="searchExistingPersons()"
+                              (keyup.enter)="searchManualPlayerCandidates()"
                             />
                             <p class="mt-2 text-xs text-neutral-500">La lista se actualiza automáticamente cuando escribes al menos 2 caracteres.</p>
                           </label>
@@ -505,7 +518,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                               type="button"
                               class="rounded-2xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-60"
                               [disabled]="isSearchingPersons() || manualPlayerSearchQuery().trim().length < 2"
-                              (click)="searchExistingPersons()"
+                              (click)="searchManualPlayerCandidates()"
                             >
                               {{ isSearchingPersons() ? 'Buscando...' : 'Buscar' }}
                             </button>
@@ -558,6 +571,11 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                     <p class="mt-1 text-xs text-neutral-500">
                                       {{ person.tennisId || 'Sin licencia' }} · {{ person.gender || 'Sin género' }} · {{ person.nationality || 'Sin nacionalidad' }}
                                     </p>
+                                    @if (person.rankingPosition || person.ageCategory || person.clubName) {
+                                      <p class="mt-1 text-xs text-neutral-500">
+                                        {{ getManualPlayerMetaLabel(person) }}
+                                      </p>
+                                    }
                                   </div>
                                   <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
                                     {{ manualPlayerSelectedPersonId() === person.id ? 'Seleccionado' : 'Seleccionar' }}
@@ -1180,9 +1198,6 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       {{ tournament()!.events!.length }} pruebas
                     </span>
                   </div>
-                  <div class="mt-4 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
-                    Cada bloque corresponde a una prueba del torneo y muestra sus fases y cuadros.
-                  </div>
 
                   <div class="mt-5 space-y-4">
                   @for (event of tournament()!.events!; track event.eventId) {
@@ -1246,6 +1261,7 @@ export class TournamentDetailComponent implements OnInit {
   private readonly memberService = inject(MemberService);
   private readonly authService = inject(AuthService);
   private readonly personService = inject(PersonService);
+  private readonly proPlayerService = inject(ProPlayerService);
 
   readonly eventGenderOptions: TournamentEventGender[] = ['MALE', 'FEMALE', 'MIXED'];
   readonly stageOptions: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
@@ -1293,7 +1309,7 @@ export class TournamentDetailComponent implements OnInit {
   readonly manualPlayerSource = signal<ManualParticipantSource>('EXISTING_PERSON');
   readonly manualPlayerEventId = signal<string>('');
   readonly manualPlayerSearchQuery = signal<string>('');
-  readonly manualPlayerSearchResults = signal<PersonSearchResponse[]>([]);
+  readonly manualPlayerSearchResults = signal<ManualPlayerLookupResult[]>([]);
   readonly manualPlayerSelectedPersonId = signal<string>('');
   readonly manualPlayerSearchError = signal<string | null>(null);
   readonly manualPlayerFirstName = signal<string>('');
@@ -1342,10 +1358,12 @@ export class TournamentDetailComponent implements OnInit {
     {
       value: 'PROFESSIONAL',
       label: 'Jugador profesional',
-      description: 'Deja preparado el flujo para enlazarlo a la futura tabla de profesionales.'
+      description: 'Busca en la base de profesionales cargada y selecciona al jugador.'
     }
   ];
+  private readonly manualPlayerSearchResultLimit = 10;
   private manualPlayerSearchDebounceHandle: ReturnType<typeof setTimeout> | null = null;
+  private manualPlayerSearchRequestId = 0;
 
   readonly isCreator = computed(() => {
     const tournament = this.tournament();
@@ -1574,9 +1592,11 @@ export class TournamentDetailComponent implements OnInit {
     this.manualPlayerSuccess.set(null);
     this.manualPlayerSearchResults.set([]);
     this.manualPlayerSelectedPersonId.set('');
+    this.manualPlayerSearchRequestId += 1;
+    this.isSearchingPersons.set(false);
     this.cancelManualPlayerSearch();
 
-    if (source === 'EXISTING_PERSON') {
+    if (source !== 'MANUAL') {
       this.manualPlayerFirstName.set('');
       this.manualPlayerLastName.set('');
       this.manualPlayerGender.set('');
@@ -1885,6 +1905,10 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   searchExistingPersons(): void {
+    this.searchManualPlayerCandidates();
+  }
+
+  searchManualPlayerCandidates(): void {
     const query = this.manualPlayerSearchQuery().trim();
     if (query.length < 2) {
       this.manualPlayerSearchResults.set([]);
@@ -1892,16 +1916,68 @@ export class TournamentDetailComponent implements OnInit {
       return;
     }
 
+    const requestId = ++this.manualPlayerSearchRequestId;
     this.isSearchingPersons.set(true);
     this.manualPlayerSearchError.set(null);
 
+    if (this.manualPlayerSource() === 'PROFESSIONAL') {
+      this.proPlayerService.searchProPlayers(query).subscribe({
+        next: players => {
+          if (requestId !== this.manualPlayerSearchRequestId) {
+            return;
+          }
+
+          this.manualPlayerSearchResults.set(players.slice(0, this.manualPlayerSearchResultLimit).map(player => ({
+            id: String(player.id),
+            tennisId: player.license,
+            firstName: player.firstName,
+            lastName: player.lastName,
+            nationality: 'ESP',
+            birthDate: player.birthDate,
+            gender: player.gender,
+            rankingPosition: player.rankingPosition,
+            ageCategory: player.ageCategory,
+            clubName: player.clubName
+          })));
+          this.manualPlayerSelectedPersonId.set('');
+          this.isSearchingPersons.set(false);
+        },
+        error: (error) => {
+          if (requestId !== this.manualPlayerSearchRequestId) {
+            return;
+          }
+
+          this.manualPlayerSearchResults.set([]);
+          this.manualPlayerSearchError.set(getApiErrorMessage(error, 'No se pudieron cargar los jugadores profesionales.'));
+          this.isSearchingPersons.set(false);
+        }
+      });
+      return;
+    }
+
     this.personService.searchPersons(query).subscribe({
       next: persons => {
-        this.manualPlayerSearchResults.set(persons);
+        if (requestId !== this.manualPlayerSearchRequestId) {
+          return;
+        }
+
+        this.manualPlayerSearchResults.set(persons.slice(0, this.manualPlayerSearchResultLimit).map(person => ({
+          id: person.id,
+          tennisId: person.tennisId,
+          firstName: person.firstName,
+          lastName: person.lastName,
+          nationality: person.nationality,
+          birthDate: person.birthDate,
+          gender: person.gender
+        })));
         this.manualPlayerSelectedPersonId.set('');
         this.isSearchingPersons.set(false);
       },
       error: (error) => {
+        if (requestId !== this.manualPlayerSearchRequestId) {
+          return;
+        }
+
         this.manualPlayerSearchResults.set([]);
         this.manualPlayerSearchError.set(getApiErrorMessage(error, 'No se pudieron cargar los jugadores existentes.'));
         this.isSearchingPersons.set(false);
@@ -1918,7 +1994,7 @@ export class TournamentDetailComponent implements OnInit {
     this.scheduleManualPlayerSearch();
   }
 
-  selectExistingPerson(person: PersonSearchResponse): void {
+  selectExistingPerson(person: ManualPlayerLookupResult): void {
     this.manualPlayerSelectedPersonId.set(person.id);
     this.manualPlayerSearchError.set(null);
     this.manualPlayerSuccess.set(null);
@@ -1950,6 +2026,14 @@ export class TournamentDetailComponent implements OnInit {
       }
 
       payload.personId = selectedPersonId;
+    } else if (playerSource === 'PROFESSIONAL') {
+      const selectedProPlayerId = Number(this.manualPlayerSelectedPersonId());
+      if (!selectedProPlayerId || Number.isNaN(selectedProPlayerId)) {
+        this.manualPlayerError.set('Selecciona un jugador profesional de la lista.');
+        return;
+      }
+
+      payload.proPlayerId = selectedProPlayerId;
     } else {
       payload.firstName = this.manualPlayerFirstName().trim();
       payload.lastName = this.manualPlayerLastName().trim() || null;
@@ -2331,7 +2415,7 @@ export class TournamentDetailComponent implements OnInit {
       case 'MANUAL':
         return 'Introduce los datos básicos del participante directamente en el formulario.';
       case 'PROFESSIONAL':
-        return 'Prepara la inscripción para enlazarla con la futura tabla de profesionales.';
+        return 'Busca en la base de profesionales cargada y selecciona el registro correcto.';
       default:
         return 'Selecciona la forma en la que quieres incorporar al jugador.';
     }
@@ -2350,6 +2434,14 @@ export class TournamentDetailComponent implements OnInit {
     return `${selected.firstName} ${selected.lastName ?? ''}`.trim();
   }
 
+  getManualPlayerMetaLabel(person: ManualPlayerLookupResult): string {
+    return [
+      person.rankingPosition ? `#${person.rankingPosition}` : null,
+      person.ageCategory,
+      person.clubName
+    ].filter(Boolean).join(' · ');
+  }
+
   private syncManualPlayerEventSelection(events: Array<{ eventId?: string | null }>): void {
     if (this.manualPlayerEventId() && events.some(event => event.eventId === this.manualPlayerEventId())) {
       return;
@@ -2363,13 +2455,15 @@ export class TournamentDetailComponent implements OnInit {
     this.cancelManualPlayerSearch();
 
     const query = this.manualPlayerSearchQuery().trim();
-    if (query.length < 2 || this.manualPlayerSource() !== 'EXISTING_PERSON') {
+    if (query.length < 2 || this.manualPlayerSource() === 'MANUAL') {
+      this.manualPlayerSearchRequestId += 1;
       this.manualPlayerSearchResults.set([]);
+      this.isSearchingPersons.set(false);
       return;
     }
 
     this.manualPlayerSearchDebounceHandle = setTimeout(() => {
-      this.searchExistingPersons();
+      this.searchManualPlayerCandidates();
     }, 300);
   }
 
@@ -2657,7 +2751,7 @@ export class TournamentDetailComponent implements OnInit {
       }
 
       if (nextMatch && match.id === nextMatch.id) {
-        return this.assignWinnerToNextMatch(match, updatedMatch.winnerId ?? null, currentRoundIndex);
+        return this.assignWinnerToNextMatch(match, updatedMatch.winnerId ?? null, currentRoundIndex, currentMatch.winnerId ?? null);
       }
 
       return match;
@@ -2798,7 +2892,7 @@ export class TournamentDetailComponent implements OnInit {
     return value ? value.slice(0, 16) : '';
   }
 
-  private getScheduleParticipantName(inscriptionId: string | undefined): string {
+  private getScheduleParticipantName(inscriptionId: string | null | undefined): string {
     if (!inscriptionId) {
       return 'Bye';
     }
@@ -2809,10 +2903,29 @@ export class TournamentDetailComponent implements OnInit {
   private assignWinnerToNextMatch(
     nextMatch: MatchResponse,
     winnerId: string | null,
-    currentRoundIndex: number
+    currentRoundIndex: number,
+    previousWinnerId: string | null
   ): MatchResponse {
     if (!winnerId) {
       return nextMatch;
+    }
+
+    if (previousWinnerId) {
+      if (nextMatch.firstInscriptionId === previousWinnerId) {
+        return {
+          ...nextMatch,
+          firstInscriptionId: winnerId,
+          secondInscriptionId: nextMatch.secondInscriptionId === winnerId ? null : nextMatch.secondInscriptionId
+        };
+      }
+
+      if (nextMatch.secondInscriptionId === previousWinnerId) {
+        return {
+          ...nextMatch,
+          firstInscriptionId: nextMatch.firstInscriptionId === winnerId ? null : nextMatch.firstInscriptionId,
+          secondInscriptionId: winnerId
+        };
+      }
     }
 
     if (nextMatch.firstInscriptionId === winnerId || nextMatch.secondInscriptionId === winnerId) {

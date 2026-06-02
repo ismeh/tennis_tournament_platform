@@ -159,6 +159,7 @@ CREATE TABLE matches (
     winner_id               UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
     round_number            INTEGER,
     next_match_id           UUID REFERENCES matches(id) ON DELETE SET NULL,
+    loser_next_match_id     UUID REFERENCES matches(id) ON DELETE SET NULL,
     scheduled_at            TIMESTAMP,
     schedule_type           VARCHAR(20),
     court_id                UUID REFERENCES courts(id) ON DELETE SET NULL,

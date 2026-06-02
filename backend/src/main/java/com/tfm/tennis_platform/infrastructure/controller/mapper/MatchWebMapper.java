@@ -19,5 +19,6 @@ public interface MatchWebMapper {
     @Mapping(target = "secondInscription.id", source = "secondInscriptionId")
     @Mapping(target = "winner.id", source = "winnerId")
     @Mapping(target = "nextMatch", ignore = true)
+    @Mapping(target = "loserNextMatch", ignore = true)
     Match toDomain(MatchResponse request);
 }

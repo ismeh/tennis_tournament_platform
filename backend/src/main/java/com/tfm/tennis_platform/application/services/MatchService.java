@@ -57,6 +57,9 @@ public class MatchService {
             throw new InvalidArgumentException("El ganador debe ser uno de los participantes del partido.");
         }
 
+        UUID loserId = resolveLoserId(currentMatch, winnerId);
+        UUID previousLoserId = resolveLoserId(currentMatch, currentMatch.getWinnerId());
+
         Match updatedCurrentMatch = currentMatch.toBuilder()
                 .winner(createInscriptionReference(winnerId))
                 .result(scoreString.trim())
@@ -68,8 +71,16 @@ public class MatchService {
             Match nextMatch = matchRepository.findById(currentMatch.getNextMatch().getId().toString())
                     .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getNextMatch().getId()));
 
-            Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, winnerId);
+            Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, winnerId, currentMatch.getWinnerId());
             matchRepository.save(updatedNextMatch);
+        }
+
+        if (currentMatch.getLoserNextMatch() != null && currentMatch.getLoserNextMatch().getId() != null && loserId != null) {
+            Match loserNextMatch = matchRepository.findById(currentMatch.getLoserNextMatch().getId().toString())
+                    .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getLoserNextMatch().getId()));
+
+            Match updatedLoserNextMatch = placeLoserInNextMatch(loserNextMatch, loserId, previousLoserId);
+            matchRepository.save(updatedLoserNextMatch);
         }
 
         return savedCurrentMatch;
@@ -138,7 +149,23 @@ public class MatchService {
         return matchRepository.save(updatedMatch);
     }
 
-    private Match placeWinnerInNextMatch(Match nextMatch, UUID winnerId) {
+    private Match placeWinnerInNextMatch(Match nextMatch, UUID winnerId, UUID previousWinnerId) {
+        if (previousWinnerId != null) {
+            if (previousWinnerId.equals(nextMatch.getFirstInscriptionId())) {
+                return nextMatch.toBuilder()
+                        .firstInscription(createInscriptionReference(winnerId))
+                        .secondInscription(winnerId.equals(nextMatch.getSecondInscriptionId()) ? null : nextMatch.getSecondInscription())
+                        .build();
+            }
+
+            if (previousWinnerId.equals(nextMatch.getSecondInscriptionId())) {
+                return nextMatch.toBuilder()
+                        .firstInscription(winnerId.equals(nextMatch.getFirstInscriptionId()) ? null : nextMatch.getFirstInscription())
+                        .secondInscription(createInscriptionReference(winnerId))
+                        .build();
+            }
+        }
+
         if (winnerId.equals(nextMatch.getFirstInscriptionId()) || winnerId.equals(nextMatch.getSecondInscriptionId())) {
             return nextMatch;
         }
@@ -156,6 +183,61 @@ public class MatchService {
         }
 
         throw new InvalidArgumentException("El siguiente partido ya tiene los dos participantes asignados.");
+    }
+
+    private Match placeLoserInNextMatch(Match nextMatch, UUID loserId, UUID previousLoserId) {
+        if (previousLoserId != null) {
+            if (previousLoserId.equals(nextMatch.getFirstInscriptionId())) {
+                return nextMatch.toBuilder()
+                        .firstInscription(createInscriptionReference(loserId))
+                        .secondInscription(loserId.equals(nextMatch.getSecondInscriptionId()) ? null : nextMatch.getSecondInscription())
+                        .build();
+            }
+
+            if (previousLoserId.equals(nextMatch.getSecondInscriptionId())) {
+                return nextMatch.toBuilder()
+                        .firstInscription(loserId.equals(nextMatch.getFirstInscriptionId()) ? null : nextMatch.getFirstInscription())
+                        .secondInscription(createInscriptionReference(loserId))
+                        .build();
+            }
+        }
+
+        if (loserId.equals(nextMatch.getFirstInscriptionId()) || loserId.equals(nextMatch.getSecondInscriptionId())) {
+            return nextMatch;
+        }
+
+        if (nextMatch.getFirstInscriptionId() == null) {
+            return nextMatch.toBuilder()
+                    .firstInscription(createInscriptionReference(loserId))
+                    .build();
+        }
+
+        if (nextMatch.getSecondInscriptionId() == null) {
+            return nextMatch.toBuilder()
+                    .secondInscription(createInscriptionReference(loserId))
+                    .build();
+        }
+
+        throw new InvalidArgumentException("El partido de consolación ya tiene los dos participantes asignados.");
+    }
+
+    private UUID resolveLoserId(Match match, UUID winnerId) {
+        if (match == null || winnerId == null) {
+            return null;
+        }
+
+        UUID firstInscriptionId = match.getFirstInscriptionId();
+        UUID secondInscriptionId = match.getSecondInscriptionId();
+
+        if (winnerId.equals(firstInscriptionId)) {
+            return secondInscriptionId;
+        }
+
+        if (winnerId.equals(secondInscriptionId)) {
+            return firstInscriptionId;
+        }
+
+        return null;
     }
 
     private Inscription createInscriptionReference(UUID inscriptionId) {

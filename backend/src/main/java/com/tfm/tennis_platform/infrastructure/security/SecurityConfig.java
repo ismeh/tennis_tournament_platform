@@ -54,6 +54,7 @@ public class SecurityConfig {
                     "/api/auth/confirm-email",
                     "/api/auth/resend-confirmation"
                 ).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/calendar/tournaments").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/tournaments/*/inscriptions").permitAll()
                         .anyRequest().authenticated()
                 )
