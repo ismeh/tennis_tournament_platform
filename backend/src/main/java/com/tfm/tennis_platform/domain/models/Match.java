@@ -18,6 +18,7 @@ public class Match {
     private final Inscription winner;
     private final Integer roundNumber;
     private final Match nextMatch;
+    private final Match loserNextMatch;
     private final LocalDateTime scheduledAt;
     private final ScheduleTimeType scheduleTimeType;
     private final UUID courtId;
@@ -42,5 +43,9 @@ public class Match {
 
     public UUID getWinnerId() {
         return winner != null ? winner.getId() : null;
+    }
+
+    public UUID getLoserNextMatchId() {
+        return loserNextMatch != null ? loserNextMatch.getId() : null;
     }
 }

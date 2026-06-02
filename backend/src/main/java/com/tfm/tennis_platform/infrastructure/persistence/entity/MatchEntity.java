@@ -44,6 +44,10 @@ public class MatchEntity {
         this.nextMatch = nextMatch;
     }
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loser_next_match_id")
+    private MatchEntity loserNextMatch;
+
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 

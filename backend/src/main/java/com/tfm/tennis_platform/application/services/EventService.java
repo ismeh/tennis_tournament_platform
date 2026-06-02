@@ -10,7 +10,9 @@ import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.domain.models.Stage;
 import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.domain.models.enums.DrawType;
 import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
+import com.tfm.tennis_platform.domain.models.enums.StageType;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.InscriptionRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
@@ -178,19 +180,12 @@ public class EventService {
                                                         scheduleIndex
                                         );
 
-                                        // Sort matches so that referenced nextMatch (higher rounds) are saved first
-                                        List<Match> sortedMatches = matches.stream()
-                                                        .sorted((a, b) -> Integer.compare(b.getRoundNumber() == null ? 0 : b.getRoundNumber(), a.getRoundNumber() == null ? 0 : a.getRoundNumber()))
-                                                        .toList();
-
-                                        // Persist matches in a separate transaction to avoid flush/order interactions
-                                        matchPersistenceService.saveMatches(sortedMatches);
-
-                                        log.debug("  After persisting matches for draw {} stagesCount={}", dr.getId(), ev.getStages() == null ? 0 : ev.getStages().size());
-
                                         matchesByDraw.put(dr.getId(), matches);
                                 }
                         }
+
+                        linkConsolationLoserDestinations(ev, matchesByDraw);
+                        matchPersistenceService.saveMatches(sortMatchesForPersistence(ev, matchesByDraw));
                 }
 
                 // Rebuild returned Tournament domain object with matches attached to draws
@@ -238,6 +233,102 @@ public class EventService {
                                 return returned;
     }
 
+    private void linkConsolationLoserDestinations(Event event, Map<UUID, List<Match>> matchesByDraw) {
+        if (event.getStages() == null || event.getStages().isEmpty()) {
+            return;
+        }
+
+        List<Draw> mainDraws = event.getStages().stream()
+                .filter(stage -> StageType.MAIN.equals(stage.getStageType()))
+                .flatMap(stage -> stage.getDraws().stream())
+                .filter(draw -> DrawType.ELIMINATION.equals(draw.getDrawType()))
+                .toList();
+
+        List<Draw> consolationDraws = event.getStages().stream()
+                .filter(stage -> StageType.CONSOLATION.equals(stage.getStageType()))
+                .flatMap(stage -> stage.getDraws().stream())
+                .filter(draw -> DrawType.CONSOLATION.equals(draw.getDrawType()))
+                .toList();
+
+        int pairs = Math.min(mainDraws.size(), consolationDraws.size());
+        for (int index = 0; index < pairs; index++) {
+            Draw mainDraw = mainDraws.get(index);
+            Draw consolationDraw = consolationDraws.get(index);
+            List<Match> sourceMatches = firstRoundContestedMatches(matchesByDraw.get(mainDraw.getId()));
+            List<Match> targetMatches = firstRoundMatches(matchesByDraw.get(consolationDraw.getId()));
+
+            if (sourceMatches.isEmpty() || targetMatches.isEmpty()) {
+                continue;
+            }
+
+            List<Match> linkedSourceMatches = new java.util.ArrayList<>(matchesByDraw.get(mainDraw.getId()));
+            int limit = Math.min(sourceMatches.size(), targetMatches.size() * 2);
+
+            for (int sourceIndex = 0; sourceIndex < limit; sourceIndex++) {
+                Match sourceMatch = sourceMatches.get(sourceIndex);
+                Match targetMatch = targetMatches.get(sourceIndex / 2);
+                int originalIndex = linkedSourceMatches.indexOf(sourceMatch);
+
+                if (originalIndex >= 0) {
+                    linkedSourceMatches.set(originalIndex, sourceMatch.toBuilder()
+                            .loserNextMatch(targetMatch)
+                            .build());
+                }
+            }
+
+            matchesByDraw.put(mainDraw.getId(), linkedSourceMatches);
+        }
+    }
+
+    private List<Match> sortMatchesForPersistence(Event event, Map<UUID, List<Match>> matchesByDraw) {
+        if (event.getStages() == null) {
+            return List.of();
+        }
+
+        List<Draw> draws = event.getStages().stream()
+                .flatMap(stage -> stage.getDraws().stream())
+                .toList();
+
+        List<Match> sortedMatches = new java.util.ArrayList<>();
+        draws.stream()
+                .filter(draw -> DrawType.CONSOLATION.equals(draw.getDrawType()))
+                .forEach(draw -> sortedMatches.addAll(sortMatchesByRoundDescending(matchesByDraw.get(draw.getId()))));
+        draws.stream()
+                .filter(draw -> !DrawType.CONSOLATION.equals(draw.getDrawType()))
+                .forEach(draw -> sortedMatches.addAll(sortMatchesByRoundDescending(matchesByDraw.get(draw.getId()))));
+
+        return sortedMatches;
+    }
+
+    private List<Match> sortMatchesByRoundDescending(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return List.of();
+        }
+
+        return matches.stream()
+                .sorted((a, b) -> Integer.compare(
+                        b.getRoundNumber() == null ? 0 : b.getRoundNumber(),
+                        a.getRoundNumber() == null ? 0 : a.getRoundNumber()
+                ))
+                .toList();
+    }
+
+    private List<Match> firstRoundContestedMatches(List<Match> matches) {
+        return firstRoundMatches(matches).stream()
+                .filter(match -> match.getFirstInscriptionId() != null && match.getSecondInscriptionId() != null)
+                .toList();
+    }
+
+    private List<Match> firstRoundMatches(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return List.of();
+        }
+
+        return matches.stream()
+                .filter(match -> match.getRoundNumber() != null && match.getRoundNumber() == 1)
+                .toList();
+    }
+
     private List<Match> scheduleGeneratedMatches(
             List<Match> matches,
             List<Court> courts,
@@ -255,10 +346,12 @@ public class EventService {
                     }
 
                     int index = scheduleIndex.getAndIncrement();
-                    Court court = courts.get(index % courts.size());
+                    int courtIndex = index % courts.size();
+                    int courtSlot = index / courts.size();
+                    Court court = courts.get(courtIndex);
                     return match.toBuilder()
-                            .scheduledAt(firstMatchStart.plusHours(index))
-                            .scheduleTimeType(ScheduleTimeType.EXACT)
+                            .scheduledAt(firstMatchStart.plusHours(courtSlot))
+                            .scheduleTimeType(courtSlot == 0 ? ScheduleTimeType.EXACT : ScheduleTimeType.NOT_BEFORE)
                             .courtId(court.getId())
                             .court(court.getName())
                             .build();
