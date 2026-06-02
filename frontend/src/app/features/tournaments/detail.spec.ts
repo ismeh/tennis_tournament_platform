@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { PersonService } from '../../data/services/person.service';
+import { ProPlayerService } from '../../data/services/pro-player.service';
 import { MemberService } from '../../data/services/member.service';
 import { TournamentService } from '../../data/services/tournament.service';
 import { TournamentDetailComponent } from './detail';
@@ -14,6 +15,7 @@ describe('TournamentDetailComponent', () => {
   let memberServiceSpy: jasmine.SpyObj<MemberService>;
   let authServiceSpy: jasmine.SpyObj<AuthService>;
   let personServiceSpy: jasmine.SpyObj<PersonService>;
+  let proPlayerServiceSpy: jasmine.SpyObj<ProPlayerService>;
 
   beforeEach(async () => {
     tournamentServiceSpy = jasmine.createSpyObj<TournamentService>('TournamentService', [
@@ -28,11 +30,13 @@ describe('TournamentDetailComponent', () => {
       'createCourt',
       'updateCourt',
       'deleteCourt',
+      'submitMatchResult',
       'scheduleMatch'
     ]);
     memberServiceSpy = jasmine.createSpyObj<MemberService>('MemberService', ['getMemberByEmail', 'getMyProfile']);
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUserEmail']);
     personServiceSpy = jasmine.createSpyObj<PersonService>('PersonService', ['searchPersons']);
+    proPlayerServiceSpy = jasmine.createSpyObj<ProPlayerService>('ProPlayerService', ['searchProPlayers']);
 
     tournamentServiceSpy.getEventCatalog.and.returnValue(of([
       {
@@ -211,6 +215,20 @@ describe('TournamentDetailComponent', () => {
         gender: 'MALE'
       }
     ]));
+    proPlayerServiceSpy.searchProPlayers.and.returnValue(of([
+      {
+        id: 42,
+        license: 'RFET-42',
+        fullName: 'ALCARAZ, CARLOS',
+        firstName: 'CARLOS',
+        lastName: 'ALCARAZ',
+        rankingPosition: 1,
+        ageCategory: 'Absoluta',
+        clubName: 'Club Central',
+        birthDate: '2003-05-05',
+        gender: 'MALE'
+      }
+    ]));
     memberServiceSpy.getMemberByEmail.and.returnValue(of({
       id: 'member-id',
       email: 'organizer@example.com',
@@ -240,6 +258,7 @@ describe('TournamentDetailComponent', () => {
         { provide: MemberService, useValue: memberServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
         { provide: PersonService, useValue: personServiceSpy },
+        { provide: ProPlayerService, useValue: proPlayerServiceSpy },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -266,6 +285,93 @@ describe('TournamentDetailComponent', () => {
     expect(component.isLoading()).toBeFalse();
     expect(component.isLoadingEvents()).toBeFalse();
     expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledWith('tournament-id', undefined);
+  });
+
+  it('should replace the previous winner in the next round when editing a match result', () => {
+    tournamentServiceSpy.submitMatchResult.and.returnValue(of({
+      id: 'match-1',
+      firstInscriptionId: 'inscription-1',
+      secondInscriptionId: 'inscription-2',
+      winnerId: 'inscription-2',
+      roundNumber: 1,
+      scheduledAt: null,
+      scheduleTimeType: null,
+      courtId: null,
+      court: null,
+      result: '7-5 6-4'
+    }));
+    component.tournament.set({
+      ...component.tournament()!,
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          gender: 'MALE',
+          stages: [
+            {
+              id: 'stage-1',
+              eventId: 'event-1',
+              stageType: 'SINGLE_ELIMINATION',
+              order: 1,
+              description: 'Principal',
+              draws: [
+                {
+                  id: 'draw-1',
+                  stageId: 'stage-1',
+                  drawType: 'ELIMINATION',
+                  label: 'Principal',
+                  matches: [
+                    {
+                      id: 'match-1',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-2',
+                      winnerId: 'inscription-1',
+                      roundNumber: 1,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: '6-4 6-4'
+                    },
+                    {
+                      id: 'match-2',
+                      firstInscriptionId: 'inscription-3',
+                      secondInscriptionId: 'inscription-4',
+                      winnerId: 'inscription-3',
+                      roundNumber: 1,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: '6-2 6-2'
+                    },
+                    {
+                      id: 'match-3',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-3',
+                      winnerId: null,
+                      roundNumber: 2,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: null
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    component.onMatchResultSaved({ matchId: 'match-1', winnerId: 'inscription-2', result: '7-5 6-4' });
+
+    const matches = component.tournament()!.events![0].stages![0].draws![0].matches!;
+    const nextMatch = matches.find(match => match.id === 'match-3')!;
+    expect(nextMatch.firstInscriptionId).toBe('inscription-2');
+    expect(nextMatch.secondInscriptionId).toBe('inscription-3');
   });
 
   it('should filter and sort match schedule rows', () => {
@@ -570,6 +676,26 @@ describe('TournamentDetailComponent', () => {
     expect(component.manualPlayerSuccess()).toContain('Jugador añadido');
   });
 
+  it('should search professional players and add a professional inscription', () => {
+    component.setActiveSection('inscriptions');
+    component.onManualPlayerSourceChange('PROFESSIONAL');
+    component.manualPlayerSearchQuery.set('Carlos');
+
+    component.searchManualPlayerCandidates();
+
+    expect(proPlayerServiceSpy.searchProPlayers).toHaveBeenCalledWith('Carlos');
+    expect(component.manualPlayerSearchResults()[0].id).toBe('42');
+
+    component.selectExistingPerson(component.manualPlayerSearchResults()[0]);
+    component.manualPlayerEventId.set('event-1');
+    component.submitManualPlayer();
+
+    expect(tournamentServiceSpy.addManualInscription).toHaveBeenCalledWith('tournament-id', 'event-1', {
+      playerSource: 'PROFESSIONAL',
+      proPlayerId: 42
+    });
+  });
+
   it('should debounce the existing-player search while typing', fakeAsync(() => {
     component.onManualPlayerSourceChange('EXISTING_PERSON');
 
@@ -583,4 +709,22 @@ describe('TournamentDetailComponent', () => {
     expect(personServiceSpy.searchPersons).toHaveBeenCalledWith('Ro');
     expect(component.manualPlayerSearchResults().length).toBe(1);
   }));
+
+  it('should cap predictive player search results at ten entries', () => {
+    personServiceSpy.searchPersons.and.returnValue(of(Array.from({ length: 12 }, (_, index) => ({
+      id: `person-${index}`,
+      tennisId: `LIC-${index}`,
+      firstName: `Player ${index}`,
+      lastName: 'Test',
+      nationality: 'ESP',
+      birthDate: '2000-01-01',
+      gender: 'MALE'
+    }))));
+
+    component.onManualPlayerSourceChange('EXISTING_PERSON');
+    component.manualPlayerSearchQuery.set('Player');
+    component.searchManualPlayerCandidates();
+
+    expect(component.manualPlayerSearchResults().length).toBe(10);
+  });
 });

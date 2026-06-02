@@ -46,6 +46,43 @@ export interface TournamentResponse {
   events?: TournamentEventResponse[];
 }
 
+export interface TournamentCalendarFilters {
+  from?: string | null;
+  to?: string | null;
+  surface?: TournamentSurfaceCategory | null;
+  location?: string | null;
+}
+
+export interface TournamentCalendarResponse {
+  id: string;
+  formalName: string;
+  playStartDate: string;
+  playEndDate: string;
+  tournamentStartTime?: string | null;
+  location: string;
+  surfaceCategory: TournamentSurfaceCategory;
+  maxPlayers: number;
+  status: TournamentStatus;
+}
+
+export interface PlayerMatchCalendarResponse {
+  tournamentId: string;
+  tournamentName: string;
+  eventId: string;
+  eventName: string;
+  matchId: string;
+  roundNumber: number;
+  scheduledAt: string;
+  scheduleTimeType?: MatchScheduleTimeType | null;
+  courtId?: string | null;
+  court?: string | null;
+  firstInscriptionId?: string | null;
+  firstParticipantName: string;
+  secondInscriptionId?: string | null;
+  secondParticipantName: string;
+  result?: string | null;
+}
+
 export interface CourtResponse {
   id: string;
   tournamentId: string;
@@ -87,8 +124,8 @@ export interface DrawResponse {
 
 export interface MatchResponse {
   id: string;
-  firstInscriptionId: string;
-  secondInscriptionId: string;
+  firstInscriptionId: string | null;
+  secondInscriptionId: string | null;
   winnerId?: string | null;
   roundNumber: number;
   scheduledAt?: string | null;
@@ -182,6 +219,7 @@ export interface ManualEventInscriptionRequest {
   birthDate?: string | null;
   nationality?: string | null;
   tennisId?: string | null;
+  proPlayerId?: number | null;
 }
 
 export interface EventInscriptionResponse {
