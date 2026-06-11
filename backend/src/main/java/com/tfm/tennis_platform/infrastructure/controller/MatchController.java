@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,13 +28,14 @@ public class MatchController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<MatchResponse> update(@PathVariable UUID id, @RequestBody MatchResponse request) {
+    public ResponseEntity<MatchResponse> update(@PathVariable UUID id, @RequestBody MatchResponse request, Principal principal) {
         Match match = matchMapper.toDomain(request);
         Match existingMatch = matchService.findById(id.toString()).orElse(null);
         // Note: Using id from path variable
         Match updatedMatch = Match.builder()
                 .id(id)
-            .drawId(existingMatch != null ? existingMatch.getDrawId() : null)
+                .tournament(existingMatch != null ? existingMatch.getTournament() : null)
+                .drawId(existingMatch != null ? existingMatch.getDrawId() : null)
                 .firstInscription(match.getFirstInscription())
                 .secondInscription(match.getSecondInscription())
                 .winner(match.getWinner())
@@ -45,6 +47,6 @@ public class MatchController {
                 .loserNextMatch(existingMatch != null ? existingMatch.getLoserNextMatch() : null)
 	                .build();
         
-        return ResponseEntity.ok(matchMapper.toResponse(matchService.update(updatedMatch)));
+        return ResponseEntity.ok(matchMapper.toResponse(matchService.update(updatedMatch, principal.getName())));
     }
 }

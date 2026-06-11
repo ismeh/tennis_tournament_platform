@@ -9,14 +9,19 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
+import com.tfm.tennis_platform.domain.events.TournamentUpdateEvent;
 import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
+import com.tfm.tennis_platform.domain.port.out.TournamentUpdatePublisher;
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -26,20 +31,34 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final TournamentRepository tournamentRepository;
     private final CourtRepository courtRepository;
+    private final TournamentUpdatePublisher tournamentUpdatePublisher;
     private final TransactionTemplate transactionTemplate;
+    private final TournamentService tournamentService;
     private static final int MAX_CONCURRENT_MODIFICATION_ATTEMPTS = 3;
 
     public Match update(Match match) {
         return matchRepository.save(match);
     }
 
-    public Match recordResult(UUID tournamentId, UUID matchId, UUID winnerId, String scoreString) {
-        return retryOnConcurrentModification(() -> transactionTemplate.execute(status ->
-                doRecordResult(tournamentId, matchId, winnerId, scoreString)
-        ));
+    public Match update(Match match, String requesterEmail) {
+        UUID tournamentId = match.getTournamentId();
+        if (tournamentId == null) {
+            throw new InvalidArgumentException("El torneo es obligatorio.");
+        }
+
+        tournamentService.assertTournamentAdmin(tournamentId, requesterEmail);
+        return matchRepository.save(match);
     }
 
-    private Match doRecordResult(UUID tournamentId, UUID matchId, UUID winnerId, String scoreString) {
+    public Match recordResult(UUID tournamentId, UUID matchId, UUID winnerId, String scoreString, String requesterEmail) {
+        Match updatedMatch = retryOnConcurrentModification(() -> transactionTemplate.execute(status ->
+                doRecordResult(tournamentId, matchId, winnerId, scoreString, requesterEmail)
+        ));
+        tournamentUpdatePublisher.publish(TournamentUpdateEvent.matchResultUpdated(tournamentId, matchId));
+        return updatedMatch;
+    }
+
+    private Match doRecordResult(UUID tournamentId, UUID matchId, UUID winnerId, String scoreString, String requesterEmail) {
         if (tournamentId == null) {
             throw new InvalidArgumentException("El torneo es obligatorio.");
         }
@@ -52,6 +71,7 @@ public class MatchService {
         if (scoreString == null || scoreString.isBlank()) {
             throw new InvalidArgumentException("Indica el resultado del partido.");
         }
+        tournamentService.assertTournamentAdmin(tournamentId, requesterEmail);
 
         Match currentMatch = matchRepository.findByIdAndTournamentId(matchId, tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
@@ -97,13 +117,15 @@ public class MatchService {
         return matchRepository.findById(id);
     }
 
-    public Match schedule(UUID tournamentId, UUID matchId, UUID courtId, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType) {
-        return retryOnConcurrentModification(() -> transactionTemplate.execute(status ->
-                doSchedule(tournamentId, matchId, courtId, scheduledAt, scheduleTimeType)
+    public Match schedule(UUID tournamentId, UUID matchId, UUID courtId, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType, boolean cascade, String requesterEmail) {
+        Match updatedMatch = retryOnConcurrentModification(() -> transactionTemplate.execute(status ->
+                doSchedule(tournamentId, matchId, courtId, scheduledAt, scheduleTimeType, cascade, requesterEmail)
         ));
+        tournamentUpdatePublisher.publish(TournamentUpdateEvent.matchScheduleUpdated(tournamentId, matchId));
+        return updatedMatch;
     }
 
-    private Match doSchedule(UUID tournamentId, UUID matchId, UUID courtId, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType) {
+    private Match doSchedule(UUID tournamentId, UUID matchId, UUID courtId, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType, boolean cascade, String requesterEmail) {
         if (tournamentId == null) {
             throw new InvalidArgumentException("El torneo es obligatorio.");
         }
@@ -116,6 +138,7 @@ public class MatchService {
         if (scheduledAt == null) {
             throw new InvalidArgumentException("Indica la fecha y hora del partido.");
         }
+        tournamentService.assertTournamentAdmin(tournamentId, requesterEmail);
 
         ScheduleTimeType resolvedType = scheduleTimeType != null ? scheduleTimeType : ScheduleTimeType.EXACT;
         var tournament = tournamentRepository.findById(tournamentId)
@@ -139,22 +162,94 @@ public class MatchService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
 
+        List<Match> matchesToCascade = cascade ? resolveCascadeMatches(tournamentMatches, currentMatch) : List.of(currentMatch);
+        Set<UUID> cascadeMatchIds = matchesToCascade.stream()
+                .map(Match::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
         boolean courtBusy = tournamentMatches.stream()
-                .filter(match -> !matchId.equals(match.getId()))
+                .filter(match -> !cascadeMatchIds.contains(match.getId()))
                 .anyMatch(match -> isSameCourtSlot(match, courtId, scheduledAt));
 
         if (courtBusy) {
             throw new InvalidArgumentException("La pista ya está ocupada en esa hora.");
         }
 
-        Match updatedMatch = currentMatch.toBuilder()
-                .scheduledAt(scheduledAt)
-                .scheduleTimeType(resolvedType)
-                .courtId(court.getId())
-                .court(court.getName())
-                .build();
+        if (!cascade || currentMatch.getScheduledAt() == null) {
+            Match updatedMatch = currentMatch.toBuilder()
+                    .scheduledAt(scheduledAt)
+                    .scheduleTimeType(resolvedType)
+                    .courtId(court.getId())
+                    .court(court.getName())
+                    .build();
 
-        return matchRepository.save(updatedMatch);
+            return matchRepository.save(updatedMatch);
+        }
+
+        Duration shift = Duration.between(currentMatch.getScheduledAt(), scheduledAt);
+        List<Match> updatedMatches = matchesToCascade.stream()
+                .map(match -> updateCascadeMatch(match, currentMatch, court, scheduledAt, resolvedType, shift))
+                .toList();
+        validateCascadeDates(updatedMatches, tournament.getPlayPeriod().startDate(), tournament.getPlayPeriod().endDate());
+        validateCascadeCourtAvailability(tournamentMatches, updatedMatches, cascadeMatchIds);
+
+        return matchRepository.saveAll(updatedMatches).stream()
+                .filter(match -> matchId.equals(match.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
+    }
+
+    private List<Match> resolveCascadeMatches(List<Match> tournamentMatches, Match currentMatch) {
+        if (currentMatch.getScheduledAt() == null) {
+            return List.of(currentMatch);
+        }
+
+        return tournamentMatches.stream()
+                .filter(match -> match.getScheduledAt() != null)
+                .filter(match -> !match.getScheduledAt().isBefore(currentMatch.getScheduledAt()))
+                .sorted(Comparator
+                        .comparing(Match::getScheduledAt)
+                        .thenComparing(match -> match.getRoundNumber() != null ? match.getRoundNumber() : Integer.MAX_VALUE)
+                        .thenComparing(match -> match.getBracketPosition() != null ? match.getBracketPosition() : Integer.MAX_VALUE)
+                        .thenComparing(Match::getId))
+                .toList();
+    }
+
+    private Match updateCascadeMatch(Match match, Match currentMatch, Court court, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType, Duration shift) {
+        if (match.getId().equals(currentMatch.getId())) {
+            return match.toBuilder()
+                    .scheduledAt(scheduledAt)
+                    .scheduleTimeType(scheduleTimeType)
+                    .courtId(court.getId())
+                    .court(court.getName())
+                    .build();
+        }
+
+        return match.toBuilder()
+                .scheduledAt(match.getScheduledAt().plus(shift))
+                .build();
+    }
+
+    private void validateCascadeCourtAvailability(List<Match> tournamentMatches, List<Match> updatedMatches, Set<UUID> cascadeMatchIds) {
+        for (Match updatedMatch : updatedMatches) {
+            boolean courtBusy = tournamentMatches.stream()
+                    .filter(match -> !cascadeMatchIds.contains(match.getId()))
+                    .anyMatch(match -> isSameCourtSlot(match, updatedMatch.getCourtId(), updatedMatch.getScheduledAt()));
+
+            if (courtBusy) {
+                throw new InvalidArgumentException("La replanificación en cascada ocupa una pista que ya tiene otro partido asignado.");
+            }
+        }
+    }
+
+    private void validateCascadeDates(List<Match> updatedMatches, java.time.LocalDate playStartDate, java.time.LocalDate playEndDate) {
+        boolean outsidePlayPeriod = updatedMatches.stream()
+                .anyMatch(match -> match.getScheduledAt().toLocalDate().isBefore(playStartDate)
+                        || match.getScheduledAt().toLocalDate().isAfter(playEndDate));
+
+        if (outsidePlayPeriod) {
+            throw new InvalidArgumentException("La replanificación en cascada debe quedar dentro del periodo de juego del torneo.");
+        }
     }
 
     private Match retryOnConcurrentModification(java.util.function.Supplier<Match> operation) {
@@ -318,6 +413,6 @@ public class MatchService {
     }
 
     private boolean isSameCourtSlot(Match match, UUID courtId, LocalDateTime scheduledAt) {
-        return courtId.equals(match.getCourtId()) && scheduledAt.equals(match.getScheduledAt());
+        return courtId != null && scheduledAt != null && courtId.equals(match.getCourtId()) && scheduledAt.equals(match.getScheduledAt());
     }
 }

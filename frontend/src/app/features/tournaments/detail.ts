@@ -1,7 +1,8 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { PersonService } from '../../data/services/person.service';
 import { ProPlayerService } from '../../data/services/pro-player.service';
@@ -30,6 +31,7 @@ import {
   TournamentStageType
 } from '../../data/interfaces/tournament.model';
 import { MemberService } from '../../data/services/member.service';
+import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
 import { TournamentService } from '../../data/services/tournament.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { StagesComponent } from './components/stages.component';
@@ -58,6 +60,7 @@ type MatchScheduleDraft = {
   courtId: string;
   scheduledAt: string;
   scheduleTimeType: MatchScheduleTimeType;
+  cascade: boolean;
 };
 
 type TournamentMatchScheduleRow = {
@@ -957,7 +960,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   </div>
                 }
 
-                @if (isCourtsPanelExpanded() && selectedCourt()) {
+                @if (isCreator() && isCourtsPanelExpanded() && selectedCourt()) {
                   <div class="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
                     <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
                       <label class="block flex-1">
@@ -1002,6 +1005,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                 }
               </div>
 
+              @if (isCreator()) {
               <div class="mt-5 rounded-2xl border border-neutral-200 bg-white p-4">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
@@ -1140,6 +1144,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                               Pista <span>{{ getMatchScheduleSortIndicator('court') }}</span>
                             </button>
                           </th>
+                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Cascada</th>
                           <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Acción</th>
                         </tr>
                       </thead>
@@ -1188,6 +1193,18 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                               </select>
                             </td>
                             <td class="px-3 py-3">
+                              <label class="inline-flex items-center gap-2 text-xs font-semibold text-neutral-700">
+                                <input
+                                  type="checkbox"
+                                  class="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                                  [ngModel]="getMatchScheduleDraft(row.match).cascade"
+                                  (ngModelChange)="updateMatchScheduleCascade(row.match, $event)"
+                                  [name]="'cascade-' + row.match.id"
+                                />
+                                Replanificar siguientes
+                              </label>
+                            </td>
+                            <td class="px-3 py-3">
                               <button
                                 type="button"
                                 class="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
@@ -1205,6 +1222,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   }
                 }
               </div>
+              }
 
               @if (tournament()?.events && (tournament()!.events!.length > 0)) {
                 <div class="mt-5 rounded-2xl border border-neutral-200 bg-white p-4">
@@ -1256,6 +1274,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             [participantNamesInput]="participantNamesByInscriptionId()"
                             [participantOrderInput]="participantOrderByInscriptionId()"
                             [courtsInput]="courts()"
+                            [canManageInput]="isCreator()"
                             [generatingDrawsForStageIdInput]="generatingDrawsStageId()"
                             [drawGenerationFeedbackInput]="drawGenerationFeedbackByStageId()"
                             (generateDraws)="onGenerateDraws($event, event.eventId!)"
@@ -1286,9 +1305,10 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
     </section>
   `
 })
-export class TournamentDetailComponent implements OnInit {
+export class TournamentDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly tournamentService = inject(TournamentService);
+  private readonly tournamentLiveUpdatesService = inject(TournamentLiveUpdatesService);
   private readonly memberService = inject(MemberService);
   private readonly authService = inject(AuthService);
   private readonly personService = inject(PersonService);
@@ -1373,6 +1393,8 @@ export class TournamentDetailComponent implements OnInit {
   readonly savingResultMatchIds = signal<Set<string>>(new Set());
   readonly savingResultMatchId = computed(() => Array.from(this.savingResultMatchIds())[0] ?? null);
   readonly savingScheduleMatchId = signal<string | null>(null);
+  readonly savingScheduleCascadeMatchId = signal<string | null>(null);
+  readonly hasPendingLiveRefresh = signal(false);
   readonly matchScheduleDrafts = signal<Record<string, MatchScheduleDraft>>({});
   readonly matchScheduleEventFilter = signal('');
   readonly matchScheduleRoundFilter = signal('');
@@ -1401,6 +1423,7 @@ export class TournamentDetailComponent implements OnInit {
   private readonly manualPlayerSearchResultLimit = 10;
   private manualPlayerSearchDebounceHandle: ReturnType<typeof setTimeout> | null = null;
   private manualPlayerSearchRequestId = 0;
+  private liveUpdatesSubscription: Subscription | null = null;
 
   readonly isCreator = computed(() => {
     const tournament = this.tournament();
@@ -1628,6 +1651,12 @@ export class TournamentDetailComponent implements OnInit {
 
     this.resolveCurrentMemberId();
     this.loadTournament(tournamentId);
+    this.startTournamentLiveUpdates(tournamentId);
+  }
+
+  ngOnDestroy(): void {
+    this.liveUpdatesSubscription?.unsubscribe();
+    this.cancelManualPlayerSearch();
   }
 
   setActiveSection(section: TournamentDetailSection): void {
@@ -1798,7 +1827,7 @@ export class TournamentDetailComponent implements OnInit {
   canUpdateStatus(): boolean {
     const tournament = this.tournament();
     const selectedStatus = this.selectedStatus();
-    if (!tournament || !selectedStatus || this.isUpdatingStatus()) {
+    if (!this.isCreator() || !tournament || !selectedStatus || this.isUpdatingStatus()) {
       return false;
     }
 
@@ -1806,6 +1835,11 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   updateTournamentStatus(): void {
+    if (!this.isCreator()) {
+      this.actionError.set('Solo el administrador del torneo puede cambiar el estado.');
+      return;
+    }
+
     const currentTournament = this.tournament();
     const nextStatus = this.selectedStatus();
 
@@ -1837,6 +1871,11 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   saveTournamentEvents(): void {
+    if (!this.isCreator()) {
+      this.eventsErrorMessage.set('Solo el administrador del torneo puede guardar pruebas.');
+      return;
+    }
+
     const currentTournament = this.tournament();
     const selectedEvents = this.selectedEvents();
 
@@ -2055,6 +2094,11 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   submitManualPlayer(): void {
+    if (!this.isCreator()) {
+      this.manualPlayerError.set('Solo el administrador del torneo puede añadir jugadores manualmente.');
+      return;
+    }
+
     const currentTournament = this.tournament();
     const eventId = this.manualPlayerEventId().trim() || this.selectedTournamentInscriptionEventId() || '';
 
@@ -2122,6 +2166,11 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   createCourt(): void {
+    if (!this.isCreator()) {
+      this.courtError.set('Solo el administrador del torneo puede crear pistas.');
+      return;
+    }
+
     const currentTournament = this.tournament();
     const name = this.newCourtName().trim();
 
@@ -2206,6 +2255,11 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   updateSelectedCourt(): void {
+    if (!this.isCreator()) {
+      this.courtError.set('Solo el administrador del torneo puede editar pistas.');
+      return;
+    }
+
     const currentTournament = this.tournament();
     const selectedCourt = this.selectedCourt();
     const name = this.selectedCourtName().trim();
@@ -2237,6 +2291,11 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   deleteSelectedCourt(): void {
+    if (!this.isCreator()) {
+      this.courtError.set('Solo el administrador del torneo puede eliminar pistas.');
+      return;
+    }
+
     const currentTournament = this.tournament();
     const selectedCourt = this.selectedCourt();
 
@@ -2289,6 +2348,61 @@ export class TournamentDetailComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
+
+  private startTournamentLiveUpdates(tournamentId: string): void {
+    this.liveUpdatesSubscription?.unsubscribe();
+    this.liveUpdatesSubscription = this.tournamentLiveUpdatesService.watchTournament(tournamentId).subscribe({
+      next: event => {
+        const currentTournament = this.tournament();
+        if (currentTournament && event.tournamentId !== currentTournament.id) {
+          return;
+        }
+
+        if (this.isLiveUpdateBlockedByLocalSave(event.matchId)) {
+          this.hasPendingLiveRefresh.set(true);
+          return;
+        }
+
+        this.refreshTournamentAfterLiveUpdate(tournamentId);
+      }
+    });
+  }
+
+  private refreshTournamentAfterLiveUpdate(tournamentId: string): void {
+    this.hasPendingLiveRefresh.set(false);
+    this.actionMessage.set('Hay cambios en el cuadro, sincronizando...');
+
+    this.tournamentService.getTournamentById(tournamentId).subscribe({
+      next: tournament => {
+        this.tournament.set(tournament);
+        this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
+        this.initializeInscriptionSelection();
+        this.syncManualPlayerEventSelection(tournament.events ?? []);
+        this.selectedStatus.set(this.getDefaultStatusSelection(tournament.status));
+        this.actionMessage.set('Cuadro actualizado');
+      },
+      error: error => {
+        this.actionError.set(getApiErrorMessage(error, 'No se pudo sincronizar el cuadro actualizado.'));
+      }
+    });
+  }
+
+  private isLiveUpdateBlockedByLocalSave(matchId: string): boolean {
+    return this.isSavingResultMatch(matchId) || this.savingScheduleMatchId() === matchId || this.savingScheduleCascadeMatchId() !== null;
+  }
+
+  private flushPendingLiveRefresh(): void {
+    const currentTournament = this.tournament();
+    if (!currentTournament || !this.hasPendingLiveRefresh()) {
+      return;
+    }
+
+    if (this.savingResultMatchIds().size > 0 || this.savingScheduleMatchId() || this.savingScheduleCascadeMatchId()) {
+      return;
+    }
+
+    this.refreshTournamentAfterLiveUpdate(currentTournament.id);
   }
 
   private loadCourts(tournamentId: string): void {
@@ -2544,6 +2658,11 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   onGenerateDraws(event: { tournamentId: string; stageId: string }, eventId: string): void {
+    if (!this.isCreator()) {
+      this.actionError.set('Solo el administrador del torneo puede generar cuadros.');
+      return;
+    }
+
     this.generatingDrawsStageId.set(event.stageId);
     this.setDrawGenerationFeedback(event.stageId, null);
     this.actionMessage.set(null);
@@ -2600,6 +2719,11 @@ export class TournamentDetailComponent implements OnInit {
   }
 
   onMatchResultSaved(event: { matchId: string; winnerId: string; result: string }): void {
+    if (!this.isCreator()) {
+      this.actionError.set('Solo el administrador del torneo puede registrar resultados.');
+      return;
+    }
+
     const currentTournament = this.tournament();
     if (!currentTournament) {
       return;
@@ -2636,12 +2760,14 @@ export class TournamentDetailComponent implements OnInit {
         }
         this.actionMessage.set('Resultado guardado y cuadro actualizado');
         this.unmarkResultMatchAsSaving(event.matchId);
+        this.flushPendingLiveRefresh();
       },
       error: (error) => {
         const rolledBackTournament = this.rollbackMatchResultInTournament(this.tournament() ?? currentTournament, previousTournament, event.matchId);
         this.tournament.set(rolledBackTournament ?? previousTournament);
         this.actionError.set(getApiErrorMessage(error, 'No se pudo guardar el resultado del partido.'));
         this.unmarkResultMatchAsSaving(event.matchId);
+        this.flushPendingLiveRefresh();
       }
     });
   }
@@ -2651,7 +2777,13 @@ export class TournamentDetailComponent implements OnInit {
     courtId: string;
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
+    cascade?: boolean;
   }): void {
+    if (!this.isCreator()) {
+      this.actionError.set('Solo el administrador del torneo puede programar partidos.');
+      return;
+    }
+
     const currentTournament = this.tournament();
     if (!currentTournament) {
       return;
@@ -2660,26 +2792,38 @@ export class TournamentDetailComponent implements OnInit {
     this.actionError.set(null);
     this.actionMessage.set(null);
     this.savingScheduleMatchId.set(event.matchId);
+    if (event.cascade) {
+      this.savingScheduleCascadeMatchId.set(event.matchId);
+    }
 
     this.tournamentService.scheduleMatch(currentTournament.id, event.matchId, {
       courtId: event.courtId,
       scheduledAt: event.scheduledAt,
-      scheduleTimeType: event.scheduleTimeType
+      scheduleTimeType: event.scheduleTimeType,
+      cascade: event.cascade
     }).subscribe({
       next: updatedMatch => {
-        const updatedTournament = this.patchSingleMatchInTournament(currentTournament, event.matchId, updatedMatch);
-        if (updatedTournament) {
-          this.tournament.set(updatedTournament);
-        } else {
+        if (event.cascade) {
           this.loadTournament(currentTournament.id, true);
+        } else {
+          const updatedTournament = this.patchSingleMatchInTournament(currentTournament, event.matchId, updatedMatch);
+          if (updatedTournament) {
+            this.tournament.set(updatedTournament);
+          } else {
+            this.loadTournament(currentTournament.id, true);
+          }
         }
         this.setMatchScheduleDraft(updatedMatch);
-        this.actionMessage.set('Programación del partido guardada.');
+        this.actionMessage.set(event.cascade ? 'Programación en cascada guardada.' : 'Programación del partido guardada.');
         this.savingScheduleMatchId.set(null);
+        this.savingScheduleCascadeMatchId.set(null);
+        this.flushPendingLiveRefresh();
       },
       error: error => {
         this.actionError.set(getApiErrorMessage(error, 'No se pudo guardar la programación del partido.'));
         this.savingScheduleMatchId.set(null);
+        this.savingScheduleCascadeMatchId.set(null);
+        this.flushPendingLiveRefresh();
       }
     });
   }
@@ -2701,7 +2845,15 @@ export class TournamentDetailComponent implements OnInit {
     this.updateMatchScheduleDraft(match, { courtId });
   }
 
+  updateMatchScheduleCascade(match: MatchResponse, cascade: boolean): void {
+    this.updateMatchScheduleDraft(match, { cascade });
+  }
+
   canSaveMatchSchedule(match: MatchResponse): boolean {
+    if (!this.isCreator()) {
+      return false;
+    }
+
     const draft = this.getMatchScheduleDraft(match);
     return !!draft.courtId && !!draft.scheduledAt && this.savingScheduleMatchId() !== match.id;
   }
@@ -2717,7 +2869,8 @@ export class TournamentDetailComponent implements OnInit {
       matchId: match.id,
       courtId: draft.courtId,
       scheduledAt: draft.scheduledAt,
-      scheduleTimeType: draft.scheduleTimeType
+      scheduleTimeType: draft.scheduleTimeType,
+      cascade: draft.cascade
     });
   }
 
@@ -3190,7 +3343,8 @@ export class TournamentDetailComponent implements OnInit {
     return {
       courtId: match.courtId ?? '',
       scheduledAt: this.toDatetimeLocalValue(match.scheduledAt),
-      scheduleTimeType: match.scheduleTimeType ?? 'EXACT'
+      scheduleTimeType: match.scheduleTimeType ?? 'EXACT',
+      cascade: false
     };
   }
 
