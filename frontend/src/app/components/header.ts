@@ -37,6 +37,10 @@ import { AppSettings } from '../shared/constants';
                class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
               Calendario
             </a>
+            <a routerLink="/ranking" routerLinkActive="text-primary-600 bg-primary-50"
+               class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
+              Ranking
+            </a>
             <a routerLink="/como-funciona" routerLinkActive="text-primary-600 bg-primary-50"
                class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
               Cómo Funciona
