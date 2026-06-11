@@ -15,7 +15,10 @@ public interface CalendarRepository {
             LocalDate to,
             List<TournamentStatus> statuses,
             Surface surface,
-            String location
+            String location,
+            String name,
+            Boolean professionalTournament,
+            String requesterEmail
     );
 
     List<PlayerMatchCalendarItem> findScheduledMatchesForPlayer(

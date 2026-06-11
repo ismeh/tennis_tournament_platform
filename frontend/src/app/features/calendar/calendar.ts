@@ -9,6 +9,7 @@ import {
   PlayerMatchCalendarResponse,
   TournamentCalendarFilters,
   TournamentCalendarResponse,
+  TournamentStatus,
   TournamentSurfaceCategory,
   getTournamentSurfaceCategoryLabel
 } from '../../data/interfaces/tournament.model';
@@ -28,22 +29,22 @@ type TournamentCalendarGroup = {
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <header class="flex flex-col gap-4 border-b border-neutral-200 pb-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Calendario</p>
-            <h1 class="mt-2 text-3xl font-black text-neutral-950 sm:text-4xl">Torneos y partidos</h1>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Torneos</p>
+            <h1 class="mt-2 text-3xl font-black text-neutral-950 sm:text-4xl">Calendario de torneos</h1>
             <p class="mt-2 max-w-2xl text-sm text-neutral-600">
-              Próximos torneos publicados y horarios asignados a tus partidos.
+              Busca torneos por fecha, nombre, lugar, estado y tipo de participantes.
             </p>
           </div>
 
           <a
-            routerLink="/torneos"
+            routerLink="/torneos/crear"
             class="inline-flex w-fit items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 shadow-sm transition hover:border-primary-300 hover:text-primary-700"
           >
-            Gestionar torneos
+            Crear torneo
           </a>
         </header>
 
-        <form class="mt-6 grid gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" (ngSubmit)="applyFilters()">
+        <form class="mt-6 grid gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1fr_1.2fr_1.2fr_1fr_1fr_auto]" (ngSubmit)="applyFilters()">
           <label class="block">
             <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Desde</span>
             <input
@@ -82,6 +83,18 @@ type TournamentCalendarGroup = {
           </label>
 
           <label class="block">
+            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Nombre</span>
+            <input
+              type="search"
+              class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+              placeholder="Nombre del torneo"
+              [ngModel]="name()"
+              (ngModelChange)="name.set($event)"
+              name="name"
+            />
+          </label>
+
+          <label class="block">
             <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Ubicación</span>
             <input
               type="search"
@@ -91,6 +104,35 @@ type TournamentCalendarGroup = {
               (ngModelChange)="location.set($event)"
               name="location"
             />
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Estado</span>
+            <select
+              class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+              [ngModel]="status() ?? ''"
+              (ngModelChange)="onStatusChange($event)"
+              name="status"
+            >
+              <option value="">Todos</option>
+              @for (option of statusOptions; track option) {
+                <option [value]="option">{{ getStatusLabel(option) }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Partido pro</span>
+            <select
+              class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+              [ngModel]="professionalTournamentFilter()"
+              (ngModelChange)="onProfessionalTournamentChange($event)"
+              name="professionalTournament"
+            >
+              <option value="">Todos</option>
+              <option value="true">PRO</option>
+              <option value="false">No PRO</option>
+            </select>
           </label>
 
           <div class="flex items-end gap-2">
@@ -119,7 +161,7 @@ type TournamentCalendarGroup = {
           <section class="min-w-0">
             <div class="flex items-center justify-between gap-4">
               <div>
-                <h2 class="text-xl font-bold text-neutral-950">Próximos torneos publicados</h2>
+                <h2 class="text-xl font-bold text-neutral-950">Torneos</h2>
                 <p class="mt-1 text-sm text-neutral-600">{{ tournaments().length }} torneos en la ventana seleccionada</p>
               </div>
             </div>
@@ -130,7 +172,7 @@ type TournamentCalendarGroup = {
               <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-700">{{ tournamentsError() }}</div>
             } @else if (tournamentGroups().length === 0) {
               <div class="mt-4 rounded-lg border border-neutral-200 bg-white p-8 text-center shadow-sm">
-                <p class="text-base font-semibold text-neutral-950">No hay torneos publicados</p>
+                <p class="text-base font-semibold text-neutral-950">No hay torneos</p>
                 <p class="mt-1 text-sm text-neutral-600">Ajusta las fechas o filtros para ampliar la búsqueda.</p>
               </div>
             } @else {
@@ -149,6 +191,9 @@ type TournamentCalendarGroup = {
                           <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
                               <span class="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">{{ getStatusLabel(tournament.status) }}</span>
+                              @if (tournament.professionalTournament) {
+                                <span class="rounded-full bg-neutral-900 px-3 py-1 text-xs font-semibold text-white">PRO</span>
+                              }
                               <span class="text-xs font-medium text-neutral-500">{{ getSurfaceLabel(tournament.surfaceCategory) }}</span>
                             </div>
                             <h4 class="mt-2 truncate text-lg font-bold text-neutral-950">{{ tournament.formalName }}</h4>
@@ -245,9 +290,14 @@ export class CalendarComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly surfaceOptions: TournamentSurfaceCategory[] = ['CLAY', 'HARD', 'GRASS', 'CARPET'];
+  readonly statusOptions: TournamentStatus[] = ['DRAFT', 'OPEN', 'CLOSED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
   readonly fromDate = signal(this.toDateInputValue(new Date()));
   readonly toDate = signal(this.toDateInputValue(this.addDays(new Date(), 90)));
   readonly surface = signal<TournamentSurfaceCategory | null>(null);
+  readonly status = signal<TournamentStatus | null>(null);
+  readonly professionalTournament = signal<boolean | null>(null);
+  readonly professionalTournamentFilter = signal('');
+  readonly name = signal('');
   readonly location = signal('');
   readonly tournaments = signal<TournamentCalendarResponse[]>([]);
   readonly myMatches = signal<PlayerMatchCalendarResponse[]>([]);
@@ -305,12 +355,25 @@ export class CalendarComponent implements OnInit {
     this.fromDate.set(this.toDateInputValue(new Date()));
     this.toDate.set(this.toDateInputValue(this.addDays(new Date(), 90)));
     this.surface.set(null);
+    this.status.set(null);
+    this.professionalTournament.set(null);
+    this.professionalTournamentFilter.set('');
+    this.name.set('');
     this.location.set('');
     this.applyFilters();
   }
 
   onSurfaceChange(value: string): void {
     this.surface.set(value ? value as TournamentSurfaceCategory : null);
+  }
+
+  onStatusChange(value: string): void {
+    this.status.set(value ? value as TournamentStatus : null);
+  }
+
+  onProfessionalTournamentChange(value: string): void {
+    this.professionalTournamentFilter.set(value);
+    this.professionalTournament.set(value === '' ? null : value === 'true');
   }
 
   getDateGroupLabel(date: string): string {
@@ -323,9 +386,13 @@ export class CalendarComponent implements OnInit {
 
   getStatusLabel(status: string): string {
     const labels: Record<string, string> = {
+      DRAFT: 'Borrador',
       OPEN: 'Inscripciones abiertas',
+      ACTIVE: 'Activo',
       CLOSED: 'Inscripciones cerradas',
-      IN_PROGRESS: 'En juego'
+      IN_PROGRESS: 'En juego',
+      COMPLETED: 'Finalizado',
+      CANCELLED: 'Cancelado'
     };
 
     return labels[status] ?? status;
@@ -380,7 +447,10 @@ export class CalendarComponent implements OnInit {
       from: this.fromDate(),
       to: this.toDate(),
       surface: this.surface(),
-      location: this.location()
+      location: this.location(),
+      name: this.name(),
+      professionalTournament: this.professionalTournament(),
+      status: this.status()
     };
   }
 

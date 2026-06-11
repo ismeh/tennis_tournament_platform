@@ -42,7 +42,7 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
           <div class="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">{{ errorMessage() }}</div>
         } @else if (tournaments().length === 0) {
           <div class="rounded-2xl border border-neutral-200 bg-white p-8 text-center">
-            <p class="text-lg font-semibold text-neutral-900">Aún no hay torneos</p>
+            <p class="text-lg font-semibold text-neutral-900">Aún no se han creado torneos</p>
             <p class="mt-2 text-neutral-600">Crea el primer torneo para abrir pruebas, inscripciones y cuadros.</p>
           </div>
         } @else {

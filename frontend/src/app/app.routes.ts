@@ -9,7 +9,7 @@ import { RankingComponent } from './features/ranking/ranking';
 import { ProfileComponent } from './features/profile/profile';
 import { CreateTournamentComponent } from './features/tournaments/create';
 import { TournamentDetailComponent } from './features/tournaments/detail';
-import { TournamentsListComponent } from './features/tournaments/list';
+import { HowItWorksComponent } from './features/how-it-works';
 
 export const routes: Routes = [
   {
@@ -18,13 +18,13 @@ export const routes: Routes = [
   },
   {
     path: 'torneos',
-    component: TournamentsListComponent,
+    component: CalendarComponent,
     data: { title: 'Torneos' }
   },
   {
     path: 'calendario',
-    component: CalendarComponent,
-    data: { title: 'Calendario' }
+    redirectTo: 'torneos',
+    pathMatch: 'full'
   },
   {
     path: 'ranking',
@@ -43,7 +43,7 @@ export const routes: Routes = [
   },
   {
     path: 'como-funciona',
-    component: PlaceholderPage,
+    component: HowItWorksComponent,
     data: { title: 'Cómo Funciona' }
   },
   {

@@ -48,18 +48,22 @@ class CalendarServiceTest {
                 "Club Central",
                 Surface.CLAY,
                 32,
-                TournamentStatus.OPEN
+                TournamentStatus.OPEN,
+                false
         );
 
         when(calendarRepository.findPublishedTournaments(
                 from,
                 to,
-                List.of(TournamentStatus.OPEN, TournamentStatus.CLOSED, TournamentStatus.IN_PROGRESS),
+                List.of(TournamentStatus.DRAFT, TournamentStatus.OPEN, TournamentStatus.CLOSED, TournamentStatus.IN_PROGRESS, TournamentStatus.COMPLETED, TournamentStatus.CANCELLED),
                 Surface.CLAY,
-                "central"
+                "central",
+                null,
+                null,
+                null
         )).thenReturn(List.of(item));
 
-        List<TournamentCalendarItem> result = calendarService.findPublishedTournaments(from, to, Surface.CLAY, " Central ");
+        List<TournamentCalendarItem> result = calendarService.findPublishedTournaments(from, to, Surface.CLAY, " Central ", null, null, null, null);
 
         assertEquals(List.of(item), result);
     }
@@ -90,7 +94,7 @@ class CalendarServiceTest {
                 "player@example.com",
                 LocalDateTime.of(2026, 6, 1, 0, 0),
                 LocalDateTime.of(to, LocalTime.MAX),
-                List.of(TournamentStatus.OPEN, TournamentStatus.CLOSED, TournamentStatus.IN_PROGRESS)
+                List.of(TournamentStatus.OPEN, TournamentStatus.CLOSED, TournamentStatus.IN_PROGRESS, TournamentStatus.COMPLETED, TournamentStatus.CANCELLED)
         )).thenReturn(List.of(item));
 
         List<PlayerMatchCalendarItem> result = calendarService.findScheduledMatchesForPlayer("player@example.com", from, to);
@@ -105,6 +109,10 @@ class CalendarServiceTest {
                 () -> calendarService.findPublishedTournaments(
                         LocalDate.of(2026, 7, 1),
                         LocalDate.of(2026, 6, 1),
+                        null,
+                        null,
+                        null,
+                        null,
                         null,
                         null
                 )

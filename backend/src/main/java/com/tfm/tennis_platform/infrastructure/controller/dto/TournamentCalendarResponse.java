@@ -16,5 +16,6 @@ public record TournamentCalendarResponse(
         String location,
         Surface surfaceCategory,
         Integer maxPlayers,
-        TournamentStatus status
+        TournamentStatus status,
+        Boolean professionalTournament
 ) {}
