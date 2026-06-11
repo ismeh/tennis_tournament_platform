@@ -4,7 +4,8 @@ import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.models.Match;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
@@ -25,13 +26,20 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final TournamentRepository tournamentRepository;
     private final CourtRepository courtRepository;
+    private final TransactionTemplate transactionTemplate;
+    private static final int MAX_CONCURRENT_MODIFICATION_ATTEMPTS = 3;
 
     public Match update(Match match) {
         return matchRepository.save(match);
     }
 
-    @Transactional
     public Match recordResult(UUID tournamentId, UUID matchId, UUID winnerId, String scoreString) {
+        return retryOnConcurrentModification(() -> transactionTemplate.execute(status ->
+                doRecordResult(tournamentId, matchId, winnerId, scoreString)
+        ));
+    }
+
+    private Match doRecordResult(UUID tournamentId, UUID matchId, UUID winnerId, String scoreString) {
         if (tournamentId == null) {
             throw new InvalidArgumentException("El torneo es obligatorio.");
         }
@@ -45,12 +53,7 @@ public class MatchService {
             throw new InvalidArgumentException("Indica el resultado del partido.");
         }
 
-        tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
-
-        Match currentMatch = matchRepository.findByTournamentId(tournamentId).stream()
-                .filter(match -> matchId.equals(match.getId()))
-                .findFirst()
+        Match currentMatch = matchRepository.findByIdAndTournamentId(matchId, tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
 
         if (!winnerId.equals(currentMatch.getFirstInscriptionId()) && !winnerId.equals(currentMatch.getSecondInscriptionId())) {
@@ -71,7 +74,7 @@ public class MatchService {
             Match nextMatch = matchRepository.findById(currentMatch.getNextMatch().getId().toString())
                     .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getNextMatch().getId()));
 
-            Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, winnerId, currentMatch.getWinnerId());
+            Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, currentMatch, winnerId);
             matchRepository.save(updatedNextMatch);
         }
 
@@ -79,7 +82,7 @@ public class MatchService {
             Match loserNextMatch = matchRepository.findById(currentMatch.getLoserNextMatch().getId().toString())
                     .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getLoserNextMatch().getId()));
 
-            Match updatedLoserNextMatch = placeLoserInNextMatch(loserNextMatch, loserId, previousLoserId);
+            Match updatedLoserNextMatch = placeLoserInNextMatch(loserNextMatch, currentMatch, loserId, previousLoserId);
             matchRepository.save(updatedLoserNextMatch);
         }
 
@@ -94,8 +97,13 @@ public class MatchService {
         return matchRepository.findById(id);
     }
 
-    @Transactional
     public Match schedule(UUID tournamentId, UUID matchId, UUID courtId, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType) {
+        return retryOnConcurrentModification(() -> transactionTemplate.execute(status ->
+                doSchedule(tournamentId, matchId, courtId, scheduledAt, scheduleTimeType)
+        ));
+    }
+
+    private Match doSchedule(UUID tournamentId, UUID matchId, UUID courtId, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType) {
         if (tournamentId == null) {
             throw new InvalidArgumentException("El torneo es obligatorio.");
         }
@@ -149,7 +157,34 @@ public class MatchService {
         return matchRepository.save(updatedMatch);
     }
 
-    private Match placeWinnerInNextMatch(Match nextMatch, UUID winnerId, UUID previousWinnerId) {
+    private Match retryOnConcurrentModification(java.util.function.Supplier<Match> operation) {
+        ObjectOptimisticLockingFailureException lastException = null;
+
+        for (int attempt = 1; attempt <= MAX_CONCURRENT_MODIFICATION_ATTEMPTS; attempt++) {
+            try {
+                return operation.get();
+            } catch (ObjectOptimisticLockingFailureException ex) {
+                lastException = ex;
+                if (attempt == MAX_CONCURRENT_MODIFICATION_ATTEMPTS) {
+                    throw ex;
+                }
+                sleepBeforeRetry(attempt);
+            }
+        }
+
+        throw lastException;
+    }
+
+    private void sleepBeforeRetry(int attempt) {
+        try {
+            Thread.sleep(50L * attempt);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private Match placeWinnerInNextMatch(Match nextMatch, Match sourceMatch, UUID winnerId) {
+        UUID previousWinnerId = sourceMatch.getWinnerId();
         if (previousWinnerId != null) {
             if (previousWinnerId.equals(nextMatch.getFirstInscriptionId())) {
                 return nextMatch.toBuilder()
@@ -170,6 +205,11 @@ public class MatchService {
             return nextMatch;
         }
 
+        Boolean firstSlot = shouldUseFirstSlot(sourceMatch);
+        if (firstSlot != null) {
+            return placeInscriptionInNextMatchSlot(nextMatch, winnerId, firstSlot, "El siguiente partido ya tiene ocupado el hueco de este ganador.");
+        }
+
         if (nextMatch.getFirstInscriptionId() == null) {
             return nextMatch.toBuilder()
                     .firstInscription(createInscriptionReference(winnerId))
@@ -185,7 +225,7 @@ public class MatchService {
         throw new InvalidArgumentException("El siguiente partido ya tiene los dos participantes asignados.");
     }
 
-    private Match placeLoserInNextMatch(Match nextMatch, UUID loserId, UUID previousLoserId) {
+    private Match placeLoserInNextMatch(Match nextMatch, Match sourceMatch, UUID loserId, UUID previousLoserId) {
         if (previousLoserId != null) {
             if (previousLoserId.equals(nextMatch.getFirstInscriptionId())) {
                 return nextMatch.toBuilder()
@@ -206,6 +246,11 @@ public class MatchService {
             return nextMatch;
         }
 
+        Boolean firstSlot = shouldUseFirstSlot(sourceMatch);
+        if (firstSlot != null) {
+            return placeInscriptionInNextMatchSlot(nextMatch, loserId, firstSlot, "El partido de consolación ya tiene ocupado el hueco de este perdedor.");
+        }
+
         if (nextMatch.getFirstInscriptionId() == null) {
             return nextMatch.toBuilder()
                     .firstInscription(createInscriptionReference(loserId))
@@ -219,6 +264,32 @@ public class MatchService {
         }
 
         throw new InvalidArgumentException("El partido de consolación ya tiene los dos participantes asignados.");
+    }
+
+    private Match placeInscriptionInNextMatchSlot(Match nextMatch, UUID inscriptionId, boolean firstSlot, String occupiedMessage) {
+        if (firstSlot) {
+            if (nextMatch.getFirstInscriptionId() != null && !inscriptionId.equals(nextMatch.getFirstInscriptionId())) {
+                throw new InvalidArgumentException(occupiedMessage);
+            }
+            return nextMatch.toBuilder()
+                    .firstInscription(createInscriptionReference(inscriptionId))
+                    .build();
+        }
+
+        if (nextMatch.getSecondInscriptionId() != null && !inscriptionId.equals(nextMatch.getSecondInscriptionId())) {
+            throw new InvalidArgumentException(occupiedMessage);
+        }
+        return nextMatch.toBuilder()
+                .secondInscription(createInscriptionReference(inscriptionId))
+                .build();
+    }
+
+    private Boolean shouldUseFirstSlot(Match sourceMatch) {
+        if (sourceMatch.getBracketPosition() == null) {
+            return null;
+        }
+
+        return sourceMatch.getBracketPosition() % 2 == 0;
     }
 
     private UUID resolveLoserId(Match match, UUID winnerId) {

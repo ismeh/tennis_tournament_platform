@@ -6,6 +6,7 @@ import com.tfm.tennis_platform.infrastructure.persistence.mapper.MatchDomainMapp
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMatchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +24,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
     private final MatchDomainMapper mapper;
 
     @Override
+    @Transactional
     public Match save(Match match) {
         if (match == null) {
             return null;
@@ -47,6 +49,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
     }
 
     @Override
+    @Transactional
     public List<Match> saveAll(List<Match> matches) {
         if (matches == null || matches.isEmpty()) return List.of();
         // Two-pass mapping: first create entities without nextMatch, then wire nextMatch to reuse same instances
@@ -108,6 +111,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
         target.setSecondInscription(source.getSecondInscription());
         target.setWinner(source.getWinner());
         target.setRoundNumber(source.getRoundNumber());
+        target.setBracketPosition(source.getBracketPosition());
         target.setScheduledAt(source.getScheduledAt());
         target.setScheduleTimeType(source.getScheduleTimeType());
         target.setCourtResource(source.getCourtResource());
@@ -116,6 +120,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Match> findByTournamentId(UUID tournamentId) {
         return matchRepository.findByTournamentId(tournamentId).stream()
                 .map(mapper::toDomain)
@@ -123,11 +128,22 @@ public class MatchRepositoryAdapter implements MatchRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Match> findById(String id) {
         try {
             return matchRepository.findById(UUID.fromString(id)).map(mapper::toDomain);
         } catch (IllegalArgumentException ex) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Match> findByIdAndTournamentId(UUID matchId, UUID tournamentId) {
+        if (matchId == null || tournamentId == null) {
+            return Optional.empty();
+        }
+
+        return matchRepository.findByIdAndTournamentId(matchId, tournamentId).map(mapper::toDomain);
     }
 }

@@ -1,5 +1,6 @@
 package com.tfm.tennis_platform.domain.models;
 
+import com.tfm.tennis_platform.domain.models.enums.ParticipantSource;
 import lombok.Builder;
 import lombok.Getter;
 import java.time.LocalDateTime;
@@ -14,4 +15,24 @@ public class Inscription {
     private final String status;
     private final String paymentStatus;
     private final LocalDateTime registeredAt;
+    private final ParticipantSource participantSource;
+    private final Integer seed;
+    private final Integer professionalRankingPosition;
+    private final Integer professionalAwardedPoints;
+
+    public boolean isProfessional() {
+        return participantSource == ParticipantSource.PROFESSIONAL;
+    }
+
+    public Integer getSeedingPosition() {
+        if (seed != null && seed > 0) {
+            return seed;
+        }
+
+        if (professionalRankingPosition != null && professionalRankingPosition > 0) {
+            return professionalRankingPosition;
+        }
+
+        return null;
+    }
 }

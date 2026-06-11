@@ -17,6 +17,7 @@ public class Match {
     private final Inscription secondInscription;
     private final Inscription winner;
     private final Integer roundNumber;
+    private final Integer bracketPosition;
     private final Match nextMatch;
     private final Match loserNextMatch;
     private final LocalDateTime scheduledAt;
@@ -47,5 +48,20 @@ public class Match {
 
     public UUID getLoserNextMatchId() {
         return loserNextMatch != null ? loserNextMatch.getId() : null;
+    }
+
+    public boolean isProfessionalMatch() {
+        return firstInscription != null
+                && secondInscription != null
+                && firstInscription.isProfessional()
+                && secondInscription.isProfessional();
+    }
+
+    public Integer getFirstWinPoints() {
+        return isProfessionalMatch() ? secondInscription.getProfessionalAwardedPoints() : null;
+    }
+
+    public Integer getSecondWinPoints() {
+        return isProfessionalMatch() ? firstInscription.getProfessionalAwardedPoints() : null;
     }
 }

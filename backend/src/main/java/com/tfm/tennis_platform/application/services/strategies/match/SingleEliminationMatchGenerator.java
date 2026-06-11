@@ -6,9 +6,12 @@ import com.tfm.tennis_platform.domain.models.Match;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -39,6 +42,7 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
                     .id(matchId)
                     .drawId(draw.getId())
                     .roundNumber(round)
+                    .bracketPosition(matchIndex)
                     .build();
                 matchMap.put(position, match);
             }
@@ -63,8 +67,7 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
         }
 
         int matchesInFirstRound = calculateMatchesInRound(bracketSize, 1);
-        int byeCount = bracketSize - participantCount;
-        int inscriptionIndex = 0;
+        List<Inscription> bracketSlots = buildBracketSlots(inscriptions, bracketSize);
         for (int matchIndex = 0; matchIndex < matchesInFirstRound; matchIndex++) {
             String position = 1 + "-" + matchIndex;
             Match existing = matchMap.get(position);
@@ -72,22 +75,17 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
                 continue;
             }
 
-            if (matchIndex < byeCount) {
-                Inscription inscription = inscriptions.get(inscriptionIndex++);
-                matchMap.put(position, existing.toBuilder()
-                        .firstInscription(inscription)
-                        .winner(inscription)
-                        .build());
-            } else {
-                Inscription firstInscription = inscriptions.get(inscriptionIndex++);
-                Inscription secondInscription = inscriptionIndex < inscriptions.size()
-                        ? inscriptions.get(inscriptionIndex++)
-                        : null;
-                matchMap.put(position, existing.toBuilder()
-                        .firstInscription(firstInscription)
-                        .secondInscription(secondInscription)
-                        .build());
-            }
+            Inscription firstInscription = bracketSlots.get(matchIndex * 2);
+            Inscription secondInscription = bracketSlots.get(matchIndex * 2 + 1);
+            Inscription winner = firstInscription != null && secondInscription == null
+                    ? firstInscription
+                    : firstInscription == null && secondInscription != null ? secondInscription : null;
+
+            matchMap.put(position, existing.toBuilder()
+                    .firstInscription(firstInscription)
+                    .secondInscription(secondInscription)
+                    .winner(winner)
+                    .build());
         }
 
         for (int matchIndex = 0; matchIndex < matchesInFirstRound; matchIndex++) {
@@ -112,6 +110,108 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
             }
         }
         return allMatches;
+    }
+
+    private List<Inscription> buildBracketSlots(List<Inscription> inscriptions, int bracketSize) {
+        if (!hasSeedingData(inscriptions)) {
+            return buildSequentialBracketSlots(inscriptions, bracketSize);
+        }
+
+        List<Inscription> slots = new ArrayList<>();
+        for (int index = 0; index < bracketSize; index++) {
+            slots.add(null);
+        }
+
+        List<Inscription> orderedInscriptions = orderForSeeding(inscriptions);
+        List<Integer> seedPositions = calculateSeedPositions(bracketSize);
+        int byeCount = bracketSize - inscriptions.size();
+        Set<Integer> reservedByeSlots = new HashSet<>();
+        int inscriptionIndex = 0;
+
+        for (; inscriptionIndex < byeCount; inscriptionIndex++) {
+            int slot = seedPositions.get(inscriptionIndex);
+            slots.set(slot, orderedInscriptions.get(inscriptionIndex));
+            reservedByeSlots.add(opponentSlot(slot));
+        }
+
+        for (; inscriptionIndex < orderedInscriptions.size(); inscriptionIndex++) {
+            Inscription inscription = orderedInscriptions.get(inscriptionIndex);
+            int slot = firstAvailableSeedSlot(seedPositions, slots, reservedByeSlots);
+            slots.set(slot, inscription);
+        }
+
+        return slots;
+    }
+
+    private int firstAvailableSeedSlot(List<Integer> seedPositions, List<Inscription> slots, Set<Integer> reservedByeSlots) {
+        for (Integer slot : seedPositions) {
+            if (slots.get(slot) == null && !reservedByeSlots.contains(slot)) {
+                return slot;
+            }
+        }
+
+        for (int slot = 0; slot < slots.size(); slot++) {
+            if (slots.get(slot) == null && !reservedByeSlots.contains(slot)) {
+                return slot;
+            }
+        }
+
+        throw new IllegalStateException("No available bracket slot found.");
+    }
+
+    private List<Inscription> buildSequentialBracketSlots(List<Inscription> inscriptions, int bracketSize) {
+        List<Inscription> slots = new ArrayList<>();
+        int byeCount = bracketSize - inscriptions.size();
+        int inscriptionIndex = 0;
+
+        for (int slot = 0; slot < bracketSize; slot += 2) {
+            if (slot / 2 < byeCount) {
+                slots.add(inscriptions.get(inscriptionIndex++));
+                slots.add(null);
+                continue;
+            }
+
+            slots.add(inscriptions.get(inscriptionIndex++));
+            slots.add(inscriptionIndex < inscriptions.size() ? inscriptions.get(inscriptionIndex++) : null);
+        }
+
+        return slots;
+    }
+
+    private boolean hasSeedingData(List<Inscription> inscriptions) {
+        return inscriptions.stream()
+                .anyMatch(inscription -> inscription.getSeedingPosition() != null || inscription.isProfessional());
+    }
+
+    private List<Inscription> orderForSeeding(List<Inscription> inscriptions) {
+        return inscriptions.stream()
+                .sorted(Comparator
+                        .comparing((Inscription inscription) -> inscription.getSeedingPosition() == null ? Integer.MAX_VALUE : inscription.getSeedingPosition())
+                        .thenComparing(inscription -> inscription.getRegisteredAt() == null ? java.time.LocalDateTime.MAX : inscription.getRegisteredAt())
+                        .thenComparing(Inscription::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
+    private List<Integer> calculateSeedPositions(int bracketSize) {
+        List<Integer> positions = new ArrayList<>();
+        positions.add(0);
+
+        int size = 2;
+        while (size <= bracketSize) {
+            List<Integer> expanded = new ArrayList<>();
+            for (Integer position : positions) {
+                expanded.add(position);
+                expanded.add(size - 1 - position);
+            }
+            positions = expanded;
+            size *= 2;
+        }
+
+        return positions;
+    }
+
+    private int opponentSlot(int slot) {
+        return slot % 2 == 0 ? slot + 1 : slot - 1;
     }
 
     private void advanceInscription(Map<String, Match> matchMap, int round, int matchIndex, Inscription inscription) {
