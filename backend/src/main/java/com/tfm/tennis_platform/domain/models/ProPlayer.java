@@ -15,6 +15,7 @@ public class ProPlayer {
     private final String firstName;
     private final String lastName;
     private final Integer rankingPosition;
+    private final Integer points;
     private final String ageCategory;
     private final String clubName;
     private final LocalDate birthDate;
