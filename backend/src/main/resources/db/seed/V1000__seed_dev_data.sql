@@ -94,7 +94,7 @@ WHERE NOT EXISTS (
 INSERT INTO events (tournament_id, age_category_id, name, discipline, event_type, gender, draw_size)
 SELECT
     (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026' LIMIT 1),
-    (SELECT id FROM ref_age_category WHERE category = 'ABSOLUTA' LIMIT 1),
+    (SELECT id FROM ref_age_category WHERE category = 'Absoluta' LIMIT 1),
     source.name,
     'TENNIS',
     source.event_type,

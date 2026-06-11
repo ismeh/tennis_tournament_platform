@@ -19,5 +19,7 @@ public class RefAgeCategoryEntity {
 
     @Column(length = 20)
     private String description;
-}
 
+    @Column(name = "display_order")
+    private Integer displayOrder;
+}
