@@ -19,10 +19,13 @@ import java.util.List;
 public class CalendarService {
 
     private static final int DEFAULT_WINDOW_DAYS = 90;
-    private static final List<TournamentStatus> PUBLIC_CALENDAR_STATUSES = List.of(
+    private static final List<TournamentStatus> VISIBLE_CALENDAR_STATUSES = List.of(
+            TournamentStatus.DRAFT,
             TournamentStatus.OPEN,
             TournamentStatus.CLOSED,
-            TournamentStatus.IN_PROGRESS
+            TournamentStatus.IN_PROGRESS,
+            TournamentStatus.COMPLETED,
+            TournamentStatus.CANCELLED
     );
 
     private final CalendarRepository calendarRepository;
@@ -31,7 +34,11 @@ public class CalendarService {
             LocalDate from,
             LocalDate to,
             Surface surface,
-            String location
+            String location,
+            String name,
+            Boolean professionalTournament,
+            TournamentStatus status,
+            String requesterEmail
     ) {
         LocalDate startDate = resolveStartDate(from);
         LocalDate endDate = resolveEndDate(startDate, to);
@@ -40,9 +47,12 @@ public class CalendarService {
         return calendarRepository.findPublishedTournaments(
                 startDate,
                 endDate,
-                PUBLIC_CALENDAR_STATUSES,
+                status != null ? List.of(status) : VISIBLE_CALENDAR_STATUSES,
                 surface,
-                normalizeFilter(location)
+                normalizeFilter(location),
+                normalizeFilter(name),
+                professionalTournament,
+                normalizeFilter(requesterEmail)
         );
     }
 
@@ -59,7 +69,9 @@ public class CalendarService {
                 playerEmail,
                 startDate.atStartOfDay(),
                 LocalDateTime.of(endDate, LocalTime.MAX),
-                PUBLIC_CALENDAR_STATUSES
+                VISIBLE_CALENDAR_STATUSES.stream()
+                        .filter(status -> status != TournamentStatus.DRAFT)
+                        .toList()
         );
     }
 

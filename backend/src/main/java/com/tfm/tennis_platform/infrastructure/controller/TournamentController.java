@@ -82,26 +82,35 @@ public class TournamentController {
     }
 
     @PostMapping("/{tournamentId}/events")
-    public ResponseEntity<TournamentResponse> addEventsToTournament(@PathVariable("tournamentId") UUID tournamentId, @RequestBody EventRequest eventRequest) {
+    public ResponseEntity<TournamentResponse> addEventsToTournament(
+            @PathVariable("tournamentId") UUID tournamentId,
+            @RequestBody EventRequest eventRequest,
+            Principal principal
+    ) {
         EventCommand command = new EventCommand(eventRequest.getEvents().stream()
             .map(event -> new EventCommand.EventItem(event.getId(), event.getCategoryId(), event.getGender(), event.getStages()))
             .toList());
-        Tournament updatedTournament = eventService.replaceAllEvents(tournamentId, command);
+        Tournament updatedTournament = eventService.replaceAllEvents(tournamentId, command, principal.getName());
         return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
     @DeleteMapping("/{tournamentId}/events/{eventId}")
     public ResponseEntity<TournamentResponse> removeEventFromTournament(
             @PathVariable("tournamentId") UUID tournamentId,
-            @PathVariable("eventId") UUID eventId
+            @PathVariable("eventId") UUID eventId,
+            Principal principal
     ) {
-        Tournament updatedTournament = eventService.removeEventFromTournament(tournamentId, eventId);
+        Tournament updatedTournament = eventService.removeEventFromTournament(tournamentId, eventId, principal.getName());
         return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<TournamentResponse> updateStatus(@PathVariable UUID id, @RequestBody TournamentStatusUpdateRequest request) {
-        Tournament updatedTournament = tournamentService.updateStatus(id, request.status());
+    public ResponseEntity<TournamentResponse> updateStatus(
+            @PathVariable UUID id,
+            @RequestBody TournamentStatusUpdateRequest request,
+            Principal principal
+    ) {
+        Tournament updatedTournament = tournamentService.updateStatus(id, request.status(), principal.getName());
         return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
@@ -113,8 +122,12 @@ public class TournamentController {
     }
 
     @PostMapping("/{tournamentId}/courts")
-    public ResponseEntity<CourtResponse> createCourt(@PathVariable UUID tournamentId, @RequestBody CourtRequest request) {
-        Court court = courtService.create(tournamentId, request.name());
+    public ResponseEntity<CourtResponse> createCourt(
+            @PathVariable UUID tournamentId,
+            @RequestBody CourtRequest request,
+            Principal principal
+    ) {
+        Court court = courtService.create(tournamentId, request.name(), principal.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(toCourtResponse(court));
     }
 
@@ -122,18 +135,20 @@ public class TournamentController {
     public ResponseEntity<CourtResponse> updateCourt(
             @PathVariable UUID tournamentId,
             @PathVariable UUID courtId,
-            @RequestBody CourtRequest request
+            @RequestBody CourtRequest request,
+            Principal principal
     ) {
-        Court court = courtService.update(tournamentId, courtId, request.name());
+        Court court = courtService.update(tournamentId, courtId, request.name(), principal.getName());
         return ResponseEntity.ok(toCourtResponse(court));
     }
 
     @DeleteMapping("/{tournamentId}/courts/{courtId}")
     public ResponseEntity<Void> deleteCourt(
             @PathVariable UUID tournamentId,
-            @PathVariable UUID courtId
+            @PathVariable UUID courtId,
+            Principal principal
     ) {
-        courtService.delete(tournamentId, courtId);
+        courtService.delete(tournamentId, courtId, principal.getName());
         return ResponseEntity.noContent().build();
     }
 
@@ -195,9 +210,10 @@ public class TournamentController {
     @PostMapping("/{tournamentId}/events/{eventId}/generate-draws")
     public ResponseEntity<TournamentResponse> generateDraws(
             @PathVariable UUID tournamentId,
-            @PathVariable UUID eventId
+            @PathVariable UUID eventId,
+            Principal principal
     ) {
-        Tournament updatedTournament = eventService.generateDrawsForEvent(tournamentId, eventId);
+        Tournament updatedTournament = eventService.generateDrawsForEvent(tournamentId, eventId, principal.getName());
         return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
@@ -205,10 +221,11 @@ public class TournamentController {
         public ResponseEntity<MatchResponse> recordMatchResult(
             @PathVariable UUID tournamentId,
             @PathVariable UUID matchId,
-                @RequestBody MatchResultRequest request
+                @RequestBody MatchResultRequest request,
+                Principal principal
         ) {
         return ResponseEntity.ok(matchWebMapper.toResponse(
-            matchService.recordResult(tournamentId, matchId, request.winnerId(), request.scoreString())
+            matchService.recordResult(tournamentId, matchId, request.winnerId(), request.scoreString(), principal.getName())
         ));
         }
 
@@ -216,10 +233,11 @@ public class TournamentController {
         public ResponseEntity<MatchResponse> scheduleMatch(
             @PathVariable UUID tournamentId,
             @PathVariable UUID matchId,
-            @RequestBody MatchScheduleRequest request
+            @RequestBody MatchScheduleRequest request,
+            Principal principal
         ) {
         return ResponseEntity.ok(matchWebMapper.toResponse(
-            matchService.schedule(tournamentId, matchId, request.courtId(), request.scheduledAt(), request.scheduleTimeType())
+            matchService.schedule(tournamentId, matchId, request.courtId(), request.scheduledAt(), request.scheduleTimeType(), Boolean.TRUE.equals(request.cascade()), principal.getName())
         ));
         }
 

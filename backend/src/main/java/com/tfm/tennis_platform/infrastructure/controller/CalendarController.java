@@ -4,6 +4,7 @@ import com.tfm.tennis_platform.application.services.CalendarService;
 import com.tfm.tennis_platform.domain.models.calendar.PlayerMatchCalendarItem;
 import com.tfm.tennis_platform.domain.models.calendar.TournamentCalendarItem;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
+import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.infrastructure.controller.dto.PlayerMatchCalendarResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentCalendarResponse;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +31,14 @@ public class CalendarController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Surface surface,
-            @RequestParam(required = false) String location
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Boolean professionalTournament,
+            @RequestParam(required = false) TournamentStatus status,
+            Principal principal
     ) {
-        return ResponseEntity.ok(calendarService.findPublishedTournaments(from, to, surface, location).stream()
+        String requesterEmail = principal != null ? principal.getName() : null;
+        return ResponseEntity.ok(calendarService.findPublishedTournaments(from, to, surface, location, name, professionalTournament, status, requesterEmail).stream()
                 .map(CalendarController::toTournamentResponse)
                 .toList());
     }
@@ -58,7 +64,8 @@ public class CalendarController {
                 item.location(),
                 item.surface(),
                 item.maxPlayers(),
-                item.status()
+                item.status(),
+                item.professionalTournament()
         );
     }
 

@@ -25,9 +25,13 @@ The following endpoints are public in `SecurityConfig`:
 - `GET /api/auth/confirm-email`
 - `POST /api/auth/resend-confirmation`
 - `GET /api/calendar/tournaments`
+- `GET /api/tournaments/{tournamentId}/updates`
 - `GET /api/tournaments/{tournamentId}/inscriptions`
 - `GET /api/rankings/**`
 - `GET /api/age-categories`
+- `GET /actuator/health`
+- `GET /actuator/info`
+- `GET /actuator/prometheus`
 
 All other endpoints require a valid JWT.
 
@@ -178,6 +182,32 @@ Retrieve a tournament by UUID, including nested events, stages, draws, matches, 
 Authentication required: yes
 
 Response: `200 OK`
+
+### GET /api/tournaments/{tournamentId}/updates
+
+Subscribe to lightweight Server-Sent Events for tournament bracket changes.
+
+Authentication required: no
+
+Response content type: `text/event-stream`
+
+Emitted event names:
+
+- `connected`
+- `match-result-updated`
+- `match-schedule-updated`
+- `heartbeat`
+
+Update event payload:
+
+```json
+{
+  "type": "MATCH_RESULT_UPDATED",
+  "tournamentId": "uuid",
+  "matchId": "uuid",
+  "occurredAt": "2026-06-11T10:00:00"
+}
+```
 
 ### POST /api/tournaments
 

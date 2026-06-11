@@ -61,6 +61,25 @@ All active HTTP controllers should be namespaced under `/api`; see [`../docs/api
 ./mvnw spring-boot:run
 ```
 
+## Observability
+
+The backend includes Actuator and Micrometer metrics for service execution monitoring.
+
+Service-layer methods are traced by `ServiceObservabilityAspect`, which records:
+
+- `service.start`, `service.success`, and `service.failure` logs with operation, duration, result summary, and exception type.
+- `backend.service.execution` timer tagged by `application`, `service`, `method`, `outcome`, and `exception`.
+- `backend.service.failures` counter tagged by `application`, `service`, `method`, and `exception`.
+
+Available endpoints:
+
+- `GET /actuator/health`
+- `GET /actuator/info`
+- `GET /actuator/prometheus`
+- `GET /actuator/metrics` requires authentication.
+
+Prometheus can scrape `http://<backend-host>:<port>/actuator/prometheus`.
+
 ## API and Documentation
 
 - API specification: [`../docs/api-spec.md`](../docs/api-spec.md)

@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.application.service;
 
 import com.tfm.tennis_platform.application.services.EventService;
+import com.tfm.tennis_platform.application.services.TournamentService;
 import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Event;
 import com.tfm.tennis_platform.domain.models.Tournament;
@@ -32,6 +33,9 @@ class EventServiceTest {
     @Mock
     private TournamentRepository tournamentRepository;
 
+    @Mock
+    private TournamentService tournamentService;
+
     @InjectMocks
     private EventService eventService;
 
@@ -61,7 +65,7 @@ class EventServiceTest {
         when(tournamentRepository.save(org.mockito.ArgumentMatchers.any(Tournament.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Tournament result = eventService.removeEventFromTournament(tournamentId, eventIdToRemove);
+        Tournament result = eventService.removeEventFromTournament(tournamentId, eventIdToRemove, "organizer@example.com");
 
         ArgumentCaptor<Tournament> captor = ArgumentCaptor.forClass(Tournament.class);
         verify(tournamentRepository).save(captor.capture());
@@ -96,7 +100,7 @@ class EventServiceTest {
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> eventService.removeEventFromTournament(tournamentId, missingEventId)
+                () -> eventService.removeEventFromTournament(tournamentId, missingEventId, "organizer@example.com")
         );
 
         assertEquals("No se encontró el evento dentro del torneo.", exception.getMessage());

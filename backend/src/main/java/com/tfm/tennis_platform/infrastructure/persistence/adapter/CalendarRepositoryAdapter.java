@@ -15,6 +15,8 @@ import com.tfm.tennis_platform.infrastructure.persistence.entity.TournamentEntit
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMatchRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMemberRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -42,10 +44,14 @@ public class CalendarRepositoryAdapter implements CalendarRepository {
             LocalDate to,
             List<TournamentStatus> statuses,
             Surface surface,
-            String location
+            String location,
+            String name,
+            Boolean professionalTournament,
+            String requesterEmail
     ) {
-        return findTournamentEntities(from, to, statuses, surface, location).stream()
+        return findTournamentEntities(from, to, statuses, surface, location, name, requesterEmail).stream()
                 .map(this::toTournamentCalendarItem)
+                .filter(item -> professionalTournament == null || professionalTournament == item.professionalTournament())
                 .toList();
     }
 
@@ -80,16 +86,30 @@ public class CalendarRepositoryAdapter implements CalendarRepository {
             LocalDate to,
             List<TournamentStatus> statuses,
             Surface surface,
-            String location
+            String location,
+            String name,
+            String requesterEmail
     ) {
         var criteriaBuilder = entityManager.getCriteriaBuilder();
         var query = criteriaBuilder.createQuery(TournamentEntity.class);
         var tournament = query.from(TournamentEntity.class);
+        var createdBy = tournament.join("createdBy", JoinType.LEFT);
 
         List<Predicate> predicates = new ArrayList<>();
-        predicates.add(tournament.get("status").in(statuses));
         predicates.add(criteriaBuilder.greaterThanOrEqualTo(tournament.get("playEndDate"), from));
         predicates.add(criteriaBuilder.lessThanOrEqualTo(tournament.get("playStartDate"), to));
+        List<TournamentStatus> nonDraftStatuses = statuses.stream()
+                .filter(status -> status != TournamentStatus.DRAFT)
+                .toList();
+        predicates.add(criteriaBuilder.or(
+                nonDraftStatuses.isEmpty() ? criteriaBuilder.disjunction() : tournament.get("status").in(nonDraftStatuses),
+                criteriaBuilder.and(
+                        criteriaBuilder.equal(tournament.get("status"), TournamentStatus.DRAFT),
+                        !isBlank(requesterEmail)
+                                ? criteriaBuilder.equal(criteriaBuilder.lower(createdBy.get("email")), requesterEmail.toLowerCase(Locale.ROOT))
+                                : criteriaBuilder.disjunction()
+                )
+        ));
 
         if (surface != null) {
             predicates.add(criteriaBuilder.equal(tournament.get("surface"), surface));
@@ -99,6 +119,13 @@ public class CalendarRepositoryAdapter implements CalendarRepository {
             predicates.add(criteriaBuilder.like(
                     criteriaBuilder.lower(tournament.get("location")),
                     "%" + location.toLowerCase(Locale.ROOT) + "%"
+            ));
+        }
+
+        if (!isBlank(name)) {
+            predicates.add(criteriaBuilder.like(
+                    criteriaBuilder.lower(tournament.get("formalName")),
+                    "%" + name.toLowerCase(Locale.ROOT) + "%"
             ));
         }
 
@@ -123,8 +150,27 @@ public class CalendarRepositoryAdapter implements CalendarRepository {
                 tournament.getLocation(),
                 tournament.getSurface(),
                 tournament.getMaxPlayers(),
-                tournament.getStatus()
+                tournament.getStatus(),
+                isProfessionalTournament(tournament.getId())
         );
+    }
+
+    private boolean isProfessionalTournament(UUID tournamentId) {
+        TypedQuery<Object[]> query = entityManager.createQuery("""
+                select count(i.id),
+                       sum(case when p.participantSource = :professionalSource then 1 else 0 end)
+                from InscriptionEntity i
+                join i.event e
+                join i.participant p
+                where e.tournament.id = :tournamentId
+                """, Object[].class);
+        query.setParameter("professionalSource", com.tfm.tennis_platform.domain.models.enums.ParticipantSource.PROFESSIONAL);
+        query.setParameter("tournamentId", tournamentId);
+
+        Object[] row = query.getSingleResult();
+        long total = row[0] != null ? ((Number) row[0]).longValue() : 0L;
+        long professional = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        return total > 0 && total == professional;
     }
 
     private PlayerMatchCalendarItem toPlayerMatchCalendarItem(MatchEntity match) {

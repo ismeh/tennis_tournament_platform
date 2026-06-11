@@ -150,6 +150,15 @@ export class TournamentService {
     if (filters.location?.trim()) {
       params = params.set('location', filters.location.trim());
     }
+    if (filters.name?.trim()) {
+      params = params.set('name', filters.name.trim());
+    }
+    if (filters.professionalTournament !== null && filters.professionalTournament !== undefined) {
+      params = params.set('professionalTournament', String(filters.professionalTournament));
+    }
+    if (filters.status) {
+      params = params.set('status', filters.status);
+    }
 
     return params;
   }

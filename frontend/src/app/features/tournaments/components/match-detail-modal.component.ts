@@ -77,64 +77,81 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                 <!-- Schedule Info -->
                 <div class="border-t border-neutral-200 pt-4">
                   <p class="mb-3 text-xs font-semibold text-neutral-600">PROGRAMACIÓN</p>
-                  <div class="grid gap-3 sm:grid-cols-3">
-                    <label class="block">
-                      <span class="text-xs font-semibold text-neutral-600">Tipo</span>
-                      <select
-                        [(ngModel)]="selectedScheduleTimeType"
-                        class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-                      >
-                        <option value="EXACT">A esta hora</option>
-                        <option value="NOT_BEFORE">No antes de</option>
-                      </select>
-                    </label>
+                  @if (canManageInput) {
+                    <div class="grid gap-3 sm:grid-cols-3">
+                      <label class="block">
+                        <span class="text-xs font-semibold text-neutral-600">Tipo</span>
+                        <select
+                          [(ngModel)]="selectedScheduleTimeType"
+                          class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                        >
+                          <option value="EXACT">A esta hora</option>
+                          <option value="NOT_BEFORE">No antes de</option>
+                        </select>
+                      </label>
 
-                    <label class="block">
-                      <span class="text-xs font-semibold text-neutral-600">Inicio</span>
-                      <input
-                        type="datetime-local"
-                        [(ngModel)]="scheduledAtInput"
-                        class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-                      />
-                    </label>
+                      <label class="block">
+                        <span class="text-xs font-semibold text-neutral-600">Inicio</span>
+                        <input
+                          type="datetime-local"
+                          [(ngModel)]="scheduledAtInput"
+                          class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                        />
+                      </label>
 
-                    <label class="block">
-                      <span class="text-xs font-semibold text-neutral-600">Pista</span>
-                      <select
-                        [(ngModel)]="selectedCourtId"
-                        class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-                      >
-                        <option value="">Selecciona pista</option>
-                        @for (court of activeCourts(); track court.id) {
-                          <option [value]="court.id">{{ court.name }}</option>
-                        }
-                      </select>
-                    </label>
-                  </div>
+                      <label class="block">
+                        <span class="text-xs font-semibold text-neutral-600">Pista</span>
+                        <select
+                          [(ngModel)]="selectedCourtId"
+                          class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                        >
+                          <option value="">Selecciona pista</option>
+                          @for (court of activeCourts(); track court.id) {
+                            <option [value]="court.id">{{ court.name }}</option>
+                          }
+                        </select>
+                      </label>
+                    </div>
 
-                  @if (activeCourts().length === 0) {
-                    <p class="mt-2 text-xs text-amber-700">Crea una pista en el torneo antes de programar partidos.</p>
+                    @if (activeCourts().length === 0) {
+                      <p class="mt-2 text-xs text-amber-700">Crea una pista en el torneo antes de programar partidos.</p>
+                    }
+
+                    @if (scheduleValidationMessage()) {
+                      <p class="mt-2 text-xs font-medium text-red-600">{{ scheduleValidationMessage() }}</p>
+                    }
+
+                    <button
+                      type="button"
+                      (click)="onSaveSchedule()"
+                      [disabled]="!isScheduleValid()"
+                      class="mt-3 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                    >
+                      Guardar programación
+                    </button>
+                  } @else {
+                    <div class="grid gap-3 sm:grid-cols-3">
+                      <div class="rounded bg-neutral-50 px-3 py-2">
+                        <p class="text-xs font-semibold text-neutral-600">Tipo</p>
+                        <p class="mt-1 text-sm text-neutral-900">{{ getScheduleTypeLabel(match()?.scheduleTimeType) }}</p>
+                      </div>
+                      <div class="rounded bg-neutral-50 px-3 py-2">
+                        <p class="text-xs font-semibold text-neutral-600">Inicio</p>
+                        <p class="mt-1 text-sm text-neutral-900">{{ match()?.scheduledAt || 'Por definir' }}</p>
+                      </div>
+                      <div class="rounded bg-neutral-50 px-3 py-2">
+                        <p class="text-xs font-semibold text-neutral-600">Pista</p>
+                        <p class="mt-1 text-sm text-neutral-900">{{ match()?.court || 'Por definir' }}</p>
+                      </div>
+                    </div>
                   }
-
-                  @if (scheduleValidationMessage()) {
-                    <p class="mt-2 text-xs font-medium text-red-600">{{ scheduleValidationMessage() }}</p>
-                  }
-
-                  <button
-                    type="button"
-                    (click)="onSaveSchedule()"
-                    [disabled]="!isScheduleValid()"
-                    class="mt-3 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
-                  >
-                    Guardar programación
-                  </button>
                 </div>
 
                 <!-- Result Entry Section -->
                 <div class="border-t border-neutral-200 pt-4">
                   <p class="mb-3 text-xs font-semibold text-neutral-600">REGISTRO DE RESULTADO</p>
-                  
-                  <div class="space-y-3">
+                  @if (canManageInput) {
+                    <div class="space-y-3">
                     <!-- Winner Selection -->
                     <div>
                       <label class="text-xs font-semibold text-neutral-600">Ganador</label>
@@ -170,7 +187,13 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                     @if (validationMessage()) {
                       <p class="text-xs font-medium text-red-600">{{ validationMessage() }}</p>
                     }
-                  </div>
+                    </div>
+                  } @else {
+                    <div class="rounded bg-neutral-50 px-3 py-2">
+                      <p class="text-xs font-semibold text-neutral-600">Resultado</p>
+                      <p class="mt-1 text-sm text-neutral-900">{{ match()?.result || 'Pendiente' }}</p>
+                    </div>
+                  }
                 </div>
               </div>
             }
@@ -185,13 +208,15 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
               >
                 Cancelar
               </button>
-              <button
-                (click)="onSave()"
-                [disabled]="!isFormValid()"
-                class="flex-1 rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
-              >
-                Guardar resultado
-              </button>
+              @if (canManageInput) {
+                <button
+                  (click)="onSave()"
+                  [disabled]="!isFormValid()"
+                  class="flex-1 rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                >
+                  Guardar resultado
+                </button>
+              }
             </div>
           </div>
         </div>
@@ -203,6 +228,7 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
 export class MatchDetailModalComponent {
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() courtsInput: CourtResponse[] = [];
+  @Input() canManageInput = false;
 
   @Input() set matchInput(value: MatchResponse | null) {
     if (value) {
@@ -249,7 +275,7 @@ export class MatchDetailModalComponent {
   @HostListener('document:keydown.enter', ['$event'])
   onEnterKeyDown(event: Event): void {
     const keyboardEvent = event as KeyboardEvent;
-    if (!this.isOpen() || keyboardEvent.isComposing) {
+    if (!this.isOpen() || !this.canManageInput || keyboardEvent.isComposing) {
       return;
     }
 
@@ -267,6 +293,10 @@ export class MatchDetailModalComponent {
   }
 
   onSave() {
+    if (!this.canManageInput) {
+      return;
+    }
+
     if (!this.isFormValid()) {
       this.validationMessage.set('Selecciona un ganador y registra un resultado antes de guardar.');
       return;
@@ -282,6 +312,10 @@ export class MatchDetailModalComponent {
   }
 
   onSaveSchedule() {
+    if (!this.canManageInput) {
+      return;
+    }
+
     if (!this.isScheduleValid()) {
       this.scheduleValidationMessage.set('Selecciona tipo, fecha, hora y pista antes de guardar.');
       return;
@@ -340,6 +374,10 @@ export class MatchDetailModalComponent {
 
   isScheduleValid(): boolean {
     return !!this.match() && !!this.selectedCourtId && this.scheduledAtInput.trim().length > 0;
+  }
+
+  getScheduleTypeLabel(value: MatchScheduleTimeType | null | undefined): string {
+    return value === 'NOT_BEFORE' ? 'No antes de' : 'A esta hora';
   }
 
   private toDatetimeLocalValue(value?: string | null): string {

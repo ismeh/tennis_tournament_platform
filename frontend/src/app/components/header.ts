@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
@@ -33,10 +33,6 @@ import { AppSettings } from '../shared/constants';
                class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
               Torneos
             </a>
-            <a routerLink="/calendario" routerLinkActive="text-primary-600 bg-primary-50"
-               class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
-              Calendario
-            </a>
             <a routerLink="/ranking" routerLinkActive="text-primary-600 bg-primary-50"
                class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
               Ranking
@@ -54,35 +50,56 @@ import { AppSettings } from '../shared/constants';
           <!-- Auth Buttons -->
           <div class="flex items-center gap-2 sm:gap-3">
             @if (isLoggedIn$ | async) {
-              <div class="flex items-center gap-2 sm:gap-3">
+              <a
+                routerLink="/torneos/crear"
+                class="inline-flex whitespace-nowrap rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 sm:px-4"
+              >
+                Crear torneo
+              </a>
+              <div class="relative flex items-center gap-2 sm:gap-3">
                 <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
                   {{ getUserInitial(displayName$ | async) }}
                 </div>
-                <span class="text-sm font-medium text-neutral-700">{{ resolveDisplayName(displayName$ | async) }}</span>
-                <a
-                  routerLink="/perfil"
-                  class="px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                >
-                  Mi perfil
-                </a>
                 <button
                   type="button"
-                  (click)="onLogout()"
-                  class="px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                  (click)="toggleProfileMenu()"
+                  class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-primary-50 hover:text-primary-600"
                 >
-                  Cerrar sesión
+                  {{ resolveDisplayName(displayName$ | async) }}
+                  <span class="text-xs">⌄</span>
                 </button>
+                @if (isProfileMenuOpen()) {
+                  <div class="absolute right-0 top-12 z-50 w-44 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+                    <a
+                      routerLink="/perfil"
+                      class="block px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+                      (click)="closeProfileMenu()"
+                    >
+                      Perfil
+                    </a>
+                    <button
+                      type="button"
+                      (click)="onLogout()"
+                      class="block w-full px-4 py-2 text-left text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+                    >
+                      Cerrar sesión
+                    </button>
+                  </div>
+                }
               </div>
             } @else {
               <a
                 routerLink="/login"
                 [queryParams]="loginQueryParams()"
-                class="px-4 py-2 text-primary-600 font-medium text-sm hover:text-primary-700 transition-colors"
+                class="px-3 py-2 text-sm font-medium text-primary-600 transition-colors hover:text-primary-700 sm:px-4"
               >
                 Iniciar Sesión
               </a>
-              <a routerLink="/register" class="px-4 py-2 sm:px-6 bg-primary-500 text-white font-medium text-sm rounded-lg hover:bg-primary-600 transition-colors">
-                Registrarse
+              <a
+                routerLink="/register"
+                class="inline-flex whitespace-nowrap rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 sm:px-4"
+              >
+                Crear torneo
               </a>
             }
           </div>
@@ -99,6 +116,7 @@ export class HeaderComponent {
 
   readonly isLoggedIn$ = this.authService.isLoggedIn$;
   readonly displayName$ = this.authService.displayName$;
+  readonly isProfileMenuOpen = signal(false);
 
   getUserInitial(displayName: string | null): string {
     const name = displayName ?? this.authService.getCurrentUserEmail()?.split('@')[0] ?? null;
@@ -127,9 +145,18 @@ export class HeaderComponent {
   }
 
   onLogout(): void {
+    this.closeProfileMenu();
     this.authService.logout().subscribe(() => {
       this.router.navigateByUrl('/');
     });
+  }
+
+  toggleProfileMenu(): void {
+    this.isProfileMenuOpen.update(isOpen => !isOpen);
+  }
+
+  closeProfileMenu(): void {
+    this.isProfileMenuOpen.set(false);
   }
 
   private resolveLoginReturnUrl(): string {

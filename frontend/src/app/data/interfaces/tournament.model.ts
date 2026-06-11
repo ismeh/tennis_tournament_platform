@@ -52,6 +52,9 @@ export interface TournamentCalendarFilters {
   to?: string | null;
   surface?: TournamentSurfaceCategory | null;
   location?: string | null;
+  name?: string | null;
+  professionalTournament?: boolean | null;
+  status?: TournamentStatus | null;
 }
 
 export interface TournamentCalendarResponse {
@@ -64,6 +67,7 @@ export interface TournamentCalendarResponse {
   surfaceCategory: TournamentSurfaceCategory;
   maxPlayers: number;
   status: TournamentStatus;
+  professionalTournament?: boolean | null;
 }
 
 export interface PlayerMatchCalendarResponse {
@@ -146,6 +150,16 @@ export interface MatchScheduleRequest {
   courtId: string;
   scheduledAt: string;
   scheduleTimeType: MatchScheduleTimeType;
+  cascade?: boolean;
+}
+
+export type TournamentUpdateType = 'MATCH_RESULT_UPDATED' | 'MATCH_SCHEDULE_UPDATED';
+
+export interface TournamentUpdateEvent {
+  type: TournamentUpdateType;
+  tournamentId: string;
+  matchId: string;
+  occurredAt: string;
 }
 
 export type TournamentEventGender = 'MALE' | 'FEMALE' | 'MIXED';

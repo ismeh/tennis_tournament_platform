@@ -26,6 +26,8 @@ logging:
   level:
     org.springframework.web: "info"
     org.hibernate: "error"
+    com.tfm.tennis_platform.application.services: "info"
+    com.tfm.tennis_platform.infrastructure.observability: "info"
   file:
     name: logs/prod-application.log
   pattern:
