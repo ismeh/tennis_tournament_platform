@@ -48,10 +48,21 @@ Detailed architecture: [`/docs/architecture.md`](./docs/architecture.md)
    ```bash
    cp .env.example .env
    ```
-3. Start all services:
+3. Start all services using the published backend and frontend images:
    ```bash
-   docker compose up --build
+   docker compose up
    ```
+
+To build the backend and frontend images from the current local source code instead of pulling the published images, add the local override:
+
+```bash
+docker compose -f compose.yaml -f compose.local.yaml up --build
+```
+
+In this mode, `compose.yaml` remains the base orchestration file for PostgreSQL, ports, environment variables, dependencies, and published image defaults. `compose.local.yaml` only overrides the backend and frontend services with local Docker builds and `pull_policy: build`, so Docker Compose builds the local images instead of trying to pull `tennis-backend:local` or `tennis-frontend:local` from a registry:
+
+- Backend: `./backend/Dockerfile`
+- Frontend: `./frontend/Dockerfile`
 
 For HTTPS local or a public Nginx demo, use the environment matrix in [`/docs/deployment-https.md`](./docs/deployment-https.md#matriz-de-variables-por-modo). The important rule is that `FRONTEND_API_URL` must match the public URL used by the browser: `http://localhost:8080/api` for plain local HTTP, `https://localhost/api` for local Nginx HTTPS, or `https://your-domain/api` for a public demo.
 
@@ -105,7 +116,8 @@ npm run start
 | [`/backend`](./backend) | Spring Boot API, domain/application/infrastructure layers, persistence, security |
 | [`/frontend`](./frontend) | Angular SSR UI, feature routes, auth flows, API client layer |
 | [`/docs`](./docs) | Architecture, API specification, domain model, coding standards |
-| [`/compose.yaml`](./compose.yaml) | Local multi-service orchestration (frontend/backend/database) |
+| [`/compose.yaml`](./compose.yaml) | Base multi-service orchestration using published frontend/backend images |
+| [`/compose.local.yaml`](./compose.local.yaml) | Docker Compose override that builds frontend/backend images locally |
 | [`/.env.example`](./.env.example) | Environment variable template for local setup |
 
 Component-specific guides:
