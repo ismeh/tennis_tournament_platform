@@ -4,6 +4,7 @@ import com.tfm.tennis_platform.domain.port.out.EmailSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,15 @@ public class JavaMailEmailSender implements EmailSender {
 
                 Si no has creado esta cuenta, ignora este mensaje.
                 """.formatted(confirmationUrl));
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+        } catch (MailException exception) {
+            log.warn(
+                    "Email confirmation could not be sent. Link for {}: {}",
+                    email,
+                    confirmationUrl,
+                    exception
+            );
+        }
     }
 }

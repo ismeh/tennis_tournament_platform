@@ -59,6 +59,7 @@ function isPublicAuthRequest(url: string): boolean {
     '/auth/login',
     '/auth/register',
     '/auth/refresh',
+    '/auth/logout',
     '/auth/confirm-email',
     '/auth/resend-confirmation'
   ].some(path => url.endsWith(path) || url.includes(`${path}?`));
