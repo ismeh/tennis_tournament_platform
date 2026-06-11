@@ -27,8 +27,10 @@ spring:
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
 logging:
   level:
-    org.springframework.web: "debug"
+    org.springframework.web: "info"
     org.hibernate: "error"
+    com.tfm.tennis_platform.application.services: "info"
+    com.tfm.tennis_platform.infrastructure.observability: "info"
   file:
     name: logs/prod-application.log
   pattern:

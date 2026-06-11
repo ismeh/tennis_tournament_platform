@@ -54,10 +54,13 @@ public class SecurityConfig {
                         "/api/auth/confirm-email",
                         "/api/auth/resend-confirmation"
                     ).permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/tournaments").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/calendar/tournaments").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/tournaments/*/updates").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/tournaments/*/inscriptions").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/rankings/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/age-categories").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                     .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
