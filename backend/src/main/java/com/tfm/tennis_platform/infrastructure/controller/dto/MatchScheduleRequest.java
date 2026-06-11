@@ -8,5 +8,6 @@ import java.util.UUID;
 public record MatchScheduleRequest(
     UUID courtId,
     LocalDateTime scheduledAt,
-    ScheduleTimeType scheduleTimeType
+    ScheduleTimeType scheduleTimeType,
+    Boolean cascade
 ) {}

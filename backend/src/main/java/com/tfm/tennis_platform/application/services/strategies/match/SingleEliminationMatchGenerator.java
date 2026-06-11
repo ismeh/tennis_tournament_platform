@@ -161,18 +161,24 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
 
     private List<Inscription> buildSequentialBracketSlots(List<Inscription> inscriptions, int bracketSize) {
         List<Inscription> slots = new ArrayList<>();
+        for (int index = 0; index < bracketSize; index++) {
+            slots.add(null);
+        }
+
         int byeCount = bracketSize - inscriptions.size();
         int inscriptionIndex = 0;
+        List<Integer> seedPositions = calculateSeedPositions(bracketSize);
+        Set<Integer> reservedByeSlots = new HashSet<>();
 
-        for (int slot = 0; slot < bracketSize; slot += 2) {
-            if (slot / 2 < byeCount) {
-                slots.add(inscriptions.get(inscriptionIndex++));
-                slots.add(null);
-                continue;
-            }
+        for (; inscriptionIndex < byeCount; inscriptionIndex++) {
+            int slot = seedPositions.get(inscriptionIndex);
+            slots.set(slot, inscriptions.get(inscriptionIndex));
+            reservedByeSlots.add(opponentSlot(slot));
+        }
 
-            slots.add(inscriptions.get(inscriptionIndex++));
-            slots.add(inscriptionIndex < inscriptions.size() ? inscriptions.get(inscriptionIndex++) : null);
+        for (; inscriptionIndex < inscriptions.size(); inscriptionIndex++) {
+            int slot = firstAvailableSeedSlot(seedPositions, slots, reservedByeSlots);
+            slots.set(slot, inscriptions.get(inscriptionIndex));
         }
 
         return slots;

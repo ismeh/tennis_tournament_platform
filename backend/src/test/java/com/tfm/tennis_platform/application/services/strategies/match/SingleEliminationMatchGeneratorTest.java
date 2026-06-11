@@ -88,6 +88,42 @@ class SingleEliminationMatchGeneratorTest {
     }
 
     @Test
+    void keeps_two_byes_in_separate_second_round_matches_for_six_inscriptions() {
+        SingleEliminationMatchGenerator generator = new SingleEliminationMatchGenerator();
+
+        Draw draw = Draw.builder()
+                .id(UUID.randomUUID())
+                .drawType(DrawType.ELIMINATION)
+                .build();
+
+        Inscription firstBye = inscription();
+        Inscription secondBye = inscription();
+
+        List<Match> matches = generator.generateMatches(draw, List.of(
+                firstBye,
+                secondBye,
+                inscription(),
+                inscription(),
+                inscription(),
+                inscription()
+        ));
+
+        List<Match> firstRoundMatches = matches.stream()
+                .filter(match -> match.getRoundNumber() != null && match.getRoundNumber() == 1)
+                .toList();
+        List<Match> secondRoundMatches = matches.stream()
+                .filter(match -> match.getRoundNumber() != null && match.getRoundNumber() == 2)
+                .toList();
+
+        assertEquals(4, firstRoundMatches.size());
+        assertEquals(2, secondRoundMatches.size());
+        assertEquals(firstBye.getId(), firstRoundMatches.get(0).getFirstInscriptionId());
+        assertEquals(secondBye.getId(), firstRoundMatches.get(3).getSecondInscriptionId());
+        assertEquals(firstBye.getId(), secondRoundMatches.get(0).getFirstInscriptionId());
+        assertEquals(secondBye.getId(), secondRoundMatches.get(1).getSecondInscriptionId());
+    }
+
+    @Test
     void distributes_seeded_players_across_opposite_halves() {
         SingleEliminationMatchGenerator generator = new SingleEliminationMatchGenerator();
         Draw draw = Draw.builder()
