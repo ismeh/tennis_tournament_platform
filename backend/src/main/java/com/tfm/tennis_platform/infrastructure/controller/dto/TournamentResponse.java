@@ -22,5 +22,6 @@ public record TournamentResponse(
     String location,
     TournamentStatus status,
     Member providerOrganisationId,
-    List<TournamentEventResponse> events
+    List<TournamentEventResponse> events,
+    Boolean professionalTournament
 ) {}

@@ -194,6 +194,7 @@ public interface TournamentEntityMapper {
                 .secondInscription(mapInscriptionDomain(entity.getSecondInscription() != null ? entity.getSecondInscription().getId() : null))
                 .winner(mapInscriptionDomain(entity.getWinner() != null ? entity.getWinner().getId() : null))
                 .roundNumber(entity.getRoundNumber())
+                .bracketPosition(entity.getBracketPosition())
                 .nextMatch(toDomain(entity.getNextMatch()))
                 .loserNextMatch(toDomain(entity.getLoserNextMatch()))
                 .scheduledAt(entity.getScheduledAt())

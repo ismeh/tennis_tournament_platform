@@ -4,6 +4,7 @@ import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
+import com.tfm.tennis_platform.domain.models.TournamentSummary;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
@@ -106,5 +107,29 @@ class TournamentServiceTest {
         );
 
         assertEquals("No se encontró la cuenta solicitada.", exception.getMessage());
+    }
+
+    @Test
+    void should_find_tournament_summaries() {
+        TournamentSummary tournamentSummary = new TournamentSummary(
+                UUID.randomUUID(),
+                "Open de Primavera",
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 10),
+                LocalTime.of(9, 0),
+                LocalDate.of(2026, 4, 1),
+                LocalDate.of(2026, 4, 20),
+                Surface.CLAY,
+                32,
+                "Club Central",
+                TournamentStatus.OPEN,
+                true
+        );
+        when(tournamentRepository.findSummaries()).thenReturn(List.of(tournamentSummary));
+
+        List<TournamentSummary> result = tournamentService.findSummaries();
+
+        assertEquals(List.of(tournamentSummary), result);
+        verify(tournamentRepository).findSummaries();
     }
 }
