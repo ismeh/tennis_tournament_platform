@@ -44,9 +44,12 @@ type DrawViewMode = 'tree' | 'list';
                       [drawsInput]="[draw]"
                       [participantNamesInput]="participantNamesInput"
                       [participantOrderInput]="participantOrderInput"
+                      [courtsInput]="courtsInput"
                       [showTitleInput]="false"
                       [showDrawCardInput]="false"
-                      (matchSelected)="onMatchSelected($event)"
+                      (matchSelected)="matchSelected.emit($event.id)"
+                      (matchResultSaved)="onSaveMatchResult($event)"
+                      (matchScheduleSaved)="onSaveMatchSchedule($event)"
                     ></app-bracket>
                   } @else {
                     <app-matches

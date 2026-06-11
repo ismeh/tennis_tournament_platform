@@ -9,7 +9,7 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
   imports: [CommonModule, FormsModule],
   template: `
     @if (isOpen()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div class="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black bg-opacity-50 p-4">
         <div class="w-full max-w-2xl rounded-lg bg-white shadow-lg">
           <!-- Header -->
           <div class="border-b border-neutral-200 bg-neutral-50 px-6 py-4">
@@ -40,7 +40,14 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                   <div class="space-y-2">
                     @if (match()?.firstInscriptionId) {
                       <div class="rounded bg-neutral-50 px-3 py-2">
-                        <p class="text-sm font-medium text-neutral-900">{{ getParticipantName(match()?.firstInscriptionId) }}</p>
+                        <div class="flex items-center justify-between gap-3">
+                          <p class="truncate text-sm font-medium text-neutral-900">{{ getParticipantName(match()?.firstInscriptionId) }}</p>
+                          @if (match()?.professionalMatch) {
+                            <span [class]="getWinPointsClasses(match(), match()?.firstInscriptionId)">
+                              {{ getWinPointsLabel(match()?.firstWinPoints) }}
+                            </span>
+                          }
+                        </div>
                       </div>
                     } @else {
                       <div class="rounded bg-neutral-50 px-3 py-2">
@@ -50,7 +57,14 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                     <div class="text-center text-xs text-neutral-500">vs</div>
                     @if (match()?.secondInscriptionId) {
                       <div class="rounded bg-neutral-50 px-3 py-2">
-                        <p class="text-sm font-medium text-neutral-900">{{ getParticipantName(match()?.secondInscriptionId) }}</p>
+                        <div class="flex items-center justify-between gap-3">
+                          <p class="truncate text-sm font-medium text-neutral-900">{{ getParticipantName(match()?.secondInscriptionId) }}</p>
+                          @if (match()?.professionalMatch) {
+                            <span [class]="getWinPointsClasses(match(), match()?.secondInscriptionId)">
+                              {{ getWinPointsLabel(match()?.secondWinPoints) }}
+                            </span>
+                          }
+                        </div>
                       </div>
                     } @else {
                       <div class="rounded bg-neutral-50 px-3 py-2">
@@ -292,6 +306,32 @@ export class MatchDetailModalComponent {
     }
 
     return this.participantNamesInput[inscriptionId] ?? inscriptionId.substring(0, 8);
+  }
+
+  getWinPointsLabel(points: number | null | undefined): string {
+    return points == null ? '+0 pts' : `+${points} pts`;
+  }
+
+  getWinPointsClasses(match: MatchResponse | null, inscriptionId: string | null | undefined): string {
+    const baseClasses = 'shrink-0 rounded-full px-2 py-0.5 text-xs font-bold';
+
+    if (this.isWinner(match, inscriptionId)) {
+      return `${baseClasses} bg-green-100 text-green-700 ring-1 ring-green-200`;
+    }
+
+    if (this.isLoser(match, inscriptionId)) {
+      return `${baseClasses} bg-neutral-100 text-neutral-400 line-through decoration-2`;
+    }
+
+    return `${baseClasses} bg-neutral-100 text-neutral-500`;
+  }
+
+  private isWinner(match: MatchResponse | null, inscriptionId: string | null | undefined): boolean {
+    return !!match && !!inscriptionId && match.winnerId === inscriptionId;
+  }
+
+  private isLoser(match: MatchResponse | null, inscriptionId: string | null | undefined): boolean {
+    return !!match && !!inscriptionId && !!match.winnerId && match.winnerId !== inscriptionId;
   }
 
   isFormValid(): boolean {

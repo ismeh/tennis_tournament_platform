@@ -34,7 +34,7 @@ import { TournamentService } from '../../data/services/tournament.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { StagesComponent } from './components/stages.component';
 
-type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'registeredPlayers' | 'stages';
+type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'stages';
 
 type DrawGenerationFeedback = {
   status: 'success' | 'error';
@@ -97,6 +97,11 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
               <span class="inline-flex w-fit rounded-full border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700">
                 Estado: {{ getStatusLabel(tournament()!.status) }}
               </span>
+              @if (isProfessionalTournament()) {
+                <span class="inline-flex w-fit rounded-full border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-bold uppercase tracking-widest text-white">
+                  PRO
+                </span>
+              }
             </div>
 
             <div class="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-2">
@@ -125,14 +130,6 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   [class]="activeSection() === 'inscriptions' ? 'rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary-700 shadow-sm' : 'rounded-xl px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-white/70'"
                 >
                   Inscripciones
-                </button>
-
-                <button
-                  type="button"
-                  (click)="setActiveSection('registeredPlayers')"
-                  [class]="activeSection() === 'registeredPlayers' ? 'rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary-700 shadow-sm' : 'rounded-xl px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-white/70'"
-                >
-                  Jugadores inscritos
                 </button>
 
                 <button
@@ -212,6 +209,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     }
                   </div>
 
+                  <div class="mt-8 border-t border-neutral-200 pt-8">
                   <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Pruebas del torneo</p>
@@ -393,17 +391,6 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     </button>
                   </div>
                 </div>
-
-                <div class="mt-5 grid gap-3">
-                  <div class="rounded-2xl border border-primary-100 bg-primary-50 p-4 text-sm text-neutral-700">
-                    Verifica fechas de juego e inscripción para evitar solapes.
-                  </div>
-                  <div class="rounded-2xl border border-accent-100 bg-accent-50 p-4 text-sm text-neutral-700">
-                    Comprueba capacidad y ubicación antes de publicar.
-                  </div>
-                  <div class="rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-700">
-                    Siguiente paso sugerido: abrir inscripciones cuando el torneo esté listo.
-                  </div>
                 </div>
               } @else {
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
@@ -432,16 +419,28 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                 <div class="mt-5 rounded-3xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm sm:p-6" (keydown.enter)="submitManualPlayer()">
                   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Alta manual</p>
+                      <div class="flex flex-wrap items-center gap-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Alta manual</p>
+                        <button
+                          type="button"
+                          class="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                          (click)="toggleManualPlayerPanel()"
+                        >
+                          {{ isManualPlayerPanelExpanded() ? 'Ocultar' : 'Mostrar' }}
+                        </button>
+                      </div>
                       <h3 class="mt-2 text-xl font-bold text-neutral-900">Añadir jugador a una prueba</h3>
                       <p class="mt-2 text-sm text-neutral-600">Puedes añadir un jugador existente, crear un jugador manual o seleccionar un profesional cargado.</p>
                     </div>
 
-                    <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-neutral-600">
-                      Origen: {{ getManualPlayerSourceLabel(manualPlayerSource()) }}
-                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-neutral-600">
+                        Origen: {{ getManualPlayerSourceLabel(manualPlayerSource()) }}
+                      </span>
+                    </div>
                   </div>
 
+                  @if (isManualPlayerPanelExpanded()) {
                   <div class="mt-5 grid gap-4 lg:grid-cols-2">
                     <label class="block">
                       <span class="mb-1 block text-sm font-medium text-neutral-700">Prueba</span>
@@ -696,6 +695,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       {{ isSubmittingManualPlayer() ? 'Añadiendo jugador...' : 'Añadir jugador a la prueba' }}
                     </button>
                   </div>
+                  }
                 </div>
               } @else {
                 <div class="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
@@ -760,103 +760,109 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   {{ actionError() }}
                 </div>
               }
-            </section>
-          }
 
-          @if (activeSection() === 'registeredPlayers') {
-            <section class="mt-6 rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-              <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 class="text-xl font-bold text-neutral-900">Jugadores inscritos</h2>
-                  <p class="mt-2 text-neutral-600">Consulta los inscritos del torneo, filtra por prueba y revisa los contadores por categoría y modalidad.</p>
-                </div>
-
-                <label class="block min-w-72">
-                  <span class="mb-1 block text-sm font-medium text-neutral-700">Filtrar por prueba</span>
-                  <select
-                    class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
-                    [disabled]="isLoadingTournamentInscriptions()"
-                    [value]="selectedTournamentInscriptionEventId() ?? ''"
-                    (change)="onTournamentInscriptionEventChange($any($event.target).value)"
-                  >
-                    <option value="">Todas las pruebas</option>
-                    @for (event of tournamentInscriptionEvents(); track event.eventId) {
-                      <option [value]="event.eventId">{{ event.eventName }}</option>
-                    }
-                  </select>
-                </label>
-              </div>
-
-              @if (isCreator()) {
-                <div class="mt-5 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  Las altas manuales se realizan desde la pestaña Inscripciones, donde el organizador puede elegir el origen del jugador y añadirlo a la prueba correspondiente.
-                </div>
-              }
-
-              @if (isLoadingTournamentInscriptions()) {
-                <div class="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  Cargando jugadores inscritos...
-                </div>
-              } @else if (tournamentInscriptionsError()) {
-                <div class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  {{ tournamentInscriptionsError() }}
-                </div>
-              } @else {
-                <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  @for (counter of tournamentInscriptionCategoryCounts(); track counter.categoryId) {
-                    <article class="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                      <div class="flex items-start justify-between gap-3">
-                        <div>
-                          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Categoria</p>
-                          <h3 class="mt-2 text-lg font-bold text-neutral-900">{{ counter.category }}</h3>
-                        </div>
-                        <div class="rounded-2xl bg-white px-3 py-2 text-right shadow-sm">
-                          <p class="text-xs uppercase tracking-widest text-neutral-500">Total</p>
-                          <p class="text-2xl font-black text-neutral-900">{{ counter.totalPlayers }}</p>
-                        </div>
-                      </div>
-
-                      <div class="mt-4 flex flex-wrap gap-2">
-                        @for (genderCount of counter.genders; track genderCount.gender) {
-                          <span class="inline-flex rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700">
-                            {{ getInscriptionGenderLabel(genderCount.gender) }}: {{ genderCount.totalPlayers }}
-                          </span>
-                        }
-                      </div>
-                    </article>
-                  }
-                </div>
-
-                @if (!hasTournamentInscriptionsResults()) {
-                  <div class="mt-5 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-sm text-neutral-600">
-                    No hay jugadores inscritos para el filtro seleccionado.
-                  </div>
-                } @else {
-                  <div class="mt-6 overflow-hidden rounded-3xl border border-neutral-200">
-                    <div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                      <span>Nombre y apellidos</span>
-                      <span>Prueba / categoría</span>
+              <div class="mt-6 rounded-3xl border border-neutral-200 bg-white p-5 sm:p-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <div class="flex flex-wrap items-center gap-3">
+                      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Listado</p>
+                      <button
+                        type="button"
+                        class="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                        (click)="toggleRegisteredPlayersPanel()"
+                      >
+                        {{ isRegisteredPlayersPanelExpanded() ? 'Ocultar' : 'Mostrar' }}
+                      </button>
                     </div>
+                    <h3 class="mt-2 text-xl font-bold text-neutral-900">Jugadores inscritos</h3>
+                    <p class="mt-2 text-sm text-neutral-600">Consulta los inscritos del torneo, filtra por prueba y revisa los contadores por categoría y modalidad.</p>
+                  </div>
 
-                    <div class="divide-y divide-neutral-200 bg-white">
-                      @for (player of tournamentInscriptionPlayers(); track player.inscriptionId + player.firstName + player.lastName) {
-                        <div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 px-5 py-4 text-sm text-neutral-700">
-                          <div>
-                            <p class="font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
-                            <p class="mt-1 text-xs text-neutral-500">
-                              {{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}
-                            </p>
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <label class="block min-w-72">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Filtrar por prueba</span>
+                      <select
+                        class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                        [disabled]="isLoadingTournamentInscriptions() || !isRegisteredPlayersPanelExpanded()"
+                        [value]="selectedTournamentInscriptionEventId() ?? ''"
+                        (change)="onTournamentInscriptionEventChange($any($event.target).value)"
+                      >
+                        <option value="">Todas las pruebas</option>
+                        @for (event of tournamentInscriptionEvents(); track event.eventId) {
+                          <option [value]="event.eventId">{{ event.eventName }}</option>
+                        }
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                @if (isRegisteredPlayersPanelExpanded()) {
+                  @if (isLoadingTournamentInscriptions()) {
+                    <div class="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                      Cargando jugadores inscritos...
+                    </div>
+                  } @else if (tournamentInscriptionsError()) {
+                    <div class="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                      {{ tournamentInscriptionsError() }}
+                    </div>
+                  } @else {
+                    <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      @for (counter of tournamentInscriptionCategoryCounts(); track counter.categoryId) {
+                        <article class="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                          <div class="flex items-start justify-between gap-3">
+                            <div>
+                              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Categoria</p>
+                              <h3 class="mt-2 text-lg font-bold text-neutral-900">{{ counter.category }}</h3>
+                            </div>
+                            <div class="rounded-2xl bg-white px-3 py-2 text-right shadow-sm">
+                              <p class="text-xs uppercase tracking-widest text-neutral-500">Total</p>
+                              <p class="text-2xl font-black text-neutral-900">{{ counter.totalPlayers }}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p class="font-medium text-neutral-900">{{ player.eventName }}</p>
-                            <p class="mt-1 text-xs text-neutral-500">{{ player.category }}</p>
+
+                          <div class="mt-4 flex flex-wrap gap-2">
+                            @for (genderCount of counter.genders; track genderCount.gender) {
+                              <span class="inline-flex rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700">
+                                {{ getInscriptionGenderLabel(genderCount.gender) }}: {{ genderCount.totalPlayers }}
+                              </span>
+                            }
                           </div>
-                        </div>
+                        </article>
                       }
                     </div>
-                  </div>
+
+                    @if (!hasTournamentInscriptionsResults()) {
+                      <div class="mt-5 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-sm text-neutral-600">
+                        No hay jugadores inscritos para el filtro seleccionado.
+                      </div>
+                    } @else {
+                      <div class="mt-6 overflow-hidden rounded-3xl border border-neutral-200">
+                        <div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                          <span>Nombre y apellidos</span>
+                          <span>Prueba / categoría</span>
+                        </div>
+
+                        <div class="divide-y divide-neutral-200 bg-white">
+                          @for (player of tournamentInscriptionPlayers(); track player.inscriptionId + player.firstName + player.lastName) {
+                            <div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 px-5 py-4 text-sm text-neutral-700">
+                              <div>
+                                <p class="font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
+                                <p class="mt-1 text-xs text-neutral-500">
+                                  {{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}
+                                </p>
+                              </div>
+                              <div>
+                                <p class="font-medium text-neutral-900">{{ player.eventName }}</p>
+                                <p class="mt-1 text-xs text-neutral-500">{{ player.category }}</p>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  }
                 }
-              }
+              </div>
             </section>
           }
 
@@ -1023,7 +1029,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     Genera cuadros para ver aquí los partidos programables.
                   </div>
                 } @else if (isMatchSchedulePanelExpanded()) {
-                  <div class="mt-4 grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.8fr_0.9fr_1fr_auto]">
+                  <div class="mt-4 grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.8fr_0.9fr_1fr_0.8fr_auto]">
                     <label class="text-xs font-semibold uppercase tracking-widest text-neutral-600">
                       Prueba
                       <select
@@ -1077,6 +1083,19 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         @for (court of courts(); track court.id) {
                           <option [value]="court.id">{{ court.name }}</option>
                         }
+                      </select>
+                    </label>
+
+                    <label class="text-xs font-semibold uppercase tracking-widest text-neutral-600">
+                      Tipo
+                      <select
+                        class="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-neutral-800 focus:border-primary-500 focus:outline-none"
+                        [ngModel]="matchScheduleProfessionalFilter()"
+                        (ngModelChange)="matchScheduleProfessionalFilter.set($event)"
+                        name="matchScheduleProfessionalFilter"
+                      >
+                        <option value="">Todos</option>
+                        <option value="PRO">PRO</option>
                       </select>
                     </label>
 
@@ -1191,14 +1210,25 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                 <div class="mt-5 rounded-2xl border border-neutral-200 bg-white p-4">
                   <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                      <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Pruebas y cuadros</p>
-                      <h3 class="mt-1 text-lg font-bold text-neutral-900">Pruebas del torneo</h3>
+                      <div class="flex flex-wrap items-center gap-3">
+                        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Pruebas y cuadros</p>
+                        <button
+                          type="button"
+                          class="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                          (click)="toggleEventsDrawsPanel()"
+                        >
+                          {{ isEventsDrawsPanelExpanded() ? 'Ocultar' : 'Mostrar' }}
+                        </button>
+                      </div>
                     </div>
-                    <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
-                      {{ tournament()!.events!.length }} pruebas
-                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
+                        {{ tournament()!.events!.length }} pruebas
+                      </span>
+                    </div>
                   </div>
 
+                  @if (isEventsDrawsPanelExpanded()) {
                   <div class="mt-5 space-y-4">
                   @for (event of tournament()!.events!; track event.eventId) {
                     <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
@@ -1242,6 +1272,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     </div>
                   }
                   </div>
+                  }
                 </div>
               } @else {
                 <div class="mt-5 rounded-2xl border border-neutral-200 bg-white p-6 text-center text-neutral-600">
@@ -1326,8 +1357,11 @@ export class TournamentDetailComponent implements OnInit {
   readonly drawGenerationFeedbackByStageId = signal<Record<string, DrawGenerationFeedback>>({});
   readonly courts = signal<CourtResponse[]>([]);
   readonly isLoadingCourts = signal(false);
-  readonly isCourtsPanelExpanded = signal(true);
-  readonly isMatchSchedulePanelExpanded = signal(true);
+  readonly isCourtsPanelExpanded = signal(false);
+  readonly isMatchSchedulePanelExpanded = signal(false);
+  readonly isManualPlayerPanelExpanded = signal(false);
+  readonly isRegisteredPlayersPanelExpanded = signal(false);
+  readonly isEventsDrawsPanelExpanded = signal(false);
   readonly isCreatingCourt = signal(false);
   readonly isUpdatingCourt = signal(false);
   readonly isDeletingCourt = signal(false);
@@ -1336,12 +1370,15 @@ export class TournamentDetailComponent implements OnInit {
   readonly selectedCourtName = signal('');
   readonly courtMessage = signal<string | null>(null);
   readonly courtError = signal<string | null>(null);
+  readonly savingResultMatchIds = signal<Set<string>>(new Set());
+  readonly savingResultMatchId = computed(() => Array.from(this.savingResultMatchIds())[0] ?? null);
   readonly savingScheduleMatchId = signal<string | null>(null);
   readonly matchScheduleDrafts = signal<Record<string, MatchScheduleDraft>>({});
   readonly matchScheduleEventFilter = signal('');
   readonly matchScheduleRoundFilter = signal('');
   readonly matchScheduleDateFilter = signal('');
   readonly matchScheduleCourtFilter = signal('');
+  readonly matchScheduleProfessionalFilter = signal('');
   readonly matchScheduleSortField = signal<MatchScheduleSortField>('event');
   readonly matchScheduleSortDirection = signal<MatchScheduleSortDirection>('asc');
   readonly manualPlayerSourceOptions: Array<{ value: ManualParticipantSource; label: string; description: string }> = [
@@ -1466,6 +1503,18 @@ export class TournamentDetailComponent implements OnInit {
   );
 
   readonly tournamentInscriptionPlayers = computed(() => this.tournamentInscriptions()?.inscriptions ?? []);
+  readonly isProfessionalTournament = computed(() => {
+    if (this.tournament()?.professionalTournament) {
+      return true;
+    }
+
+    if (this.tournamentInscriptions()?.selectedEventId) {
+      return false;
+    }
+
+    const players = this.tournamentInscriptionPlayers();
+    return players.length > 0 && players.every(player => player.playerSource === 'PROFESSIONAL');
+  });
 
   readonly participantNamesByInscriptionId = computed<Record<string, string>>(() =>
     this.tournamentInscriptionPlayers().reduce<Record<string, string>>((accumulator, player) => {
@@ -1532,6 +1581,7 @@ export class TournamentDetailComponent implements OnInit {
     const roundFilter = this.matchScheduleRoundFilter();
     const dateFilter = this.matchScheduleDateFilter();
     const courtFilter = this.matchScheduleCourtFilter();
+    const professionalFilter = this.matchScheduleProfessionalFilter();
 
     const rows = this.tournamentMatchScheduleRows().filter(row => {
       if (eventFilter && row.eventLabel !== eventFilter) {
@@ -1547,6 +1597,10 @@ export class TournamentDetailComponent implements OnInit {
       }
 
       if (courtFilter && this.getSavedMatchScheduleCourtId(row) !== courtFilter) {
+        return false;
+      }
+
+      if (professionalFilter === 'PRO' && !row.match.professionalMatch) {
         return false;
       }
 
@@ -1581,7 +1635,7 @@ export class TournamentDetailComponent implements OnInit {
     this.actionMessage.set(null);
     this.actionError.set(null);
 
-    if ((section === 'inscriptions' || section === 'registeredPlayers') && !this.tournamentInscriptions() && !this.isLoadingTournamentInscriptions()) {
+    if (section === 'inscriptions' && !this.tournamentInscriptions() && !this.isLoadingTournamentInscriptions()) {
       this.loadTournamentInscriptions();
     }
   }
@@ -2101,11 +2155,24 @@ export class TournamentDetailComponent implements OnInit {
     this.isMatchSchedulePanelExpanded.update(expanded => !expanded);
   }
 
+  toggleManualPlayerPanel(): void {
+    this.isManualPlayerPanelExpanded.update(expanded => !expanded);
+  }
+
+  toggleRegisteredPlayersPanel(): void {
+    this.isRegisteredPlayersPanelExpanded.update(expanded => !expanded);
+  }
+
+  toggleEventsDrawsPanel(): void {
+    this.isEventsDrawsPanelExpanded.update(expanded => !expanded);
+  }
+
   clearMatchScheduleFilters(): void {
     this.matchScheduleEventFilter.set('');
     this.matchScheduleRoundFilter.set('');
     this.matchScheduleDateFilter.set('');
     this.matchScheduleCourtFilter.set('');
+    this.matchScheduleProfessionalFilter.set('');
   }
 
   setMatchScheduleSort(field: MatchScheduleSortField): void {
@@ -2538,25 +2605,43 @@ export class TournamentDetailComponent implements OnInit {
       return;
     }
 
+    if (this.isSavingResultMatch(event.matchId)) {
+      this.actionError.set('Espera a que termine el guardado del resultado en curso.');
+      return;
+    }
+
+    const previousTournament = this.cloneTournament(currentTournament);
+    const optimisticMatch = this.createOptimisticMatchResult(currentTournament, event);
+    if (!optimisticMatch) {
+      this.actionError.set('No se pudo localizar el partido seleccionado.');
+      return;
+    }
+
+    const optimisticTournament = this.patchMatchResultInTournament(currentTournament, event.matchId, optimisticMatch);
+    if (optimisticTournament) {
+      this.tournament.set(optimisticTournament);
+    }
+
+    this.markResultMatchAsSaving(event.matchId);
     this.actionError.set(null);
+    this.actionMessage.set('Guardando resultado...');
     this.tournamentService.submitMatchResult(currentTournament.id, event.matchId, {
       winnerId: event.winnerId,
       scoreString: event.result
     }).subscribe({
       next: (updatedMatch) => {
-        console.debug('SubmitMatchResult: backend returned match:', updatedMatch);
-        console.debug('SubmitMatchResult: current local tournament before patch:', currentTournament);
-        const updatedTournament = this.patchMatchResultInTournament(currentTournament, event.matchId, updatedMatch);
+        const updatedTournament = this.patchMatchResultInTournament(this.tournament() ?? currentTournament, event.matchId, updatedMatch);
         if (updatedTournament) {
           this.tournament.set(updatedTournament);
-          console.debug('SubmitMatchResult: local tournament after patch:', this.tournament());
-        } else {
-          this.loadTournament(currentTournament.id, true);
         }
         this.actionMessage.set('Resultado guardado y cuadro actualizado');
+        this.unmarkResultMatchAsSaving(event.matchId);
       },
       error: (error) => {
+        const rolledBackTournament = this.rollbackMatchResultInTournament(this.tournament() ?? currentTournament, previousTournament, event.matchId);
+        this.tournament.set(rolledBackTournament ?? previousTournament);
         this.actionError.set(getApiErrorMessage(error, 'No se pudo guardar el resultado del partido.'));
+        this.unmarkResultMatchAsSaving(event.matchId);
       }
     });
   }
@@ -2735,11 +2820,8 @@ export class TournamentDetailComponent implements OnInit {
     }
 
     const currentMatch = matches[currentIndex];
-    const roundNumber = currentMatch.roundNumber ?? 1;
-    const roundMatches = matches.filter(match => (match.roundNumber ?? 1) === roundNumber);
-    const currentRoundIndex = roundMatches.findIndex(match => match.id === matchId);
-    const nextRoundMatches = matches.filter(match => (match.roundNumber ?? 1) === roundNumber + 1);
-    const nextMatch = currentRoundIndex >= 0 ? nextRoundMatches[Math.floor(currentRoundIndex / 2)] : undefined;
+    const previousWinnerId = currentMatch.winnerId ?? null;
+    const nextMatch = this.findNextMatchForSource(matches, currentMatch);
 
     const patchedMatches = matches.map(match => {
       if (match.id === matchId) {
@@ -2751,7 +2833,13 @@ export class TournamentDetailComponent implements OnInit {
       }
 
       if (nextMatch && match.id === nextMatch.id) {
-        return this.assignWinnerToNextMatch(match, updatedMatch.winnerId ?? null, currentRoundIndex, currentMatch.winnerId ?? null);
+        return this.assignWinnerToNextMatchOptimistically(
+          match,
+          updatedMatch.winnerId ?? null,
+          previousWinnerId,
+          currentMatch.bracketPosition ?? null,
+          matches
+        );
       }
 
       return match;
@@ -2774,6 +2862,224 @@ export class TournamentDetailComponent implements OnInit {
       },
       patched: true
     };
+  }
+
+  private createOptimisticMatchResult(
+    tournament: TournamentResponse,
+    event: { matchId: string; winnerId: string; result: string }
+  ): MatchResponse | null {
+    const match = this.findMatchInTournament(tournament, event.matchId);
+    if (!match) {
+      return null;
+    }
+
+    return {
+      ...match,
+      winnerId: event.winnerId,
+      result: event.result
+    };
+  }
+
+  private findMatchInTournament(tournament: TournamentResponse, matchId: string): MatchResponse | null {
+    for (const event of tournament.events ?? []) {
+      for (const stage of event.stages ?? []) {
+        for (const draw of stage.draws ?? []) {
+          const match = (draw.matches ?? []).find(currentMatch => currentMatch.id === matchId);
+          if (match) {
+            return match;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private findNextMatchForSource(matches: MatchResponse[], sourceMatch: MatchResponse): MatchResponse | null {
+    if (sourceMatch.bracketPosition == null) {
+      return null;
+    }
+
+    const nextRoundNumber = (sourceMatch.roundNumber ?? 1) + 1;
+    const nextBracketPosition = Math.floor(sourceMatch.bracketPosition / 2);
+
+    return matches.find(match =>
+      (match.roundNumber ?? 1) === nextRoundNumber &&
+      match.bracketPosition === nextBracketPosition
+    ) ?? null;
+  }
+
+  private assignWinnerToNextMatchOptimistically(
+    nextMatch: MatchResponse,
+    winnerId: string | null,
+    previousWinnerId: string | null,
+    sourceBracketPosition: number | null,
+    allMatches: MatchResponse[]
+  ): MatchResponse {
+    if (!winnerId) {
+      return nextMatch;
+    }
+
+    if (previousWinnerId && nextMatch.firstInscriptionId === previousWinnerId) {
+      return this.hydrateOptimisticProfessionalPoints({
+        ...nextMatch,
+        firstInscriptionId: winnerId,
+        secondInscriptionId: nextMatch.secondInscriptionId === winnerId ? null : nextMatch.secondInscriptionId
+      }, allMatches);
+    }
+
+    if (previousWinnerId && nextMatch.secondInscriptionId === previousWinnerId) {
+      return this.hydrateOptimisticProfessionalPoints({
+        ...nextMatch,
+        firstInscriptionId: nextMatch.firstInscriptionId === winnerId ? null : nextMatch.firstInscriptionId,
+        secondInscriptionId: winnerId
+      }, allMatches);
+    }
+
+    if (nextMatch.firstInscriptionId === winnerId || nextMatch.secondInscriptionId === winnerId) {
+      return nextMatch;
+    }
+
+    if (sourceBracketPosition == null) {
+      return nextMatch;
+    }
+
+    const useFirstSlot = sourceBracketPosition % 2 === 0;
+    if (useFirstSlot) {
+      if (nextMatch.firstInscriptionId && nextMatch.firstInscriptionId !== winnerId) {
+        return nextMatch;
+      }
+
+      return this.hydrateOptimisticProfessionalPoints({
+        ...nextMatch,
+        firstInscriptionId: winnerId,
+        secondInscriptionId: nextMatch.secondInscriptionId === winnerId ? null : nextMatch.secondInscriptionId
+      }, allMatches);
+    }
+
+    if (nextMatch.secondInscriptionId && nextMatch.secondInscriptionId !== winnerId) {
+      return nextMatch;
+    }
+
+    return this.hydrateOptimisticProfessionalPoints({
+      ...nextMatch,
+      firstInscriptionId: nextMatch.firstInscriptionId === winnerId ? null : nextMatch.firstInscriptionId,
+      secondInscriptionId: winnerId
+    }, allMatches);
+  }
+
+  private hydrateOptimisticProfessionalPoints(match: MatchResponse, allMatches: MatchResponse[]): MatchResponse {
+    if (!match.firstInscriptionId || !match.secondInscriptionId) {
+      return {
+        ...match,
+        professionalMatch: false,
+        firstWinPoints: null,
+        secondWinPoints: null
+      };
+    }
+
+    const awardedPointsByInscriptionId = this.getProfessionalAwardedPointsByInscriptionId(allMatches);
+    const firstAwardedPoints = awardedPointsByInscriptionId[match.firstInscriptionId];
+    const secondAwardedPoints = awardedPointsByInscriptionId[match.secondInscriptionId];
+
+    if (firstAwardedPoints == null || secondAwardedPoints == null) {
+      return match;
+    }
+
+    return {
+      ...match,
+      professionalMatch: true,
+      firstWinPoints: secondAwardedPoints,
+      secondWinPoints: firstAwardedPoints
+    };
+  }
+
+  private getProfessionalAwardedPointsByInscriptionId(matches: MatchResponse[]): Record<string, number> {
+    return matches.reduce<Record<string, number>>((accumulator, match) => {
+      if (match.firstInscriptionId && match.secondWinPoints != null) {
+        accumulator[match.firstInscriptionId] = match.secondWinPoints;
+      }
+
+      if (match.secondInscriptionId && match.firstWinPoints != null) {
+        accumulator[match.secondInscriptionId] = match.firstWinPoints;
+      }
+
+      return accumulator;
+    }, {});
+  }
+
+  private cloneTournament(tournament: TournamentResponse): TournamentResponse {
+    return JSON.parse(JSON.stringify(tournament)) as TournamentResponse;
+  }
+
+  private rollbackMatchResultInTournament(
+    currentTournament: TournamentResponse,
+    previousTournament: TournamentResponse,
+    matchId: string
+  ): TournamentResponse | null {
+    const previousMatch = this.findMatchInTournament(previousTournament, matchId);
+    if (!previousMatch) {
+      return null;
+    }
+
+    const previousNextMatch = this.findNextMatchInTournament(previousTournament, previousMatch);
+    let restored = false;
+
+    const events = (currentTournament.events ?? []).map(event => ({
+      ...event,
+      stages: (event.stages ?? []).map(stage => ({
+        ...stage,
+        draws: (stage.draws ?? []).map(draw => ({
+          ...draw,
+          matches: (draw.matches ?? []).map(match => {
+            if (match.id === previousMatch.id) {
+              restored = true;
+              return previousMatch;
+            }
+
+            if (previousNextMatch && match.id === previousNextMatch.id) {
+              restored = true;
+              return previousNextMatch;
+            }
+
+            return match;
+          })
+        }))
+      }))
+    }));
+
+    return restored ? { ...currentTournament, events } : null;
+  }
+
+  private findNextMatchInTournament(tournament: TournamentResponse, sourceMatch: MatchResponse): MatchResponse | null {
+    for (const event of tournament.events ?? []) {
+      for (const stage of event.stages ?? []) {
+        for (const draw of stage.draws ?? []) {
+          const nextMatch = this.findNextMatchForSource(draw.matches ?? [], sourceMatch);
+          if (nextMatch) {
+            return nextMatch;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private isSavingResultMatch(matchId: string): boolean {
+    return this.savingResultMatchIds().has(matchId);
+  }
+
+  private markResultMatchAsSaving(matchId: string): void {
+    this.savingResultMatchIds.update(matchIds => new Set([...matchIds, matchId]));
+  }
+
+  private unmarkResultMatchAsSaving(matchId: string): void {
+    this.savingResultMatchIds.update(matchIds => {
+      const nextMatchIds = new Set(matchIds);
+      nextMatchIds.delete(matchId);
+      return nextMatchIds;
+    });
   }
 
   private patchSingleMatchInTournament(
@@ -2898,73 +3204,6 @@ export class TournamentDetailComponent implements OnInit {
     }
 
     return this.participantNamesByInscriptionId()[inscriptionId] ?? inscriptionId.substring(0, 8);
-  }
-
-  private assignWinnerToNextMatch(
-    nextMatch: MatchResponse,
-    winnerId: string | null,
-    currentRoundIndex: number,
-    previousWinnerId: string | null
-  ): MatchResponse {
-    if (!winnerId) {
-      return nextMatch;
-    }
-
-    if (previousWinnerId) {
-      if (nextMatch.firstInscriptionId === previousWinnerId) {
-        return {
-          ...nextMatch,
-          firstInscriptionId: winnerId,
-          secondInscriptionId: nextMatch.secondInscriptionId === winnerId ? null : nextMatch.secondInscriptionId
-        };
-      }
-
-      if (nextMatch.secondInscriptionId === previousWinnerId) {
-        return {
-          ...nextMatch,
-          firstInscriptionId: nextMatch.firstInscriptionId === winnerId ? null : nextMatch.firstInscriptionId,
-          secondInscriptionId: winnerId
-        };
-      }
-    }
-
-    if (nextMatch.firstInscriptionId === winnerId || nextMatch.secondInscriptionId === winnerId) {
-      return nextMatch;
-    }
-
-    const preferFirstSlot = currentRoundIndex % 2 === 0;
-
-    if (preferFirstSlot) {
-      if (!nextMatch.firstInscriptionId) {
-        return {
-          ...nextMatch,
-          firstInscriptionId: winnerId
-        };
-      }
-
-      if (!nextMatch.secondInscriptionId) {
-        return {
-          ...nextMatch,
-          secondInscriptionId: winnerId
-        };
-      }
-    } else {
-      if (!nextMatch.secondInscriptionId) {
-        return {
-          ...nextMatch,
-          secondInscriptionId: winnerId
-        };
-      }
-
-      if (!nextMatch.firstInscriptionId) {
-        return {
-          ...nextMatch,
-          firstInscriptionId: winnerId
-        };
-      }
-    }
-
-    return nextMatch;
   }
 
   getCategoryLabel(categoryId: number): string {

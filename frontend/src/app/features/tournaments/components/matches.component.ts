@@ -35,8 +35,22 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                   <td class="px-3 py-2">#{{ getMatchNumber(match) }}</td>
                   <td class="px-3 py-2">
                     <div class="max-w-64">
-                      <p class="truncate font-medium text-neutral-900">{{ getParticipantName(match.firstInscriptionId) }}</p>
-                      <p class="truncate text-neutral-600">{{ getParticipantName(match.secondInscriptionId) }}</p>
+                      <p class="flex items-center gap-2 truncate font-medium text-neutral-900">
+                        <span class="truncate">{{ getParticipantName(match.firstInscriptionId) }}</span>
+                        @if (match.professionalMatch && match.firstInscriptionId) {
+                          <span [class]="getWinPointsClasses(match, match.firstInscriptionId)">
+                            {{ getWinPointsLabel(match.firstWinPoints) }}
+                          </span>
+                        }
+                      </p>
+                      <p class="mt-1 flex items-center gap-2 truncate text-neutral-600">
+                        <span class="truncate">{{ getParticipantName(match.secondInscriptionId) }}</span>
+                        @if (match.professionalMatch && match.secondInscriptionId) {
+                          <span [class]="getWinPointsClasses(match, match.secondInscriptionId)">
+                            {{ getWinPointsLabel(match.secondWinPoints) }}
+                          </span>
+                        }
+                      </p>
                     </div>
                   </td>
                   <td class="px-3 py-2">
@@ -104,6 +118,32 @@ export class MatchesComponent {
 
   getSchedulePrefix(scheduleTimeType: string | null | undefined): string {
     return scheduleTimeType === 'NOT_BEFORE' ? 'No antes de' : 'A las';
+  }
+
+  getWinPointsLabel(points: number | null | undefined): string {
+    return points == null ? '+0 pts' : `+${points} pts`;
+  }
+
+  getWinPointsClasses(match: MatchResponse, inscriptionId: string | null | undefined): string {
+    const baseClasses = 'shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-bold';
+
+    if (this.isWinner(match, inscriptionId)) {
+      return `${baseClasses} bg-green-100 text-green-700 ring-1 ring-green-200`;
+    }
+
+    if (this.isLoser(match, inscriptionId)) {
+      return `${baseClasses} bg-neutral-100 text-neutral-400 line-through decoration-2`;
+    }
+
+    return `${baseClasses} bg-neutral-100 text-neutral-500`;
+  }
+
+  private isWinner(match: MatchResponse, inscriptionId: string | null | undefined): boolean {
+    return !!inscriptionId && match.winnerId === inscriptionId;
+  }
+
+  private isLoser(match: MatchResponse, inscriptionId: string | null | undefined): boolean {
+    return !!inscriptionId && !!match.winnerId && match.winnerId !== inscriptionId;
   }
 
   private compareMatches(left: MatchResponse, right: MatchResponse, leftIndex: number, rightIndex: number): number {
