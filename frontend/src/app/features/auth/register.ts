@@ -5,6 +5,8 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
+const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,63}$/i;
+
 @Component({
 	selector: 'app-register-page',
 	standalone: true,
@@ -72,7 +74,7 @@ export class RegisterComponent {
 	readonly successMessage = signal<string | null>(null);
 
 	readonly form = this.fb.nonNullable.group({
-		email: ['', [Validators.required, Validators.email]],
+		email: ['', [Validators.required, Validators.pattern(EMAIL_PATTERN)]],
 		password: ['', [Validators.required, Validators.minLength(6)]]
 	});
 

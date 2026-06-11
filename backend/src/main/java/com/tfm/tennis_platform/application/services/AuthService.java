@@ -2,6 +2,7 @@ package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.application.commands.CompleteProfileCommand;
 import com.tfm.tennis_platform.domain.exceptions.ExpiredTokenException;
+import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.exceptions.InvalidTokenException;
 import com.tfm.tennis_platform.domain.port.out.EmailSender;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
@@ -33,10 +34,15 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^(?=.{1,254}$)(?=.{1,64}@)[A-Z0-9!#$%&'*+/=?^_`{|}~.-]+@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\\.)+[A-Z]{2,63}$",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -49,8 +55,9 @@ public class AuthService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthTokens login(String email, String password) {
+        String normalizedEmail = normalizeEmail(email);
         Authentication authenticationRequest =
-                UsernamePasswordAuthenticationToken.unauthenticated(email, password);
+                UsernamePasswordAuthenticationToken.unauthenticated(normalizedEmail, password);
         Authentication authenticationResponse = authenticationManager.authenticate(authenticationRequest);
 
         if (!authenticationResponse.isAuthenticated()) {
@@ -65,15 +72,16 @@ public class AuthService {
     }
 
     public RegistrationResult register(String email, String password, String name) {
-        memberRepository.findByEmail(email).ifPresent(existing -> {
-            throw new DuplicateResourceException("Member", "email", email);
+        String normalizedEmail = normalizeEmail(email);
+        memberRepository.findByEmail(normalizedEmail).ifPresent(existing -> {
+            throw new DuplicateResourceException("Member", "email", normalizedEmail);
         });
 
         MemberTier tier = MemberTier.FREE;
         String encodedPassword = passwordEncoder.encode(password);
 
         Member member = Member.builder()
-                .email(email)
+                .email(normalizedEmail)
                 .username(name)
                 .password(encodedPassword)
                 .tier(tier)
@@ -181,7 +189,7 @@ public class AuthService {
             return new EmailConfirmationResult(false, "La confirmación de email no está activada.");
         }
 
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmail(normalizeEmail(email))
                 .orElseThrow(() -> new UnauthorizedException("No se encontró una cuenta pendiente de confirmar con ese email."));
 
         if (member.isEmailVerified()) {
@@ -292,6 +300,24 @@ public class AuthService {
         if (!normalized.equals("MALE") && !normalized.equals("FEMALE") && !normalized.equals("MIXED")) {
             throw new IllegalArgumentException("El género debe ser masculino, femenino o mixto.");
         }
+        return normalized;
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) {
+            throw new InvalidArgumentException("Indica un email válido.");
+        }
+
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        int atIndex = normalized.indexOf('@');
+        String localPart = atIndex > 0 ? normalized.substring(0, atIndex) : "";
+        if (!EMAIL_PATTERN.matcher(normalized).matches()
+                || localPart.startsWith(".")
+                || localPart.endsWith(".")
+                || localPart.contains("..")) {
+            throw new InvalidArgumentException("Indica un email válido.");
+        }
+
         return normalized;
     }
 
