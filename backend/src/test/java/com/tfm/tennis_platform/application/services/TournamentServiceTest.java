@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -131,5 +133,49 @@ class TournamentServiceTest {
 
         assertEquals(List.of(tournamentSummary), result);
         verify(tournamentRepository).findSummaries();
+    }
+
+    @Test
+    void should_allow_tournament_admin_when_tournament_has_only_creator_id() {
+        UUID creatorId = UUID.randomUUID();
+        Tournament tournament = createPersistedTournamentWithCreator(Member.builder().id(creatorId).build());
+
+        when(memberRepository.findByEmail("organizer@example.com")).thenReturn(Optional.of(Member.builder()
+                .id(creatorId)
+                .email("organizer@example.com")
+                .build()));
+
+        assertDoesNotThrow(() -> tournamentService.assertTournamentAdmin(tournament, "organizer@example.com"));
+    }
+
+    @Test
+    void should_deny_tournament_admin_when_creator_id_is_different() {
+        Tournament tournament = createPersistedTournamentWithCreator(Member.builder().id(UUID.randomUUID()).build());
+
+        when(memberRepository.findByEmail("organizer@example.com")).thenReturn(Optional.of(Member.builder()
+                .id(UUID.randomUUID())
+                .email("organizer@example.com")
+                .build()));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> tournamentService.assertTournamentAdmin(tournament, "organizer@example.com")
+        );
+    }
+
+    private Tournament createPersistedTournamentWithCreator(Member creator) {
+        return Tournament.builder()
+                .id(UUID.randomUUID())
+                .name("Open de Primavera")
+                .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
+                .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
+                .surface(Surface.CLAY)
+                .maxPlayers(32)
+                .location("Club Central")
+                .state(TournamentStatus.DRAFT)
+                .createdBy(creator)
+                .events(List.of())
+                .build();
     }
 }

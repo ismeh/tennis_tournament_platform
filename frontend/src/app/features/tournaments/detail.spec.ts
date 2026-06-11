@@ -5,6 +5,8 @@ import { AuthService } from '../../core/auth/auth.service';
 import { PersonService } from '../../data/services/person.service';
 import { ProPlayerService } from '../../data/services/pro-player.service';
 import { MemberService } from '../../data/services/member.service';
+import { TournamentUpdateEvent } from '../../data/interfaces/tournament.model';
+import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
 import { TournamentService } from '../../data/services/tournament.service';
 import { TournamentDetailComponent } from './detail';
 
@@ -16,6 +18,8 @@ describe('TournamentDetailComponent', () => {
   let authServiceSpy: jasmine.SpyObj<AuthService>;
   let personServiceSpy: jasmine.SpyObj<PersonService>;
   let proPlayerServiceSpy: jasmine.SpyObj<ProPlayerService>;
+  let tournamentLiveUpdatesServiceSpy: jasmine.SpyObj<TournamentLiveUpdatesService>;
+  let liveUpdatesSubject: Subject<TournamentUpdateEvent>;
 
   beforeEach(async () => {
     tournamentServiceSpy = jasmine.createSpyObj<TournamentService>('TournamentService', [
@@ -37,6 +41,9 @@ describe('TournamentDetailComponent', () => {
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUserEmail']);
     personServiceSpy = jasmine.createSpyObj<PersonService>('PersonService', ['searchPersons']);
     proPlayerServiceSpy = jasmine.createSpyObj<ProPlayerService>('ProPlayerService', ['searchProPlayers']);
+    tournamentLiveUpdatesServiceSpy = jasmine.createSpyObj<TournamentLiveUpdatesService>('TournamentLiveUpdatesService', ['watchTournament']);
+    liveUpdatesSubject = new Subject<TournamentUpdateEvent>();
+    tournamentLiveUpdatesServiceSpy.watchTournament.and.returnValue(liveUpdatesSubject.asObservable());
 
     tournamentServiceSpy.getEventCatalog.and.returnValue(of([
       {
@@ -259,6 +266,7 @@ describe('TournamentDetailComponent', () => {
         { provide: AuthService, useValue: authServiceSpy },
         { provide: PersonService, useValue: personServiceSpy },
         { provide: ProPlayerService, useValue: proPlayerServiceSpy },
+        { provide: TournamentLiveUpdatesService, useValue: tournamentLiveUpdatesServiceSpy },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -285,6 +293,36 @@ describe('TournamentDetailComponent', () => {
     expect(component.isLoading()).toBeFalse();
     expect(component.isLoadingEvents()).toBeFalse();
     expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledWith('tournament-id', undefined);
+    expect(tournamentLiveUpdatesServiceSpy.watchTournament).toHaveBeenCalledWith('tournament-id');
+  });
+
+  it('should refresh tournament detail when a live match update arrives', () => {
+    const initialLoadCount = tournamentServiceSpy.getTournamentById.calls.count();
+    tournamentServiceSpy.getTournamentById.and.returnValue(of({
+      id: 'tournament-id',
+      formalName: 'Open de Primavera Actualizado',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      status: 'DRAFT',
+      providerOrganisationId: 'member-id',
+      events: []
+    }));
+
+    liveUpdatesSubject.next({
+      type: 'MATCH_RESULT_UPDATED',
+      tournamentId: 'tournament-id',
+      matchId: 'match-1',
+      occurredAt: '2026-06-11T10:00:00'
+    });
+
+    expect(tournamentServiceSpy.getTournamentById.calls.count()).toBe(initialLoadCount + 1);
+    expect(component.tournament()?.formalName).toBe('Open de Primavera Actualizado');
+    expect(component.actionMessage()).toBe('Cuadro actualizado');
   });
 
   it('should keep the optimistic result without reloading the tournament after saving a match result', () => {

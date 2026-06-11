@@ -45,6 +45,7 @@ type DrawViewMode = 'tree' | 'list';
                       [participantNamesInput]="participantNamesInput"
                       [participantOrderInput]="participantOrderInput"
                       [courtsInput]="courtsInput"
+                      [canManageInput]="canManageInput"
                       [showTitleInput]="false"
                       [showDrawCardInput]="false"
                       (matchSelected)="matchSelected.emit($event.id)"
@@ -79,6 +80,7 @@ type DrawViewMode = 'tree' | 'list';
       [matchInput]="selectedMatch()"
       [participantNamesInput]="participantNamesInput"
       [courtsInput]="courtsInput"
+      [canManageInput]="canManageInput"
       (saveResult)="onSaveMatchResult($event)"
       (saveSchedule)="onSaveMatchSchedule($event)"
       (close)="onModalClose()"
@@ -89,6 +91,7 @@ export class DrawsComponent {
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() participantOrderInput: Record<string, number> = {};
   @Input() courtsInput: CourtResponse[] = [];
+  @Input() canManageInput = false;
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
@@ -147,6 +150,10 @@ export class DrawsComponent {
   }
 
   onSaveMatchResult(event: { matchId: string; winnerId: string; result: string }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.matchResultSaved.emit(event);
     this.selectedMatch.set(null);
   }
@@ -157,6 +164,10 @@ export class DrawsComponent {
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
   }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.matchScheduleSaved.emit(event);
   }
 }

@@ -42,15 +42,17 @@ public class EventService {
     private final InscriptionRepository inscriptionRepository;
     private final MatchRepository matchRepository;
     private final CourtRepository courtRepository;
+    private final TournamentService tournamentService;
     private final StageGenerationService stageGenerationService;
     private final DrawGenerationService drawGenerationService;
     private final MatchGenerationService matchGenerationService;
         private final MatchPersistenceService matchPersistenceService;
 
     @Transactional
-    public Tournament replaceAllEvents(UUID tournamentId, EventCommand eventCommand) {
+    public Tournament replaceAllEvents(UUID tournamentId, EventCommand eventCommand, String requesterEmail) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+        tournamentService.assertTournamentAdmin(tournament, requesterEmail);
 
         List<Event> events = eventCommand.events().stream()
                 .map(item -> {
@@ -69,9 +71,10 @@ public class EventService {
     }
 
     @Transactional
-    public Tournament removeEventFromTournament(UUID tournamentId, UUID eventId) {
+    public Tournament removeEventFromTournament(UUID tournamentId, UUID eventId, String requesterEmail) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+        tournamentService.assertTournamentAdmin(tournament, requesterEmail);
 
         List<Event> updatedEvents = tournament.getEvents().stream()
                 .filter(event -> !eventId.equals(event.getId()))
@@ -89,10 +92,11 @@ public class EventService {
     }
 
     @Transactional
-    public Tournament generateDrawsForEvent(UUID tournamentId, UUID eventId) {
+    public Tournament generateDrawsForEvent(UUID tournamentId, UUID eventId, String requesterEmail) {
         log.info("Generating draws for event {} in tournament {}", eventId, tournamentId);
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+        tournamentService.assertTournamentAdmin(tournament, requesterEmail);
 
         Event event = tournament.getEvents().stream()
                 .filter(e -> e.getId().equals(eventId))

@@ -28,15 +28,17 @@ type DrawGenerationFeedback = {
                   <p class="mt-1 text-sm text-neutral-600">{{ stage.description }}</p>
                   <p class="mt-2 text-xs text-neutral-500">Fase {{ stage.order }}</p>
                 </div>
-                <button
-                  type="button"
-                  (click)="onGenerateDraws(stage)"
-                  [disabled]="isGeneratingDraws(stage.id)"
-                  [attr.aria-busy]="isGeneratingDraws(stage.id)"
-                  [class]="getGenerateDrawsButtonClass(stage)"
-                >
-                  {{ getGenerateDrawsButtonLabel(stage) }}
-                </button>
+                @if (canManageInput) {
+                  <button
+                    type="button"
+                    (click)="onGenerateDraws(stage)"
+                    [disabled]="isGeneratingDraws(stage.id)"
+                    [attr.aria-busy]="isGeneratingDraws(stage.id)"
+                    [class]="getGenerateDrawsButtonClass(stage)"
+                  >
+                    {{ getGenerateDrawsButtonLabel(stage) }}
+                  </button>
+                }
               </div>
 
               @if (isGeneratingDraws(stage.id)) {
@@ -61,6 +63,7 @@ type DrawGenerationFeedback = {
                     [participantNamesInput]="participantNamesInput"
                     [participantOrderInput]="participantOrderInput"
                     [courtsInput]="courtsInput"
+                    [canManageInput]="canManageInput"
                     (matchSelected)="onMatchSelected($event)"
                     (matchResultSaved)="onMatchResultSaved($event)"
                     (matchScheduleSaved)="onMatchScheduleSaved($event)"
@@ -91,6 +94,7 @@ export class StagesComponent {
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() participantOrderInput: Record<string, number> = {};
   @Input() courtsInput: CourtResponse[] = [];
+  @Input() canManageInput = false;
 
   @Input() set stagesInput(value: StageResponse[]) {
     this._stages.set(value);
@@ -133,6 +137,10 @@ export class StagesComponent {
   }
 
   onGenerateDraws(stage: StageResponse) {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.expandedStageId.set(stage.id);
     this.generateDraws.emit({
       tournamentId: this.tournamentId(),
@@ -145,6 +153,10 @@ export class StagesComponent {
   }
 
   onMatchResultSaved(event: { matchId: string; winnerId: string; result: string }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.matchResultSaved.emit(event);
   }
 
@@ -154,6 +166,10 @@ export class StagesComponent {
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
   }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.matchScheduleSaved.emit(event);
   }
 

@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.application.service;
 
 import com.tfm.tennis_platform.application.services.MatchService;
+import com.tfm.tennis_platform.application.services.TournamentService;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.domain.models.Court;
@@ -9,6 +10,7 @@ import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
+import com.tfm.tennis_platform.domain.port.out.TournamentUpdatePublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,7 +50,13 @@ class MatchServiceTest {
     private CourtRepository courtRepository;
 
     @Mock
+    private TournamentUpdatePublisher tournamentUpdatePublisher;
+
+    @Mock
     private TransactionTemplate transactionTemplate;
+
+    @Mock
+    private TournamentService tournamentService;
 
     private MatchService matchService;
 
@@ -58,7 +66,7 @@ class MatchServiceTest {
             TransactionCallback<Match> callback = invocation.getArgument(0);
             return callback.doInTransaction(null);
         });
-        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository, transactionTemplate);
+        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository, tournamentUpdatePublisher, transactionTemplate, tournamentService);
     }
 
     @Test
@@ -95,7 +103,7 @@ class MatchServiceTest {
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3", "organizer@example.com");
 
         assertEquals(winnerId, updatedCurrentMatch.getWinnerId());
         assertEquals("6-4 6-3", updatedCurrentMatch.getResult());
@@ -109,6 +117,11 @@ class MatchServiceTest {
             assertNotNull(match.getFirstInscriptionId());
             return winnerId.equals(match.getFirstInscriptionId());
         }));
+        verify(tournamentUpdatePublisher).publish(org.mockito.ArgumentMatchers.argThat(event ->
+                "MATCH_RESULT_UPDATED".equals(event.type().name())
+                        && tournamentId.equals(event.tournamentId())
+                        && currentMatchId.equals(event.matchId())
+        ));
     }
 
     @Test
@@ -134,7 +147,7 @@ class MatchServiceTest {
         when(matchRepository.findById(consolationMatchId.toString())).thenReturn(Optional.of(consolationMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3", "organizer@example.com");
 
         assertEquals(winnerId, updatedCurrentMatch.getWinnerId());
         verify(matchRepository, times(2)).save(any(Match.class));
@@ -171,7 +184,7 @@ class MatchServiceTest {
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4", "organizer@example.com");
 
         assertEquals(newWinnerId, updatedCurrentMatch.getWinnerId());
         verify(matchRepository, times(2)).save(any(Match.class));
@@ -208,7 +221,7 @@ class MatchServiceTest {
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4");
+        matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4", "organizer@example.com");
 
         verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(match -> {
             if (!nextMatchId.equals(match.getId())) {
@@ -243,12 +256,17 @@ class MatchServiceTest {
         when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(match));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Match scheduledMatch = matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.NOT_BEFORE);
+        Match scheduledMatch = matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.NOT_BEFORE, false, "organizer@example.com");
 
         assertEquals(scheduledAt, scheduledMatch.getScheduledAt());
         assertEquals(ScheduleTimeType.NOT_BEFORE, scheduledMatch.getScheduleTimeType());
         assertEquals(courtId, scheduledMatch.getCourtId());
         assertEquals("Pista 1", scheduledMatch.getCourt());
+        verify(tournamentUpdatePublisher).publish(org.mockito.ArgumentMatchers.argThat(event ->
+                "MATCH_SCHEDULE_UPDATED".equals(event.type().name())
+                        && tournamentId.equals(event.tournamentId())
+                        && matchId.equals(event.matchId())
+        ));
     }
 
     @Test
@@ -280,7 +298,7 @@ class MatchServiceTest {
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException.class,
-                () -> matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.EXACT)
+                () -> matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.EXACT, false, "organizer@example.com")
         );
     }
 

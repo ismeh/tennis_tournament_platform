@@ -13,6 +13,7 @@ import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -78,9 +79,10 @@ public class TournamentService {
     }
 
     @Transactional
-    public Tournament updateStatus(UUID tournamentId, TournamentStatus newStatus) {
+    public Tournament updateStatus(UUID tournamentId, TournamentStatus newStatus, String requesterEmail) {
         Tournament currentTournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+        assertTournamentAdmin(currentTournament, requesterEmail);
 
         if (newStatus == null) {
             throw new InvalidArgumentException("Selecciona un estado válido para el torneo.");
@@ -100,6 +102,30 @@ public class TournamentService {
                 .build();
 
         return tournamentRepository.save(updatedTournament);
+    }
+
+    public void assertTournamentAdmin(UUID tournamentId, String requesterEmail) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+        assertTournamentAdmin(tournament, requesterEmail);
+    }
+
+    public void assertTournamentAdmin(Tournament tournament, String requesterEmail) {
+        if (tournament == null || tournament.getCreatedBy() == null || requesterEmail == null) {
+            throw new AccessDeniedException("Only the tournament administrator can perform this action.");
+        }
+
+        Member requester = memberRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new AccessDeniedException("Only the tournament administrator can perform this action."));
+        UUID tournamentAdminId = tournament.getCreatedBy().getId();
+        if (tournamentAdminId != null && requester.getId() != null && tournamentAdminId.equals(requester.getId())) {
+            return;
+        }
+
+        String tournamentAdminEmail = tournament.getCreatedBy().getEmail();
+        if (tournamentAdminEmail == null || !requesterEmail.equalsIgnoreCase(tournamentAdminEmail)) {
+            throw new AccessDeniedException("Only the tournament administrator can perform this action.");
+        }
     }
 
     private void createInitialCourts(UUID tournamentId, Integer courtCount) {

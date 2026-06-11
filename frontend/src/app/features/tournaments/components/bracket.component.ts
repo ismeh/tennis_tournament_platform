@@ -159,6 +159,7 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
         [matchInput]="selectedMatch()"
         [participantNamesInput]="participantNamesInput"
         [courtsInput]="courtsInput"
+        [canManageInput]="canManageInput"
         (saveResult)="onSaveMatchResult($event)"
         (saveSchedule)="onSaveMatchSchedule($event)"
         (close)="onModalClose()"
@@ -438,6 +439,7 @@ export class BracketComponent {
   @Input() courtsInput: CourtResponse[] = [];
   @Input() showTitleInput = true;
   @Input() showDrawCardInput = true;
+  @Input() canManageInput = false;
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
@@ -476,6 +478,10 @@ export class BracketComponent {
   }
 
   onSaveMatchResult(event: { matchId: string; winnerId: string; result: string }): void {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.matchResultSaved.emit(event);
     this.selectedMatch.set(null);
   }
@@ -486,6 +492,10 @@ export class BracketComponent {
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
   }): void {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.matchScheduleSaved.emit(event);
   }
 
@@ -507,7 +517,7 @@ export class BracketComponent {
       .sort((a, b) => a[0] - b[0])
       .map(([roundNumber, roundMatches]) => ({
         roundNumber,
-        matches: roundMatches
+        matches: this.sortRoundMatches(roundMatches)
       }));
   }
 
@@ -578,7 +588,7 @@ export class BracketComponent {
   }
 
   getMatchNumber(match: MatchResponse, allMatches: MatchResponse[]): number {
-    const matchesInRound = allMatches.filter((m) => m.roundNumber === match.roundNumber);
+    const matchesInRound = this.sortRoundMatches(allMatches.filter((m) => m.roundNumber === match.roundNumber));
     return (matchesInRound.indexOf(match) + 1) || 1;
   }
 
@@ -669,6 +679,21 @@ export class BracketComponent {
       .trim();
 
     return sanitizedName || null;
+  }
+
+  private sortRoundMatches(matches: MatchResponse[]): MatchResponse[] {
+    return [...matches].sort((left, right) =>
+      this.compareNumbers(left.bracketPosition, right.bracketPosition) ||
+      this.compareStrings(left.id, right.id)
+    );
+  }
+
+  private compareNumbers(left: number | null | undefined, right: number | null | undefined): number {
+    return (left ?? Number.MAX_SAFE_INTEGER) - (right ?? Number.MAX_SAFE_INTEGER);
+  }
+
+  private compareStrings(left: string | null | undefined, right: string | null | undefined): number {
+    return (left ?? '').localeCompare(right ?? '');
   }
 
 }

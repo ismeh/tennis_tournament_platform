@@ -18,14 +18,15 @@ public class CourtService {
 
     private final CourtRepository courtRepository;
     private final TournamentRepository tournamentRepository;
+    private final TournamentService tournamentService;
 
     public List<Court> findByTournamentId(UUID tournamentId) {
         ensureTournamentExists(tournamentId);
         return courtRepository.findByTournamentId(tournamentId);
     }
 
-    public Court create(UUID tournamentId, String name) {
-        ensureTournamentExists(tournamentId);
+    public Court create(UUID tournamentId, String name, String requesterEmail) {
+        ensureTournamentAdmin(tournamentId, requesterEmail);
         String normalizedName = normalizeName(name);
 
         if (courtRepository.existsByTournamentIdAndName(tournamentId, normalizedName)) {
@@ -42,8 +43,8 @@ public class CourtService {
         return courtRepository.save(court);
     }
 
-    public Court update(UUID tournamentId, UUID courtId, String name) {
-        ensureTournamentExists(tournamentId);
+    public Court update(UUID tournamentId, UUID courtId, String name, String requesterEmail) {
+        ensureTournamentAdmin(tournamentId, requesterEmail);
         if (courtId == null) {
             throw new InvalidArgumentException("La pista es obligatoria.");
         }
@@ -62,8 +63,8 @@ public class CourtService {
                 .build());
     }
 
-    public void delete(UUID tournamentId, UUID courtId) {
-        ensureTournamentExists(tournamentId);
+    public void delete(UUID tournamentId, UUID courtId, String requesterEmail) {
+        ensureTournamentAdmin(tournamentId, requesterEmail);
         if (courtId == null) {
             throw new InvalidArgumentException("La pista es obligatoria.");
         }
@@ -80,6 +81,11 @@ public class CourtService {
 
         tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+    }
+
+    private void ensureTournamentAdmin(UUID tournamentId, String requesterEmail) {
+        ensureTournamentExists(tournamentId);
+        tournamentService.assertTournamentAdmin(tournamentId, requesterEmail);
     }
 
     private String normalizeName(String name) {

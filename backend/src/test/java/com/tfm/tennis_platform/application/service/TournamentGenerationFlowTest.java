@@ -100,6 +100,7 @@ class TournamentGenerationFlowTest {
                 inscriptionRepository,
                 matchRepository,
                 courtRepository,
+                tournamentService,
                 stageGenerationService,
                 drawGenerationService,
                 matchGenerationService,
@@ -137,7 +138,8 @@ class TournamentGenerationFlowTest {
 
         Tournament tournamentWithEvents = eventService.replaceAllEvents(
                 createdTournament.getId(),
-                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("1"))))
+                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("1")))),
+                "organizer@example.com"
         );
 
         assertEquals(1, tournamentWithEvents.getEvents().size());
@@ -152,7 +154,7 @@ class TournamentGenerationFlowTest {
                 createInscription(event.getId())
         ));
 
-        Tournament tournamentWithDraws = eventService.generateDrawsForEvent(createdTournament.getId(), event.getId());
+        Tournament tournamentWithDraws = eventService.generateDrawsForEvent(createdTournament.getId(), event.getId(), "organizer@example.com");
 
         assertEquals(1, tournamentWithDraws.getEvents().size());
         Event generatedEvent = tournamentWithDraws.getEvents().get(0);
@@ -207,7 +209,8 @@ class TournamentGenerationFlowTest {
         Tournament createdTournament = tournamentService.create(createTournament(), "organizer@example.com");
         Tournament tournamentWithEvents = eventService.replaceAllEvents(
                 createdTournament.getId(),
-                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("CONSOLATION"))))
+                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("CONSOLATION")))),
+                "organizer@example.com"
         );
         Event event = tournamentWithEvents.getEvents().get(0);
 
@@ -218,7 +221,7 @@ class TournamentGenerationFlowTest {
                 createInscription(event.getId())
         ));
 
-        Tournament tournamentWithDraws = eventService.generateDrawsForEvent(createdTournament.getId(), event.getId());
+        Tournament tournamentWithDraws = eventService.generateDrawsForEvent(createdTournament.getId(), event.getId(), "organizer@example.com");
         Event generatedEvent = tournamentWithDraws.getEvents().get(0);
 
         assertEquals(2, generatedEvent.getStages().size());
