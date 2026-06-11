@@ -53,6 +53,8 @@ Detailed architecture: [`/docs/architecture.md`](./docs/architecture.md)
    docker compose up --build
    ```
 
+For HTTPS local or a public Nginx demo, use the environment matrix in [`/docs/deployment-https.md`](./docs/deployment-https.md#matriz-de-variables-por-modo). The important rule is that `FRONTEND_API_URL` must match the public URL used by the browser: `http://localhost:8080/api` for plain local HTTP, `https://localhost/api` for local Nginx HTTPS, or `https://your-domain/api` for a public demo.
+
 ### Default Docker Compose URLs
 
 | Service | URL |
@@ -61,11 +63,11 @@ Detailed architecture: [`/docs/architecture.md`](./docs/architecture.md)
 | Backend API | http://localhost:8080/api |
 | PostgreSQL | localhost:5432 |
 
-For non-Docker local development, backend defaults to `http://localhost:8085` unless `BACKEND_PORT` is set.
+For non-Docker local development, the backend PostgreSQL `dev` profile defaults to `http://localhost:8085`, while `devH2` defaults to `http://localhost:8080`, unless `BACKEND_PORT` is set.
 
 ### Default Credentials
 
-Sample users are seeded from SQL scripts, but plaintext passwords are not documented in the repository. For local login, use the public registration/login endpoints described in [`/docs/api-spec.md`](./docs/api-spec.md) (`http://localhost:8080` with Docker Compose, or `http://localhost:8085` for non-Docker local development unless `BACKEND_PORT` is set).
+Sample users are seeded from SQL scripts, but plaintext passwords are not documented in the repository. For local login, use the public registration/login endpoints described in [`/docs/api-spec.md`](./docs/api-spec.md) (`http://localhost:8080` with Docker Compose, `http://localhost:8085` for local PostgreSQL `dev`, or the configured `BACKEND_PORT`).
 
 ## Local Development (Without Docker)
 
@@ -110,6 +112,7 @@ Component-specific guides:
 
 - Backend: [`/backend/README.md`](./backend/README.md)
 - Frontend: [`/frontend/README.md`](./frontend/README.md)
+- HTTPS local and cheap demo deployment: [`/docs/deployment-https.md`](./docs/deployment-https.md)
 
 ## Contributing
 

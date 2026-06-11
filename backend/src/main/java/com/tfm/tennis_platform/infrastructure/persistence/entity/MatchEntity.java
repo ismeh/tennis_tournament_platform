@@ -36,6 +36,9 @@ public class MatchEntity {
     @Column(name = "round_number")
     private Integer roundNumber;
 
+    @Column(name = "bracket_position")
+    private Integer bracketPosition;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "next_match_id")
     private MatchEntity nextMatch;

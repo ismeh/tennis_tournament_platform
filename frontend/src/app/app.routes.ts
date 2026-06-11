@@ -5,6 +5,7 @@ import { LoginComponent } from './features/auth/login';
 import { RegisterComponent } from './features/auth/register';
 import { ConfirmEmailComponent } from './features/auth/confirm-email';
 import { CalendarComponent } from './features/calendar/calendar';
+import { RankingComponent } from './features/ranking/ranking';
 import { ProfileComponent } from './features/profile/profile';
 import { CreateTournamentComponent } from './features/tournaments/create';
 import { TournamentDetailComponent } from './features/tournaments/detail';
@@ -24,6 +25,11 @@ export const routes: Routes = [
     path: 'calendario',
     component: CalendarComponent,
     data: { title: 'Calendario' }
+  },
+  {
+    path: 'ranking',
+    component: RankingComponent,
+    data: { title: 'Ranking' }
   },
   {
     path: 'torneos/crear',

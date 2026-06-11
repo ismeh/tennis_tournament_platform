@@ -91,11 +91,13 @@ CREATE TABLE participant_persons (
 CREATE TABLE ref_age_category (
     id SERIAL PRIMARY KEY,
     category VARCHAR(20) NOT NULL,
-    description VARCHAR(15)
+    description VARCHAR(20),
+    display_order INTEGER
 );
 
 COMMENT ON COLUMN ref_age_category.category IS 'Nombre de la categoría';
 COMMENT ON COLUMN ref_age_category.description IS 'Comentario de la categoría';
+COMMENT ON COLUMN ref_age_category.display_order IS 'Orden de visualización de la categoría';
 
 -- EVENTS (within a tournament: singles/doubles, age categories, gender)
 CREATE TABLE events (
@@ -158,6 +160,7 @@ CREATE TABLE matches (
     second_inscription_id   UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
     winner_id               UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
     round_number            INTEGER,
+    bracket_position        INTEGER,
     next_match_id           UUID REFERENCES matches(id) ON DELETE SET NULL,
     loser_next_match_id     UUID REFERENCES matches(id) ON DELETE SET NULL,
     scheduled_at            TIMESTAMP,

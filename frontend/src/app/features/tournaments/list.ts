@@ -52,7 +52,14 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
                 [routerLink]="['/torneos', tournament.id]"
                 class="group block rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md"
               >
-                <p class="text-xs font-semibold uppercase tracking-widest text-primary-600">{{ getStatusLabel(tournament.status) }}</p>
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-xs font-semibold uppercase tracking-widest text-primary-600">{{ getStatusLabel(tournament.status) }}</p>
+                  @if (tournament.professionalTournament) {
+                    <span class="rounded-full bg-neutral-900 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">
+                      PRO
+                    </span>
+                  }
+                </div>
                 <h3 class="mt-2 text-lg font-bold text-neutral-900">{{ tournament.formalName }}</h3>
                 <p class="mt-1 text-sm text-neutral-600">{{ tournament.location }}</p>
 

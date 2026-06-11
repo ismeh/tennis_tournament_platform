@@ -1,0 +1,10 @@
+CREATE INDEX IF NOT EXISTS idx_events_tournament ON events (tournament_id);
+CREATE INDEX IF NOT EXISTS idx_stages_event ON stages (event_id);
+CREATE INDEX IF NOT EXISTS idx_draws_stage ON draws (stage_id);
+CREATE INDEX IF NOT EXISTS idx_matches_draw ON matches (draw_id);
+CREATE INDEX IF NOT EXISTS idx_matches_first_inscription ON matches (first_inscription_id);
+CREATE INDEX IF NOT EXISTS idx_matches_second_inscription ON matches (second_inscription_id);
+CREATE INDEX IF NOT EXISTS idx_matches_winner ON matches (winner_id);
+CREATE INDEX IF NOT EXISTS idx_matches_next_match ON matches (next_match_id);
+CREATE INDEX IF NOT EXISTS idx_matches_loser_next_match ON matches (loser_next_match_id);
+CREATE INDEX IF NOT EXISTS idx_participants_tournament ON participants (tournament_id);

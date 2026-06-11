@@ -1,0 +1,57 @@
+name: 2 - Deploy to AWS EC2
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["1 - Build & Push to Docker Hub"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy-to-ec2:
+    if: ${{ github.event.workflow_run == null || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy to AWS EC2
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          AWS_IP: ${{ secrets.EC2_HOST }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: DOCKER_USERNAME,AWS_IP
+          script: |
+            set -e
+
+            mkdir -p ~/tennis_tournament_platform
+            cd ~/tennis_tournament_platform
+
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/${{ github.repository }}.git .
+            else
+              git fetch --prune origin main
+              git reset --hard origin/main
+            fi
+
+            if [ ! -f ".env" ]; then
+              {
+                echo "DOCKER_USERNAME=${DOCKER_USERNAME}"
+                echo "FRONTEND_API_URL=http://${AWS_IP}:8080/api"
+                echo "FRONTEND_CONFIRMATION_URL=http://${AWS_IP}:4200/confirmar-email"
+              } > .env
+            fi
+
+            export DOCKER_USERNAME="${DOCKER_USERNAME}"
+
+            docker compose pull
+            docker compose up -d --remove-orphans

@@ -10,4 +10,5 @@ public interface MatchRepository {
     List<Match> saveAll(List<Match> matches);
     List<Match> findByTournamentId(UUID tournamentId);
     Optional<Match> findById(String id);
+    Optional<Match> findByIdAndTournamentId(UUID matchId, UUID tournamentId);
 }

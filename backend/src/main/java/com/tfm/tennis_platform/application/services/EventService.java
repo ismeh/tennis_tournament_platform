@@ -185,7 +185,8 @@ public class EventService {
                         }
 
                         linkConsolationLoserDestinations(ev, matchesByDraw);
-                        matchPersistenceService.saveMatches(sortMatchesForPersistence(ev, matchesByDraw));
+                        List<Match> savedMatches = matchPersistenceService.saveMatches(sortMatchesForPersistence(ev, matchesByDraw));
+                        replaceWithSavedMatches(matchesByDraw, savedMatches);
                 }
 
                 // Rebuild returned Tournament domain object with matches attached to draws
@@ -230,7 +231,43 @@ public class EventService {
 
                                 Tournament returned = persistedTournament.toBuilder().events(rebuiltEvents).build();
                                 log.info("Returning tournament events count={}", returned.getEvents() == null ? 0 : returned.getEvents().size());
-                                return returned;
+                                return tournamentRepository.findById(tournamentId)
+                                        .filter(reloadedTournament -> hasGeneratedEventMatches(reloadedTournament, eventId))
+                                        .orElse(returned);
+    }
+
+    private void replaceWithSavedMatches(Map<UUID, List<Match>> matchesByDraw, List<Match> savedMatches) {
+        Map<UUID, Match> savedMatchesById = mapMatchesById(savedMatches);
+        if (savedMatchesById.isEmpty()) {
+            return;
+        }
+
+        matchesByDraw.replaceAll((drawId, matches) -> matches.stream()
+                .map(match -> savedMatchesById.getOrDefault(match.getId(), match))
+                .toList());
+    }
+
+    private Map<UUID, Match> mapMatchesById(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return Map.of();
+        }
+
+        return matches.stream()
+                .collect(Collectors.toMap(Match::getId, Function.identity()));
+    }
+
+    private boolean hasGeneratedEventMatches(Tournament tournament, UUID eventId) {
+        if (tournament == null || tournament.getEvents() == null) {
+            return false;
+        }
+
+        return tournament.getEvents().stream()
+                .filter(event -> eventId.equals(event.getId()))
+                .filter(event -> event.getStages() != null)
+                .flatMap(event -> event.getStages().stream())
+                .filter(stage -> stage.getDraws() != null)
+                .flatMap(stage -> stage.getDraws().stream())
+                .anyMatch(draw -> draw.getMatches() != null && !draw.getMatches().isEmpty());
     }
 
     private void linkConsolationLoserDestinations(Event event, Map<UUID, List<Match>> matchesByDraw) {

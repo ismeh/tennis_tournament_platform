@@ -46,6 +46,7 @@ public interface TournamentWebMapper {
     @Mapping(target = "status", source = "state")
     @Mapping(target = "providerOrganisationId", source = "createdBy")
     @Mapping(target = "events", expression = "java(toEventResponses(domain.getEvents()))")
+    @Mapping(target = "professionalTournament", expression = "java(Boolean.FALSE)")
     TournamentResponse toResponse(Tournament domain);
 
     @Mapping(target = "events", ignore = true)
@@ -148,11 +149,15 @@ public interface TournamentWebMapper {
                     match.getSecondInscriptionId(),
                     match.getWinnerId(),
                     match.getRoundNumber(),
+                    match.getBracketPosition(),
                     match.getScheduledAt(),
                     match.getScheduleTimeType() != null ? match.getScheduleTimeType().name() : null,
                     match.getCourtId(),
                     match.getCourt(),
-                    match.getResult()
+                    match.getResult(),
+                    match.isProfessionalMatch(),
+                    match.getFirstWinPoints(),
+                    match.getSecondWinPoints()
                 ))
                 .toList();
     }

@@ -44,6 +44,7 @@ export interface TournamentResponse {
   status: TournamentStatus;
   providerOrganisationId?: string | TournamentProviderSummary | null;
   events?: TournamentEventResponse[];
+  professionalTournament?: boolean | null;
 }
 
 export interface TournamentCalendarFilters {
@@ -128,11 +129,15 @@ export interface MatchResponse {
   secondInscriptionId: string | null;
   winnerId?: string | null;
   roundNumber: number;
+  bracketPosition?: number | null;
   scheduledAt?: string | null;
   scheduleTimeType?: MatchScheduleTimeType | null;
   courtId?: string | null;
   court?: string | null;
   result?: string | null;
+  professionalMatch?: boolean | null;
+  firstWinPoints?: number | null;
+  secondWinPoints?: number | null;
 }
 
 export type MatchScheduleTimeType = 'EXACT' | 'NOT_BEFORE';

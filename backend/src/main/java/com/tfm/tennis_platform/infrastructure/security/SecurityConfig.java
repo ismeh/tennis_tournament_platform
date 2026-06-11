@@ -44,19 +44,21 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
             .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
-                // Needed for CORS preflight requests (OPTIONS) to succeed.
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(
-                    "/api/auth/login",
-                    "/api/auth/register",
-                    "/api/auth/refresh",
-                    "/api/auth/logout",
-                    "/api/auth/confirm-email",
-                    "/api/auth/resend-confirmation"
-                ).permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/calendar/tournaments").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/tournaments/*/inscriptions").permitAll()
-                        .anyRequest().authenticated()
+                    // Needed for CORS preflight requests (OPTIONS) to succeed.
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers(
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/refresh",
+                        "/api/auth/logout",
+                        "/api/auth/confirm-email",
+                        "/api/auth/resend-confirmation"
+                    ).permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/calendar/tournaments").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/tournaments/*/inscriptions").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/rankings/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/age-categories").permitAll()
+                    .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -103,7 +105,10 @@ public class SecurityConfig {
         // Allow both hostname variants commonly used in local development.
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
-                "http://127.0.0.1:*"
+                "http://127.0.0.1:*",
+                "https://localhost:*",
+                "https://localhost",
+                "https://127.0.0.1:*"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

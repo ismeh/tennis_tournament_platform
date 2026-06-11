@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -45,11 +47,18 @@ class MatchServiceTest {
     @Mock
     private CourtRepository courtRepository;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private MatchService matchService;
 
     @BeforeEach
     void setUp() {
-        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository);
+        when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            TransactionCallback<Match> callback = invocation.getArgument(0);
+            return callback.doInTransaction(null);
+        });
+        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository, transactionTemplate);
     }
 
     @Test
@@ -82,8 +91,7 @@ class MatchServiceTest {
                 .nextMatch(nextMatch)
                 .build();
 
-        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
-        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(currentMatch, nextMatch));
+        when(matchRepository.findByIdAndTournamentId(currentMatchId, tournamentId)).thenReturn(Optional.of(currentMatch));
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -122,8 +130,7 @@ class MatchServiceTest {
                 .loserNextMatch(consolationMatch)
                 .build();
 
-        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
-        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(currentMatch, consolationMatch));
+        when(matchRepository.findByIdAndTournamentId(currentMatchId, tournamentId)).thenReturn(Optional.of(currentMatch));
         when(matchRepository.findById(consolationMatchId.toString())).thenReturn(Optional.of(consolationMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -160,8 +167,7 @@ class MatchServiceTest {
                 .nextMatch(nextMatch)
                 .build();
 
-        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
-        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(currentMatch, nextMatch));
+        when(matchRepository.findByIdAndTournamentId(currentMatchId, tournamentId)).thenReturn(Optional.of(currentMatch));
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -198,8 +204,7 @@ class MatchServiceTest {
                 .nextMatch(nextMatch)
                 .build();
 
-        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
-        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(currentMatch, nextMatch));
+        when(matchRepository.findByIdAndTournamentId(currentMatchId, tournamentId)).thenReturn(Optional.of(currentMatch));
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

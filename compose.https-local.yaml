@@ -1,0 +1,30 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: tfm-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTPS_HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      SERVER_NAME: ${LOCAL_SERVER_NAME:-localhost}
+      BACKEND_UPSTREAM: http://backend:${BACKEND_PORT:-8080}
+      FRONTEND_UPSTREAM: http://frontend:4000
+      SSL_CERTIFICATE: /etc/nginx/certs/local/fullchain.pem
+      SSL_CERTIFICATE_KEY: /etc/nginx/certs/local/privkey.pem
+    volumes:
+      - ./infra/nginx/templates/local.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./infra/nginx/certs/local:/etc/nginx/certs/local:ro
+    depends_on:
+      - backend
+      - frontend
+
+  backend:
+    environment:
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      FRONTEND_CONFIRMATION_URL: ${FRONTEND_CONFIRMATION_URL:-https://localhost/confirmar-email}
+
+  frontend:
+    environment:
+      API_URL: ${FRONTEND_API_URL:-https://localhost/api}
+      NG_ALLOWED_HOSTS: ${FRONTEND_ALLOWED_HOSTS:-localhost,127.0.0.1}

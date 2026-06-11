@@ -34,6 +34,7 @@ public class DrawEntity {
     private String label;
 
     @OneToMany(mappedBy = "draw", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("roundNumber ASC, bracketPosition ASC, id ASC")
     @Builder.Default
     private List<MatchEntity> matches = new ArrayList<>();
 }

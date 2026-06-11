@@ -15,15 +15,46 @@ import java.util.UUID;
 public interface JpaMatchRepository extends JpaRepository<MatchEntity, UUID> {
 
     @Query("""
-            select m
+            select distinct m
             from MatchEntity m
-            join m.draw d
-            join d.stage s
-            join s.event e
-            join e.tournament t
+            join fetch m.draw d
+            join fetch d.stage s
+            join fetch s.event e
+            join fetch e.tournament t
+            left join fetch m.firstInscription firstInscription
+            left join fetch firstInscription.participant firstParticipant
+            left join fetch m.secondInscription secondInscription
+            left join fetch secondInscription.participant secondParticipant
+            left join fetch m.winner winner
+            left join fetch winner.participant winnerParticipant
+            left join fetch m.courtResource court
             where t.id = :tournamentId
             """)
     List<MatchEntity> findByTournamentId(UUID tournamentId);
+
+    @Query("""
+            select distinct m
+            from MatchEntity m
+            join fetch m.draw d
+            join fetch d.stage s
+            join fetch s.event e
+            join fetch e.tournament t
+            left join fetch m.firstInscription firstInscription
+            left join fetch firstInscription.participant firstParticipant
+            left join fetch m.secondInscription secondInscription
+            left join fetch secondInscription.participant secondParticipant
+            left join fetch m.winner winner
+            left join fetch winner.participant winnerParticipant
+            left join fetch m.nextMatch nextMatch
+            left join fetch m.loserNextMatch loserNextMatch
+            left join fetch m.courtResource court
+            where m.id = :matchId
+              and t.id = :tournamentId
+            """)
+    java.util.Optional<MatchEntity> findByIdAndTournamentId(
+            @Param("matchId") UUID matchId,
+            @Param("tournamentId") UUID tournamentId
+    );
 
     @Query("""
             select distinct match
@@ -59,5 +90,40 @@ public interface JpaMatchRepository extends JpaRepository<MatchEntity, UUID> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
             @Param("statuses") List<TournamentStatus> statuses
+    );
+
+    @Query("""
+            select
+              participant.id as participantId,
+              participant.displayTennisId as license,
+              participant.displayFirstName as firstName,
+              participant.displayLastName as lastName,
+              participant.displayGender as gender,
+              count(match.id) as victories
+            from MatchEntity match
+            join match.draw draw
+            join draw.stage stage
+            join stage.event event
+            left join event.ageCategory ageCategory
+            join match.winner winner
+            join winner.participant participant
+            where event.tournament.id = :tournamentId
+              and (:gender is null or upper(coalesce(event.gender, '')) = :gender)
+              and (:categoryId is null or ageCategory.id = :categoryId)
+            group by
+              participant.id,
+              participant.displayTennisId,
+              participant.displayFirstName,
+              participant.displayLastName,
+              participant.displayGender
+            order by
+              count(match.id) desc,
+              participant.displayLastName asc,
+              participant.displayFirstName asc
+            """)
+    List<TournamentRankingProjection> findTournamentRanking(
+            @Param("tournamentId") UUID tournamentId,
+            @Param("gender") String gender,
+            @Param("categoryId") Integer categoryId
     );
 }

@@ -17,6 +17,7 @@ import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionsV
 import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.domain.models.TournamentSummary;
 import com.tfm.tennis_platform.infrastructure.controller.dto.CourtRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.CourtResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionRequest;
@@ -25,6 +26,7 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.ManualEventInscript
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchScheduleRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentSummaryResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResultRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResponse;
@@ -62,13 +64,13 @@ public class TournamentController {
     public ResponseEntity<TournamentResponse> create(@RequestBody TournamentRequest request, Principal principal) {
         Tournament tournament = tournamentWebMapper.toDomain(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(tournamentWebMapper.toResponse(tournamentService.create(tournament, principal.getName(), request.courtCount())));
+                .body(toTournamentResponse(tournamentService.create(tournament, principal.getName(), request.courtCount())));
     }
 
     @GetMapping
-    public ResponseEntity<List<TournamentResponse>> getAll() {
-        return ResponseEntity.ok(tournamentService.findAll().stream()
-                .map(tournamentWebMapper::toResponse)
+    public ResponseEntity<List<TournamentSummaryResponse>> getAll() {
+        return ResponseEntity.ok(tournamentService.findSummaries().stream()
+                .map(TournamentController::toTournamentSummaryResponse)
                 .toList());
     }
 
@@ -76,7 +78,7 @@ public class TournamentController {
     public ResponseEntity<TournamentResponse> getById(@PathVariable UUID id) {
         Tournament tournament = tournamentService.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", id));
-        return ResponseEntity.ok(tournamentWebMapper.toResponse(tournament));
+        return ResponseEntity.ok(toTournamentResponse(tournament));
     }
 
     @PostMapping("/{tournamentId}/events")
@@ -85,7 +87,7 @@ public class TournamentController {
             .map(event -> new EventCommand.EventItem(event.getId(), event.getCategoryId(), event.getGender(), event.getStages()))
             .toList());
         Tournament updatedTournament = eventService.replaceAllEvents(tournamentId, command);
-        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+        return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
     @DeleteMapping("/{tournamentId}/events/{eventId}")
@@ -94,13 +96,13 @@ public class TournamentController {
             @PathVariable("eventId") UUID eventId
     ) {
         Tournament updatedTournament = eventService.removeEventFromTournament(tournamentId, eventId);
-        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+        return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<TournamentResponse> updateStatus(@PathVariable UUID id, @RequestBody TournamentStatusUpdateRequest request) {
         Tournament updatedTournament = tournamentService.updateStatus(id, request.status());
-        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+        return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
     @GetMapping("/{tournamentId}/courts")
@@ -196,7 +198,7 @@ public class TournamentController {
             @PathVariable UUID eventId
     ) {
         Tournament updatedTournament = eventService.generateDrawsForEvent(tournamentId, eventId);
-        return ResponseEntity.ok(tournamentWebMapper.toResponse(updatedTournament));
+        return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
         @PostMapping("/{tournamentId}/matches/{matchId}/result")
@@ -229,6 +231,45 @@ public class TournamentController {
                 result.status(),
                 result.paymentStatus(),
                 result.registeredAt()
+        );
+    }
+
+    private TournamentResponse toTournamentResponse(Tournament tournament) {
+        TournamentResponse response = tournamentWebMapper.toResponse(tournament);
+        boolean professionalTournament = tournamentService.isProfessionalTournament(tournament.getId());
+
+        return new TournamentResponse(
+                response.id(),
+                response.formalName(),
+                response.playStartDate(),
+                response.playEndDate(),
+                response.tournamentStartTime(),
+                response.inscriptionStartDate(),
+                response.inscriptionEndDate(),
+                response.surfaceCategory(),
+                response.maxPlayers(),
+                response.location(),
+                response.status(),
+                response.providerOrganisationId(),
+                response.events(),
+                professionalTournament
+        );
+    }
+
+    private static TournamentSummaryResponse toTournamentSummaryResponse(TournamentSummary tournament) {
+        return new TournamentSummaryResponse(
+                tournament.id(),
+                tournament.name(),
+                tournament.playStartDate(),
+                tournament.playEndDate(),
+                tournament.startTime(),
+                tournament.inscriptionStartDate(),
+                tournament.inscriptionEndDate(),
+                tournament.surface(),
+                tournament.maxPlayers(),
+                tournament.location(),
+                tournament.status(),
+                tournament.professionalTournament()
         );
     }
 

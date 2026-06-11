@@ -9,9 +9,13 @@ public record MatchResponse(
     UUID secondInscriptionId,
     UUID winnerId,
     Integer roundNumber,
+    Integer bracketPosition,
     LocalDateTime scheduledAt,
     String scheduleTimeType,
     UUID courtId,
     String court,
-    String result
+    String result,
+    Boolean professionalMatch,
+    Integer firstWinPoints,
+    Integer secondWinPoints
 ) {}

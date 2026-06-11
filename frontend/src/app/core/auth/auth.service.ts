@@ -148,15 +148,15 @@ export class AuthService {
 
   logout(): Observable<void> {
     const refreshToken = this.getRefreshToken();
+    this.clearSession();
+
     const logoutRequest$: Observable<void> = refreshToken
       ? this.http.post<void>(`${this.authUrl}/logout`, { refreshToken })
       : of(void 0);
 
     return logoutRequest$.pipe(
       catchError(() => of(void 0)),
-      finalize(() => {
-        this.clearSession();
-      })
+      finalize(() => this.clearSession())
     );
   }
 

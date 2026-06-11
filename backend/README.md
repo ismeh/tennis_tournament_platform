@@ -42,8 +42,11 @@ cd backend
 API URL by common local setup:
 
 - Docker Compose or explicit `BACKEND_PORT=8080`: `http://localhost:8080/api`
-- Plain local `dev` profile default (`BACKEND_PORT` unset): `http://localhost:8080/api`
-- The `dev` profile requires `DATASOURCE_URL`, `DB_USER`, and `DB_PASSWORD` to be set; use `devH2` for a local H2 setup.
+- Plain local `dev` profile default (`BACKEND_PORT` unset): `http://localhost:8085/api`
+- Plain local `devH2` profile default (`BACKEND_PORT` unset): `http://localhost:8080/api`
+- The `dev` profile requires `DATASOURCE_URL`, `DB_USER`, and `DB_PASSWORD` to be set; use `BACKEND_PROFILE=devH2` for a local H2 setup.
+
+All active HTTP controllers should be namespaced under `/api`; see [`../docs/api-spec.md`](../docs/api-spec.md) before changing any API contract.
 
 ## Useful Commands
 

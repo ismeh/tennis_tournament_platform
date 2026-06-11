@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { PersonService } from '../../data/services/person.service';
 import { ProPlayerService } from '../../data/services/pro-player.service';
@@ -287,13 +287,14 @@ describe('TournamentDetailComponent', () => {
     expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledWith('tournament-id', undefined);
   });
 
-  it('should replace the previous winner in the next round when editing a match result', () => {
+  it('should keep the optimistic result without reloading the tournament after saving a match result', () => {
     tournamentServiceSpy.submitMatchResult.and.returnValue(of({
       id: 'match-1',
       firstInscriptionId: 'inscription-1',
       secondInscriptionId: 'inscription-2',
       winnerId: 'inscription-2',
       roundNumber: 1,
+      bracketPosition: 0,
       scheduledAt: null,
       scheduleTimeType: null,
       courtId: null,
@@ -327,11 +328,15 @@ describe('TournamentDetailComponent', () => {
                       secondInscriptionId: 'inscription-2',
                       winnerId: 'inscription-1',
                       roundNumber: 1,
+                      bracketPosition: 0,
                       scheduledAt: null,
                       scheduleTimeType: null,
                       courtId: null,
                       court: null,
-                      result: '6-4 6-4'
+                      result: '6-4 6-4',
+                      professionalMatch: true,
+                      firstWinPoints: 30,
+                      secondWinPoints: 20
                     },
                     {
                       id: 'match-2',
@@ -339,11 +344,15 @@ describe('TournamentDetailComponent', () => {
                       secondInscriptionId: 'inscription-4',
                       winnerId: 'inscription-3',
                       roundNumber: 1,
+                      bracketPosition: 1,
                       scheduledAt: null,
                       scheduleTimeType: null,
                       courtId: null,
                       court: null,
-                      result: '6-2 6-2'
+                      result: '6-2 6-2',
+                      professionalMatch: true,
+                      firstWinPoints: 15,
+                      secondWinPoints: 40
                     },
                     {
                       id: 'match-3',
@@ -351,6 +360,85 @@ describe('TournamentDetailComponent', () => {
                       secondInscriptionId: 'inscription-3',
                       winnerId: null,
                       roundNumber: 2,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: null,
+                      professionalMatch: true,
+                      firstWinPoints: 40,
+                      secondWinPoints: 20
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    const initialTournamentLoadCount = tournamentServiceSpy.getTournamentById.calls.count();
+
+    component.onMatchResultSaved({ matchId: 'match-1', winnerId: 'inscription-2', result: '7-5 6-4' });
+
+    expect(tournamentServiceSpy.submitMatchResult).toHaveBeenCalledWith('tournament-id', 'match-1', {
+      winnerId: 'inscription-2',
+      scoreString: '7-5 6-4'
+    });
+    expect(tournamentServiceSpy.getTournamentById.calls.count()).toBe(initialTournamentLoadCount);
+    const nextMatch = component.tournament()!.events![0].stages![0].draws![0].matches!.find(match => match.id === 'match-3')!;
+    expect(nextMatch.firstInscriptionId).toBe('inscription-2');
+    expect(nextMatch.firstWinPoints).toBe(40);
+    expect(nextMatch.secondWinPoints).toBe(30);
+    expect(component.actionMessage()).toContain('Resultado guardado');
+  });
+
+  it('should optimistically advance the winner and roll back when saving a result fails', () => {
+    const saveResultResponse = new Subject<any>();
+    tournamentServiceSpy.submitMatchResult.and.returnValue(saveResultResponse.asObservable());
+    component.tournament.set({
+      ...component.tournament()!,
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          gender: 'MALE',
+          stages: [
+            {
+              id: 'stage-1',
+              eventId: 'event-1',
+              stageType: 'SINGLE_ELIMINATION',
+              order: 1,
+              description: 'Principal',
+              draws: [
+                {
+                  id: 'draw-1',
+                  stageId: 'stage-1',
+                  drawType: 'ELIMINATION',
+                  label: 'Principal',
+                  matches: [
+                    {
+                      id: 'match-1',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-2',
+                      winnerId: null,
+                      roundNumber: 1,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: null
+                    },
+                    {
+                      id: 'match-3',
+                      firstInscriptionId: null,
+                      secondInscriptionId: null,
+                      winnerId: null,
+                      roundNumber: 2,
+                      bracketPosition: 0,
                       scheduledAt: null,
                       scheduleTimeType: null,
                       courtId: null,
@@ -368,10 +456,17 @@ describe('TournamentDetailComponent', () => {
 
     component.onMatchResultSaved({ matchId: 'match-1', winnerId: 'inscription-2', result: '7-5 6-4' });
 
-    const matches = component.tournament()!.events![0].stages![0].draws![0].matches!;
-    const nextMatch = matches.find(match => match.id === 'match-3')!;
-    expect(nextMatch.firstInscriptionId).toBe('inscription-2');
-    expect(nextMatch.secondInscriptionId).toBe('inscription-3');
+    const optimisticMatches = component.tournament()!.events![0].stages![0].draws![0].matches!;
+    expect(optimisticMatches.find(match => match.id === 'match-1')!.winnerId).toBe('inscription-2');
+    expect(optimisticMatches.find(match => match.id === 'match-3')!.firstInscriptionId).toBe('inscription-2');
+
+    saveResultResponse.error(new Error('save failed'));
+
+    const rolledBackMatches = component.tournament()!.events![0].stages![0].draws![0].matches!;
+    expect(rolledBackMatches.find(match => match.id === 'match-1')!.winnerId).toBeNull();
+    expect(rolledBackMatches.find(match => match.id === 'match-3')!.firstInscriptionId).toBeNull();
+    expect(component.actionError()).toBeTruthy();
+    expect(component.savingResultMatchId()).toBeNull();
   });
 
   it('should filter and sort match schedule rows', () => {
@@ -567,7 +662,7 @@ describe('TournamentDetailComponent', () => {
         }
       ]
     });
-    expect(component.eventsSuccessMessage()).toContain('guardados correctamente');
+    expect(component.eventsSuccessMessage()).toContain('guardadas correctamente');
     expect(component.tournament()?.events?.[0].eventId).toBe('event-3');
     expect(component.selectedInscriptionCategoryId()).toBe(2);
     expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledTimes(2);
@@ -628,10 +723,16 @@ describe('TournamentDetailComponent', () => {
   });
 
   it('should render the registered players section and apply the event filter', () => {
-    component.setActiveSection('registeredPlayers');
+    component.setActiveSection('inscriptions');
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Jugadores inscritos');
+    expect(component.isRegisteredPlayersPanelExpanded()).toBeFalse();
+    expect(fixture.nativeElement.textContent).not.toContain('Carlos Lopez');
+
+    component.toggleRegisteredPlayersPanel();
+    fixture.detectChanges();
+
     expect(fixture.nativeElement.textContent).toContain('Carlos Lopez');
 
     tournamentServiceSpy.getTournamentInscriptions.calls.reset();

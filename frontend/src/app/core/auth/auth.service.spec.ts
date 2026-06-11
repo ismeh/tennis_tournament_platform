@@ -10,6 +10,24 @@ function createJwt(payload: Record<string, unknown>): string {
   return `${encodedHeader}.${encodedPayload}.signature`;
 }
 
+function flushProfileRequest(httpMock: HttpTestingController): void {
+  const profileRequest = httpMock.expectOne(AppSettings.API_URL + '/auth/profile');
+  expect(profileRequest.request.method).toBe('GET');
+  profileRequest.flush({
+    memberId: 'member-id',
+    email: 'test@example.com',
+    tier: 'BASIC',
+    registeredAt: '2026-01-01T00:00:00Z',
+    personId: null,
+    firstName: 'Test',
+    lastName: 'Player',
+    gender: null,
+    birthDate: null,
+    nationality: null,
+    federationLicense: null
+  });
+}
+
 describe('AuthService', () => {
   let service: AuthService;
   let httpMock: HttpTestingController;
@@ -40,6 +58,8 @@ describe('AuthService', () => {
     const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/login`);
     expect(req.request.method).toBe('POST');
     req.flush({ accessToken: 'jwt-token', refreshToken: 'refresh-token' });
+
+    flushProfileRequest(httpMock);
 
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('jwt-token');
     expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('refresh-token');
@@ -81,6 +101,8 @@ describe('AuthService', () => {
 
     req.flush({ accessToken: 'new-access-token', refreshToken: 'new-refresh-token' });
 
+    flushProfileRequest(httpMock);
+
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('new-access-token');
     expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('new-refresh-token');
   });
@@ -102,6 +124,8 @@ describe('AuthService', () => {
     expect(req.request.body).toEqual({ refreshToken: 'soon-refresh-token' });
 
     req.flush({ accessToken: 'fresh-access-token', refreshToken: 'fresh-refresh-token' });
+
+    flushProfileRequest(httpMock);
 
     expect(emittedToken).toBe('fresh-access-token');
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('fresh-access-token');
@@ -139,6 +163,8 @@ describe('AuthService', () => {
     expect(req.request.body).toEqual({ refreshToken: 'still-valid-refresh' });
 
     req.flush({ accessToken: 'brand-new-access-token', refreshToken: 'brand-new-refresh-token' });
+
+    flushProfileRequest(httpMock);
 
     expect(emittedToken).toBe('brand-new-access-token');
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('brand-new-access-token');

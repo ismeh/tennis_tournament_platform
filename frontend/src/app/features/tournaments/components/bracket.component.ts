@@ -1,13 +1,14 @@
-import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, computed, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
+import { MatchDetailModalComponent } from './match-detail-modal.component';
 
 @Component({
   selector: 'app-bracket',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MatchDetailModalComponent],
   template: `
-    <div class="space-y-4">
+    <div class="bracket-root space-y-4" #fullscreenRoot>
       @if (showTitleInput) {
         <h5 class="text-sm font-medium text-neutral-900">Cuadro de partidos</h5>
       }
@@ -24,80 +25,124 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
 
               @if (draw.matches && draw.matches.length > 0) {
                 @let rounds = getRounds(draw.matches);
+                <div class="mb-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" class="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-45" (click)="zoomOut()" [disabled]="zoomLevel() <= minZoom">
+                      -
+                    </button>
+                    <span class="min-w-14 text-center text-xs font-extrabold text-slate-600">{{ getZoomLabel() }}</span>
+                    <button type="button" class="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-45" (click)="zoomIn()" [disabled]="zoomLevel() >= maxZoom">
+                      +
+                    </button>
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="resetZoom()">
+                      Restablecer
+                    </button>
+                  </div>
+                  <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="toggleFullscreen()">
+                    {{ isFullscreen() ? 'Salir pantalla completa' : 'Pantalla completa' }}
+                  </button>
+                </div>
                 <div class="bracket-shell">
                   <div class="bracket-scroll">
-                    <div class="bracket-board" [style.min-width.px]="getMinWidth(draw.matches)">
-                      @for (round of rounds; track round.roundNumber; let roundIndex = $index) {
-                        <section class="bracket-round">
-                          <div class="bracket-round-header">
-                            <div>
-                              <p class="bracket-round-title">{{ getRoundLabel(round.roundNumber, rounds.length) }}</p>
-                              <p class="bracket-round-subtitle">Ronda {{ round.roundNumber }}</p>
+                    <div
+                      class="bracket-zoom-surface"
+                      [style.width.px]="getScaledBoardWidth(draw.matches)"
+                      [style.height.px]="getScaledBoardHeight(rounds)"
+                    >
+                      <div
+                        class="bracket-board"
+                        [style.min-width.px]="getMinWidth(draw.matches)"
+                        [style.transform]="getZoomTransform()"
+                      >
+                        @for (round of rounds; track round.roundNumber; let roundIndex = $index) {
+                          <section class="bracket-round">
+                            <div class="bracket-round-header">
+                              <div>
+                                <p class="bracket-round-title">{{ getRoundLabel(round.roundNumber, rounds.length) }}</p>
+                                <p class="bracket-round-subtitle">Ronda {{ round.roundNumber }}</p>
+                              </div>
+                              <span class="bracket-round-count">{{ round.matches.length }}</span>
                             </div>
-                            <span class="bracket-round-count">{{ round.matches.length }}</span>
-                          </div>
 
-                          <div class="bracket-round-matches" [style.height.px]="getBracketBodyHeight(rounds)">
-                            @for (match of round.matches; track match.id; let matchIndex = $index) {
-                              <button
-                                type="button"
-                                (click)="onMatchClicked(match)"
-                                class="bracket-match"
-                                [class.bracket-match-complete]="!!match.winnerId"
-                                [style.top.px]="getMatchTop(roundIndex, matchIndex)"
-                              >
-                                @if (roundIndex > 0) {
-                                  <span class="bracket-input-line"></span>
-                                }
-
-                                @if (!isLastRound(roundIndex, rounds.length)) {
-                                  <span class="bracket-output-line"></span>
-                                  @if (shouldShowConnectorRail(matchIndex, round.matches.length)) {
-                                    <span class="bracket-connector-rail" [style.height.px]="getConnectorHeight(roundIndex)"></span>
+                            <div class="bracket-round-matches" [style.height.px]="getBracketBodyHeight(rounds)">
+                              @for (match of round.matches; track match.id; let matchIndex = $index) {
+                                <button
+                                  type="button"
+                                  (click)="onMatchClicked(match)"
+                                  class="bracket-match"
+                                  [class.bracket-match-complete]="!!match.winnerId"
+                                  [style.top.px]="getMatchTop(roundIndex, matchIndex)"
+                                >
+                                  @if (roundIndex > 0) {
+                                    <span class="bracket-input-line"></span>
                                   }
-                                }
 
-                                <span class="bracket-match-meta">
-                                  <span class="bracket-match-number">P{{ getMatchNumber(match, draw.matches || []) }}</span>
+                                  @if (!isLastRound(roundIndex, rounds.length)) {
+                                    <span class="bracket-output-line"></span>
+                                    @if (shouldShowConnectorRail(matchIndex, round.matches.length)) {
+                                      <span class="bracket-connector-rail" [style.height.px]="getConnectorHeight(roundIndex)"></span>
+                                    }
+                                  }
+
+                                  <span class="bracket-match-meta">
+                                    <span class="bracket-match-number">P{{ getMatchNumber(match, draw.matches || []) }}</span>
+                                    @if (match.result) {
+                                      <span class="bracket-status bracket-status-complete">Finalizado</span>
+                                    } @else {
+                                      <span class="bracket-status bracket-status-pending">Pendiente</span>
+                                    }
+                                  </span>
+                                  <span
+                                    class="bracket-player"
+                                    [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
+                                    [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                    [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                  >
+                                    <span class="truncate">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
+                                    @if (match.professionalMatch && match.firstInscriptionId) {
+                                      <span
+                                        class="bracket-points"
+                                        [class.bracket-points-winner]="isWinner(match, match.firstInscriptionId)"
+                                        [class.bracket-points-loser]="isLoser(match, match.firstInscriptionId)"
+                                      >
+                                        {{ getWinPointsLabel(match.firstWinPoints) }}
+                                      </span>
+                                    }
+                                    @if (isWinner(match, match.firstInscriptionId)) {
+                                      <span class="bracket-winner-mark">G</span>
+                                    }
+                                  </span>
+
+                                  <span
+                                    class="bracket-player"
+                                    [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
+                                    [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                    [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                  >
+                                    <span class="truncate">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
+                                    @if (match.professionalMatch && match.secondInscriptionId) {
+                                      <span
+                                        class="bracket-points"
+                                        [class.bracket-points-winner]="isWinner(match, match.secondInscriptionId)"
+                                        [class.bracket-points-loser]="isLoser(match, match.secondInscriptionId)"
+                                      >
+                                        {{ getWinPointsLabel(match.secondWinPoints) }}
+                                      </span>
+                                    }
+                                    @if (isWinner(match, match.secondInscriptionId)) {
+                                      <span class="bracket-winner-mark">G</span>
+                                    }
+                                  </span>
+
                                   @if (match.result) {
-                                    <span class="bracket-status bracket-status-complete">Finalizado</span>
-                                  } @else {
-                                    <span class="bracket-status bracket-status-pending">Pendiente</span>
+                                    <span class="bracket-result">{{ match.result }}</span>
                                   }
-                                </span>
-
-                                <span
-                                  class="bracket-player"
-                                  [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
-                                  [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
-                                  [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
-                                >
-                                  <span class="truncate">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
-                                  @if (isWinner(match, match.firstInscriptionId)) {
-                                    <span class="bracket-winner-mark">G</span>
-                                  }
-                                </span>
-
-                                <span
-                                  class="bracket-player"
-                                  [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
-                                  [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
-                                  [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
-                                >
-                                  <span class="truncate">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
-                                  @if (isWinner(match, match.secondInscriptionId)) {
-                                    <span class="bracket-winner-mark">G</span>
-                                  }
-                                </span>
-
-                                @if (match.result) {
-                                  <span class="bracket-result">{{ match.result }}</span>
-                                }
-                              </button>
-                            }
-                          </div>
-                        </section>
-                      }
+                                </button>
+                              }
+                            </div>
+                          </section>
+                        }
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -108,6 +153,16 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
           }
         </div>
       }
+
+      <app-match-detail-modal
+        #matchModal
+        [matchInput]="selectedMatch()"
+        [participantNamesInput]="participantNamesInput"
+        [courtsInput]="courtsInput"
+        (saveResult)="onSaveMatchResult($event)"
+        (saveSchedule)="onSaveMatchSchedule($event)"
+        (close)="onModalClose()"
+      ></app-match-detail-modal>
     </div>
   `,
   styles: [`
@@ -117,15 +172,26 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
       background: linear-gradient(180deg, rgb(248 250 252), rgb(255 255 255));
     }
 
+    .bracket-root:fullscreen {
+      overflow: auto;
+      background: rgb(255 255 255);
+      padding: 1rem;
+    }
+
     .bracket-scroll {
-      overflow-x: auto;
+      overflow: auto;
       padding: 1rem 1.25rem 1.25rem;
+    }
+
+    .bracket-zoom-surface {
+      position: relative;
     }
 
     .bracket-board {
       display: flex;
       gap: 3.5rem;
       align-items: flex-start;
+      transform-origin: top left;
     }
 
     .bracket-round {
@@ -278,6 +344,34 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
       color: rgb(20 83 45);
     }
 
+    .bracket-points {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 3rem;
+      height: 1.375rem;
+      flex: 0 0 auto;
+      border-radius: 9999px;
+      background: rgb(241 245 249);
+      color: rgb(100 116 139);
+      font-size: 0.6875rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .bracket-points-winner {
+      background: rgb(220 252 231);
+      color: rgb(21 128 61);
+      box-shadow: inset 0 0 0 1px rgb(134 239 172);
+    }
+
+    .bracket-points-loser {
+      background: rgb(248 250 252);
+      color: rgb(148 163 184);
+      text-decoration: line-through;
+      text-decoration-thickness: 2px;
+    }
+
     .bracket-winner-mark {
       display: inline-flex;
       align-items: center;
@@ -333,11 +427,15 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
   `]
 })
 export class BracketComponent {
-  private readonly matchHeight = 116;
-  private readonly slotPitch = 150;
+  private readonly matchHeight = 136;
+  private readonly slotPitch = 170;
+  readonly minZoom = 0.6;
+  readonly maxZoom = 1.6;
+  private readonly zoomStep = 0.1;
 
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() participantOrderInput: Record<string, number> = {};
+  @Input() courtsInput: CourtResponse[] = [];
   @Input() showTitleInput = true;
   @Input() showDrawCardInput = true;
 
@@ -346,11 +444,49 @@ export class BracketComponent {
   }
   private _draws = signal<DrawResponse[]>([]);
   draws = computed(() => this._draws());
+  zoomLevel = signal(1);
+  isFullscreen = signal(false);
+  selectedMatch = signal<MatchResponse | null>(null);
+
+  @ViewChild('fullscreenRoot') fullscreenRoot?: ElementRef<HTMLElement>;
+  @ViewChild('matchModal') matchModal?: MatchDetailModalComponent;
 
   @Output() matchSelected = new EventEmitter<MatchResponse>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() matchScheduleSaved = new EventEmitter<{
+    matchId: string;
+    courtId: string;
+    scheduledAt: string;
+    scheduleTimeType: MatchScheduleTimeType;
+  }>();
+
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    this.isFullscreen.set(document.fullscreenElement === this.fullscreenRoot?.nativeElement);
+  }
 
   onMatchClicked(match: MatchResponse) {
+    this.selectedMatch.set(match);
+    this.matchModal?.open();
     this.matchSelected.emit(match);
+  }
+
+  onModalClose(): void {
+    this.selectedMatch.set(null);
+  }
+
+  onSaveMatchResult(event: { matchId: string; winnerId: string; result: string }): void {
+    this.matchResultSaved.emit(event);
+    this.selectedMatch.set(null);
+  }
+
+  onSaveMatchSchedule(event: {
+    matchId: string;
+    courtId: string;
+    scheduledAt: string;
+    scheduleTimeType: MatchScheduleTimeType;
+  }): void {
+    this.matchScheduleSaved.emit(event);
   }
 
   getRounds(matches: MatchResponse[] | undefined): Array<{ roundNumber: number; matches: MatchResponse[] }> {
@@ -371,7 +507,7 @@ export class BracketComponent {
       .sort((a, b) => a[0] - b[0])
       .map(([roundNumber, roundMatches]) => ({
         roundNumber,
-        matches: this.sortRoundMatches(roundMatches)
+        matches: roundMatches
       }));
   }
 
@@ -381,6 +517,18 @@ export class BracketComponent {
     }
     const rounds = this.getRounds(matches);
     return Math.max(360, rounds.length * 300);
+  }
+
+  getScaledBoardWidth(matches: MatchResponse[] | undefined): number {
+    return this.getMinWidth(matches) * this.zoomLevel();
+  }
+
+  getScaledBoardHeight(rounds: Array<{ roundNumber: number; matches: MatchResponse[] }>): number {
+    return this.getBracketContentHeight(rounds) * this.zoomLevel();
+  }
+
+  getBracketContentHeight(rounds: Array<{ roundNumber: number; matches: MatchResponse[] }>): number {
+    return 56 + this.getBracketBodyHeight(rounds);
   }
 
   getRoundLabel(roundNumber: number, totalRounds: number): string {
@@ -430,12 +578,16 @@ export class BracketComponent {
   }
 
   getMatchNumber(match: MatchResponse, allMatches: MatchResponse[]): number {
-    const matchesInRound = this.sortRoundMatches(allMatches.filter((m) => m.roundNumber === match.roundNumber));
+    const matchesInRound = allMatches.filter((m) => m.roundNumber === match.roundNumber);
     return (matchesInRound.indexOf(match) + 1) || 1;
   }
 
   isWinner(match: MatchResponse, inscriptionId: string | null | undefined): boolean {
     return !!inscriptionId && match.winnerId === inscriptionId;
+  }
+
+  isLoser(match: MatchResponse, inscriptionId: string | null | undefined): boolean {
+    return !!inscriptionId && !!match.winnerId && match.winnerId !== inscriptionId;
   }
 
   getMatchSlotLabel(
@@ -466,6 +618,49 @@ export class BracketComponent {
     return this.sanitizeParticipantName(this.participantNamesInput[inscriptionId]) ?? inscriptionId.substring(0, 8);
   }
 
+  getWinPointsLabel(points: number | null | undefined): string {
+    return points == null ? '+0 pts' : `+${points} pts`;
+  }
+
+  getZoomLabel(): string {
+    return `${Math.round(this.zoomLevel() * 100)}%`;
+  }
+
+  getZoomTransform(): string {
+    return `scale(${this.zoomLevel()})`;
+  }
+
+  zoomIn(): void {
+    this.setZoom(this.zoomLevel() + this.zoomStep);
+  }
+
+  zoomOut(): void {
+    this.setZoom(this.zoomLevel() - this.zoomStep);
+  }
+
+  resetZoom(): void {
+    this.zoomLevel.set(1);
+  }
+
+  toggleFullscreen(): void {
+    const fullscreenElement = this.fullscreenRoot?.nativeElement;
+    if (!fullscreenElement) {
+      return;
+    }
+
+    if (document.fullscreenElement === fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+
+    fullscreenElement.requestFullscreen().catch(() => undefined);
+  }
+
+  private setZoom(value: number): void {
+    const clampedValue = Math.min(this.maxZoom, Math.max(this.minZoom, value));
+    this.zoomLevel.set(Math.round(clampedValue * 10) / 10);
+  }
+
   private sanitizeParticipantName(name: string | undefined): string | null {
     const sanitizedName = name
       ?.replace(/\bnull\b/gi, '')
@@ -476,34 +671,4 @@ export class BracketComponent {
     return sanitizedName || null;
   }
 
-  private sortRoundMatches(matches: MatchResponse[]): MatchResponse[] {
-    return [...matches].sort((left, right) =>
-      this.compareNumbers(this.getMatchSeedOrder(left), this.getMatchSeedOrder(right)) ||
-      this.compareStrings(this.getParticipantName(left.firstInscriptionId), this.getParticipantName(right.firstInscriptionId)) ||
-      this.compareStrings(this.getParticipantName(left.secondInscriptionId), this.getParticipantName(right.secondInscriptionId)) ||
-      this.compareStrings(left.id, right.id)
-    );
-  }
-
-  private getMatchSeedOrder(match: MatchResponse): number {
-    const firstOrder = this.getParticipantOrder(match.firstInscriptionId);
-    const secondOrder = this.getParticipantOrder(match.secondInscriptionId);
-    return Math.min(firstOrder, secondOrder);
-  }
-
-  private getParticipantOrder(inscriptionId: string | null | undefined): number {
-    if (!inscriptionId) {
-      return Number.MAX_SAFE_INTEGER;
-    }
-
-    return this.participantOrderInput[inscriptionId] ?? Number.MAX_SAFE_INTEGER;
-  }
-
-  private compareNumbers(left: number, right: number): number {
-    return left - right;
-  }
-
-  private compareStrings(left: string | undefined, right: string | undefined): number {
-    return (left ?? '').localeCompare(right ?? '');
-  }
 }

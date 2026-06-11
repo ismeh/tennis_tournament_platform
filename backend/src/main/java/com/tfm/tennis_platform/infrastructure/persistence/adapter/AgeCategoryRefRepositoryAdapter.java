@@ -18,6 +18,6 @@ public class AgeCategoryRefRepositoryAdapter implements AgeCategoryRefRepository
 
     @Override
     public List<AgeCategoryRef> findAll() {
-        return repository.findAll().stream().map(mapper::toDomain).toList();
+        return repository.findAllOrdered().stream().map(mapper::toDomain).toList();
     }
 }

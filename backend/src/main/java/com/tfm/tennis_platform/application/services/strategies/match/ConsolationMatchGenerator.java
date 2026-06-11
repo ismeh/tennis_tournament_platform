@@ -33,6 +33,7 @@ public class ConsolationMatchGenerator implements MatchGenerationStrategy {
                         .id(UUID.randomUUID())
                         .drawId(draw.getId())
                         .roundNumber(round)
+                        .bracketPosition(matchIndex)
                         .build());
             }
         }

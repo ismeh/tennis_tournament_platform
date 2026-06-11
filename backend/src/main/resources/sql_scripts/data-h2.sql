@@ -23,27 +23,34 @@ SET MODE PostgreSQL;
         ( 'Open de Primavera 2026', '2026-05-01', '2026-05-15', 'Club de Tenis Principal', 'ESP', 'CLAY', 'NATIONAL', 'OPEN');
 
     -- 3.5. Insert age category references
-    INSERT INTO ref_age_category (category, description) VALUES
-        ('Pre-Benjamin', '8 anos'),
-        ('Benjamines', '9-10 anos'),
-        ('Alevines', '11-12 anos'),
-        ('Infantiles', '13-14 anos'),
-        ('Cadetes', '15-16 anos'),
-        ('Juniors', '17-18 anos'),
-        ('ABSOLUTA', NULL),
-        ('Veteranos+30', '30-34 anos'),
-        ('Veteranos+35', '35-39 anos'),
-        ('Veteranos+40', '40-44 anos'),
-        ('Veteranos+45', '45-49 anos'),
-        ('Veteranos+50', '50-54 anos'),
-        ('Veteranos+55', '55-59 anos'),
-        ('Veteranos+60', '60-64 anos');
+    INSERT INTO ref_age_category (category, description, display_order) VALUES
+        ('Prebenjamín', '8 anos', 1),
+        ('Benjamín', '9-10 anos', 2),
+        ('Sub-10', 'Sub-10', 3),
+        ('Alevín Sub-12', '11-12 anos', 4),
+        ('Infantil Sub-14', '13-14 anos', 5),
+        ('Cadete Sub-16', '15-16 anos', 6),
+        ('Junior Sub-18', '17-18 anos', 7),
+        ('Absoluta', NULL, 8),
+        ('Veterana +30', '30+ anos', 9),
+        ('Veterana +35', '35+ anos', 10),
+        ('Veterana +40', '40+ anos', 11),
+        ('Veterana +45', '45+ anos', 12),
+        ('Veterana +50', '50+ anos', 13),
+        ('Veterana +55', '55+ anos', 14),
+        ('Veterana +60', '60+ anos', 15),
+        ('Veterana +65', '65+ anos', 16),
+        ('Veterana +70', '70+ anos', 17),
+        ('Veterana +75', '75+ anos', 18),
+        ('Veterana +80', '80+ anos', 19),
+        ('Veterana +85', '85+ anos', 20),
+        ('Veterana +90', '90+ anos', 21);
 
     -- 4. Insert events (categories)
     INSERT INTO events (tournament_id, age_category_id, name, discipline, event_type, gender, draw_size) VALUES
         (
             (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026'),
-            (SELECT id FROM ref_age_category WHERE category = 'ABSOLUTA'),
+            (SELECT id FROM ref_age_category WHERE category = 'Absoluta'),
             'Absoluto Individual Masculino',
             'TENNIS',
             'SINGLES',
@@ -52,7 +59,7 @@ SET MODE PostgreSQL;
         ),
         (
             (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026'),
-            (SELECT id FROM ref_age_category WHERE category = 'ABSOLUTA'),
+            (SELECT id FROM ref_age_category WHERE category = 'Absoluta'),
             'Absoluto Dobles Mixto',
             'TENNIS',
             'DOUBLES',
@@ -75,5 +82,5 @@ SET MODE PostgreSQL;
         ( (SELECT id FROM stages WHERE event_id = (SELECT id FROM events WHERE name = 'Absoluto Individual Masculino')), 'ELIMINATION', 'Main Draw');
 
     -- 8. Insert an empty match structure for the MVP
-    INSERT INTO matches (draw_id, round_number, scheduled_at, court, result) VALUES
-        ( (SELECT id FROM draws WHERE label = 'Main Draw'), 1, NULL, NULL, NULL);
+    INSERT INTO matches (draw_id, round_number, bracket_position, scheduled_at, court, result) VALUES
+        ( (SELECT id FROM draws WHERE label = 'Main Draw'), 1, 0, NULL, NULL, NULL);

@@ -22,6 +22,7 @@ public class ProPlayerMapper {
                 .firstName(nameParts.firstName())
                 .lastName(nameParts.lastName())
                 .rankingPosition(entity.getRankingPosition())
+                .points(entity.getPoints())
                 .ageCategory(normalize(entity.getAgeCategory()))
                 .clubName(normalize(entity.getClubName()))
                 .birthDate(entity.getBirthDate())

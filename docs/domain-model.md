@@ -1,241 +1,228 @@
 # Domain Model
 
-Overview of the core domain entities, their relationships, and key enumerations.
+Overview of the current active domain under `com.tfm.tennis_platform.domain.models`.
 
 ---
 
-## Entity Map
+## Aggregate Map
 
+```text
+Tournament
+  ├─ TournamentPeriod: play period
+  ├─ TournamentPeriod: inscription period
+  ├─ Court[]
+  └─ Event[]
+       ├─ Category
+       ├─ Stage[]
+       │    └─ Draw[]
+       │         └─ Match[]
+       └─ Inscription[]
+            └─ Participant
+                 └─ Person[] or ProPlayer
+
+Member
+  ├─ Role[]
+  └─ Person profile
+
+Ranking
+  ├─ ProfessionalRankingEntry
+  └─ TournamentRankingEntry
 ```
-Person ──────────────────► Member
-                            │
-                  ┌─────────┴──────────┐
-                  │                    │
-              Inscription           (organizer role)
-                  │                    │
-                  ▼                    ▼
-             Tournament ◄──────── Category
-                  │
-        ┌─────────┴──────────┐
-        │                    │
-       Event               Ranking
-        │
-       Stage
-        │
-       Draw
-        │
-      Matchup ──► MatchupSide
-        │
-      MatchSet
-```
 
 ---
 
-## Entities
-
-### Person
-
-Represents a physical individual.
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `firstName` | String | |
-| `lastName` | String | |
-| `birthDate` | LocalDate | |
-| `gender` | Gender enum | `MALE`, `FEMALE`, `OTHER` |
-
----
-
-### Member
-
-A platform user. Extends `Person` data via association.
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `username` | String | Unique login name |
-| `password` | String | BCrypt-hashed |
-| `roles` | List\<Role\> | `PLAYER`, `ORGANIZER`, `ADMIN` |
-| `tier` | UserTier enum | `FREE`, `PRO` |
-
----
+## Core Models
 
 ### Tournament
 
 Main aggregate root for a competition.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `name` | String | |
-| `surface` | Surface enum | `CLAY`, `HARD`, `GRASS`, `INDOOR` |
-| `category` | TournamentCategory enum | See below |
-| `discipline` | Discipline enum | `SINGLES`, `DOUBLES`, `MIXED_DOUBLES` |
-| `startDate` | LocalDate | |
-| `endDate` | LocalDate | |
-| `maxParticipants` | Integer | |
-| `status` | TournamentStatus enum | See below |
-| `drawType` | DrawType enum | `SINGLE_ELIMINATION`, `ROUND_ROBIN` |
+Important fields:
 
----
-
-### Inscription
-
-A member's entry into a tournament.
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `member` | Member | |
-| `tournament` | Tournament | |
-| `inscriptionDate` | LocalDate | |
-| `entryStatus` | EntryStatus enum | `PENDING`, `CONFIRMED`, `REJECTED`, `WAITLISTED` |
-
----
+- `id`: UUID
+- `name`
+- `playPeriod`: `TournamentPeriod`
+- `inscriptionPeriod`: `TournamentPeriod`
+- `surface`: `Surface`
+- `maxPlayers`
+- `location`
+- `status`: `TournamentStatus`
+- `providerOrganisationId`
+- `events`
+- `courts`
 
 ### Event
 
-A sub-competition within a tournament (e.g., Men's U18 Singles).
+Sub-competition inside a tournament, usually defined by category and gender.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `tournament` | Tournament | |
-| `type` | EventType enum | `SINGLES`, `DOUBLES`, etc. |
-| `ageCategory` | AgeCategory enum | |
-| `gender` | Gender enum | |
+Important fields:
 
----
+- `id`: UUID
+- `tournamentId`
+- `category`
+- `gender`
+- `stages`
+- `inscriptions`
 
 ### Stage
 
-A phase within an event (e.g., Round of 16, Semi-final, Final).
+Phase inside an event.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `event` | Event | |
-| `stageType` | StageType enum | `ROUND_ROBIN`, `SINGLE_ELIMINATION`, `FINAL`, etc. |
-| `order` | Integer | Execution order within the event |
+Important fields:
 
----
+- `id`: UUID
+- `eventId`
+- `stageNumber`
+- `stageType`: `StageType`
+- `draws`
 
 ### Draw
 
-The bracket or group table for a stage.
+Bracket or group generated for a stage.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `stage` | Stage | |
-| `type` | DrawType enum | |
+Important fields:
 
----
+- `id`: UUID
+- `stageId`
+- `drawType`: `DrawType`
+- `matches`
 
-### Matchup
+### Match
 
-A single match between two sides.
+Scheduled or completed match inside a draw.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `draw` | Draw | |
-| `side1` | MatchupSide | |
-| `side2` | MatchupSide | |
-| `status` | MatchupStatus enum | `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `WALKOVER`, `CANCELLED` |
-| `sets` | List\<MatchSet\> | |
+Important fields:
 
----
+- `id`: UUID
+- `drawId`
+- `firstInscription`
+- `secondInscription`
+- `winner`
+- `roundNumber`
+- `scheduledAt`
+- `court`
+- `result`
+- `nextMatch`
+- `loserNextMatch`
 
-### MatchupSide
+### Inscription
 
-One participant side in a matchup (single player or doubles pair).
+Entry of a participant into an event.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `participants` | List\<Participant\> | One for singles, two for doubles |
-| `setsWon` | Integer | Computed |
+Important fields:
 
----
+- `id`: UUID
+- `eventId`
+- `participant`
+- `status`: `EntryStatus`
+- `paymentStatus`
+- `registeredAt`
 
 ### Participant
 
-A player or pair registered as a competitor within a draw.
+Competitor unit for singles or doubles.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `member` | Member | |
-| `event` | Event | |
-| `type` | ParticipantType enum | `SINGLE`, `PAIR` |
+Important fields:
 
----
+- `id`: UUID
+- `participantType`: `ParticipantType`
+- `participantSource`: `ParticipantSource`
+- `members`
+- `proPlayer`
 
-### MatchSet
+### Member
 
-One set within a matchup.
+Application user account.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `matchup` | Matchup | |
-| `setNumber` | Integer | |
-| `side1Games` | Integer | |
-| `side2Games` | Integer | |
+Important fields:
 
----
+- `id`: UUID
+- `email`
+- `password`
+- `tier`: `MemberTier`
+- `roles`
+- `person`
+- `registeredAt`
+- `emailVerified`
 
-### Ranking
+### Person
 
-A computed standing of a participant in an event.
+Physical player/person profile.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | Long | PK |
-| `participant` | Participant | |
-| `event` | Event | |
-| `points` | Integer | |
-| `position` | Integer | |
-| `type` | RankingType enum | `SINGLES`, `DOUBLES` |
+Important fields:
 
----
+- `id`: UUID
+- `tennisId`
+- `firstName`
+- `lastName`
+- `nationality`
+- `birthDate`
+- `gender`
 
-## Key Enumerations
+### ProPlayer
 
-| Enum | Values |
-|------|--------|
-| `TournamentStatus` | `PLANNED`, `OPEN`, `IN_PROGRESS`, `FINISHED`, `CANCELLED` |
-| `TournamentCategory` | (see `TournamentCategory.java`) |
-| `MatchupStatus` | `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `WALKOVER`, `CANCELLED` |
-| `EntryStatus` | `PENDING`, `CONFIRMED`, `REJECTED`, `WAITLISTED` |
-| `StageType` | `ROUND_ROBIN`, `SINGLE_ELIMINATION`, `DOUBLE_ELIMINATION`, `FINAL`, `SEMIFINAL`, `QUARTERFINAL` |
-| `DrawType` | `SINGLE_ELIMINATION`, `ROUND_ROBIN` |
-| `Discipline` | `SINGLES`, `DOUBLES`, `MIXED_DOUBLES` |
-| `Surface` | `CLAY`, `HARD`, `GRASS`, `INDOOR` |
-| `Gender` | `MALE`, `FEMALE`, `OTHER` |
-| `UserTier` | `FREE`, `PRO` |
-| `ParticipantType` | `SINGLE`, `PAIR` |
-| `RankingType` | `SINGLES`, `DOUBLES` |
-| `AgeCategory` | (see `AgeCategory.java`) |
-| `EventType` | (see `EventType.java`) |
+Imported professional/federated ranking player.
 
----
+Important fields:
 
-## Package Locations
+- `id`: Long
+- `license`
+- `fullName`
+- `firstName`
+- `lastName`
+- `rankingPosition`
+- `ageCategory`
+- `clubName`
+- `birthDate`
+- `gender`
+- `points`
 
-Domain entities (active package): `com.tfm.tennis_platform.domain.models`
-Enums (shared with experimental package): `com.tennis.domain.model.enums`
-JPA entities: `com.tfm.tennis_platform.infrastructure.persistence.entity`
+### Court
 
-> Note: enums currently live in `com.tennis.domain.model.enums`. Migration to `com.tfm.tennis_platform.domain.model.enums` is pending.
+Court assigned to a tournament.
+
+Important fields:
+
+- `id`: UUID
+- `tournamentId`
+- `name`
 
 ---
 
-## Model Examples
+## Enumerations
 
-JSON examples of domain objects are available in:
-`backend/src/main/resources/model_examples/`
+Active enum package: `com.tfm.tennis_platform.domain.models.enums`.
 
-Files: `tournament.json`, `event.json`, `matchup.json`, `participant.json`, `person.json`, `ranking.json`, `stage.json`, `draw.json`
+- `AgeCategoryEnum`
+- `DrawType`
+- `EntryStatus`
+- `MemberTier`
+- `ParticipantSource`
+- `ParticipantType`
+- `ScheduleTimeType`
+- `StageType`
+- `Surface`
+- `TournamentStatus`
+
+---
+
+## Query View Models
+
+The domain also contains read-oriented models for API responses and ranking/calendar projections:
+
+- `TournamentSummary`
+- `calendar/TournamentCalendarItem`
+- `calendar/PlayerMatchCalendarItem`
+- `ranking/ProfessionalRankingEntry`
+- `ranking/TournamentRankingEntry`
+- `inscription/TournamentInscriptionsView`
+- `inscription/TournamentInscriptionPlayerView`
+- `inscription/TournamentInscriptionEventView`
+- `inscription/TournamentInscriptionGenderCount`
+- `inscription/TournamentInscriptionCategoryCount`
+
+---
+
+## Architecture Rule
+
+Controllers must only handle request/response DTOs. Application services work with domain models and domain ports. Persistence adapters map JPA entities to domain models before returning data to the application layer.

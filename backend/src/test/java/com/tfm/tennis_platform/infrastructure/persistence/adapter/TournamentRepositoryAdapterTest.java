@@ -5,6 +5,8 @@ import com.tfm.tennis_platform.domain.models.Draw;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.Stage;
+import com.tfm.tennis_platform.domain.models.TournamentSummary;
+import com.tfm.tennis_platform.domain.models.enums.ParticipantSource;
 import com.tfm.tennis_platform.domain.models.enums.DrawType;
 import com.tfm.tennis_platform.domain.models.enums.StageType;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
@@ -14,9 +16,11 @@ import com.tfm.tennis_platform.infrastructure.persistence.entity.DrawEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.RefAgeCategoryEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.StageEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.TournamentEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.mapper.MatchDomainMapper;
 import com.tfm.tennis_platform.infrastructure.persistence.mapper.TournamentEntityMapper;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaTournamentRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,8 +35,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,10 +56,69 @@ class TournamentRepositoryAdapterTest {
     private TournamentEntityMapper mapper;
 
     @Mock
+    private MatchDomainMapper matchDomainMapper;
+
+    @Mock
     private EntityManager entityManager;
 
     @InjectMocks
     private TournamentRepositoryAdapter repositoryAdapter;
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void should_find_tournament_summaries_without_mapping_full_domain_graph() {
+        UUID professionalTournamentId = UUID.randomUUID();
+        UUID regularTournamentId = UUID.randomUUID();
+        TournamentSummary professionalSummary = new TournamentSummary(
+                professionalTournamentId,
+                "Open Pro",
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 8),
+                LocalTime.of(9, 0),
+                LocalDate.of(2026, 4, 1),
+                LocalDate.of(2026, 4, 20),
+                Surface.CLAY,
+                32,
+                "Club Central",
+                TournamentStatus.OPEN,
+                false
+        );
+        TournamentSummary regularSummary = new TournamentSummary(
+                regularTournamentId,
+                "Open Social",
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 8),
+                LocalTime.of(10, 0),
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 20),
+                Surface.HARD,
+                64,
+                "Club Norte",
+                TournamentStatus.DRAFT,
+                false
+        );
+        TypedQuery<TournamentSummary> summaryQuery = mock(TypedQuery.class);
+        TypedQuery<Object[]> professionalFlagQuery = mock(TypedQuery.class);
+
+        when(entityManager.createQuery(anyString(), eq(TournamentSummary.class))).thenReturn(summaryQuery);
+        when(summaryQuery.getResultList()).thenReturn(List.of(professionalSummary, regularSummary));
+        when(entityManager.createQuery(anyString(), eq(Object[].class))).thenReturn(professionalFlagQuery);
+        when(professionalFlagQuery.setParameter(eq("professionalSource"), eq(ParticipantSource.PROFESSIONAL))).thenReturn(professionalFlagQuery);
+        when(professionalFlagQuery.setParameter(eq("tournamentIds"), any())).thenReturn(professionalFlagQuery);
+        when(professionalFlagQuery.getResultList()).thenReturn(List.of(
+                new Object[]{professionalTournamentId, 3L, 3L},
+                new Object[]{regularTournamentId, 2L, 1L}
+        ));
+
+        List<TournamentSummary> summaries = repositoryAdapter.findSummaries();
+
+        assertEquals(2, summaries.size());
+        assertEquals("Open Pro", summaries.get(0).name());
+        assertTrue(summaries.get(0).professionalTournament());
+        assertEquals("Open Social", summaries.get(1).name());
+        assertFalse(summaries.get(1).professionalTournament());
+        verifyNoInteractions(mapper, matchDomainMapper);
+    }
 
     @Test
     void should_reuse_managed_event_entities_when_full_list_is_sent_again() {

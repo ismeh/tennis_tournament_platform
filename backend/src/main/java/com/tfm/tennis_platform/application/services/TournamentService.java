@@ -6,6 +6,7 @@ import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
+import com.tfm.tennis_platform.domain.models.TournamentSummary;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
@@ -64,8 +65,16 @@ public class TournamentService {
         return tournamentRepository.findAll();
     }
 
+    public List<TournamentSummary> findSummaries() {
+        return tournamentRepository.findSummaries();
+    }
+
     public Optional<Tournament> findById(UUID id) {
         return tournamentRepository.findById(id);
+    }
+
+    public boolean isProfessionalTournament(UUID id) {
+        return tournamentRepository.isProfessionalTournament(id);
     }
 
     @Transactional
