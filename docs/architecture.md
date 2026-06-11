@@ -39,12 +39,11 @@ The Tennis Tournament Platform follows a **hexagonal architecture** (also known 
 com.tfm.tennis_platform
 ├── domain/
 │   ├── models/          Pure domain objects (no framework annotations)
-│   ├── contracts/       Repository port interfaces
-│   └── (enums via com.tennis.domain.model.enums for now)
+│   ├── port/            Repository and use-case port interfaces
+│   └── exceptions/      Domain exceptions
 ├── application/
 │   ├── services/        Business logic orchestrators
-│   ├── services_use_cases/  AuthService
-│   └── architecture/    Command, Query, UseCase, UseCaseBus interfaces
+│   └── commands/        Application command DTOs
 └── infrastructure/
     ├── controller/      REST controllers + DTOs + WebMappers
     ├── persistence/     JPA entities + JPA repositories + adapters + PersistenceMappers
@@ -60,7 +59,7 @@ Inner layers must not depend on outer layers:
 domain ← application ← infrastructure
 ```
 
-Cross-boundary communication uses port interfaces (defined in `domain/contracts/`) implemented by infrastructure adapters.
+Cross-boundary communication uses port interfaces (defined in `domain/port/`) implemented by infrastructure adapters.
 
 ---
 
@@ -104,8 +103,9 @@ JwtAuthenticationFilter
       │
       ▼
 SecurityFilterChain (SecurityConfig)
-   /api/auth/login → public
-  all other paths → authenticated
+  public endpoints → /api/auth/*, calendar tournament list,
+                     public rankings, public age categories
+  other paths      → authenticated
       │
       ▼
 Controller → Service → Repository
@@ -129,7 +129,7 @@ Angular Component
 Spring Boot Controller (infrastructure/controller/)
    → WebMapper: RequestDTO → Domain Model
    → Service call (application/services/)
-      → Repository port call (domain/contracts/)
+      → Repository port call (domain/port/out/)
          → JPA Adapter (infrastructure/persistence/adapter/)
             → JPA Repository → DB
          ← JPA Adapter returns Domain Model
@@ -140,3 +140,9 @@ Spring Boot Controller (infrastructure/controller/)
    ▼
 Angular Component renders data
 ```
+
+## API Namespace Notes
+
+Active REST controllers are namespaced under `/api`, including auth, tournaments, calendar, rankings, pro players, persons, members, matches, and age categories.
+
+When changing API contracts, update the backend controller, frontend client layer, and API documentation in the same change.
