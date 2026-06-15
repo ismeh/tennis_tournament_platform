@@ -8,6 +8,7 @@ import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.TournamentSummary;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
@@ -33,6 +34,10 @@ public class TournamentService {
         Member creator = memberRepository.findByEmail(creatorEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Member", creatorEmail));
 
+        if (creator.getRole() != UserRole.ORGANIZER) {
+            throw new AccessDeniedException("Only organizers can create tournaments.");
+        }
+
         if (tournament.getStartTime() == null) {
             throw new InvalidArgumentException("La hora de inicio del torneo es obligatoria.");
         }
@@ -50,6 +55,10 @@ public class TournamentService {
                 .surface(tournament.getSurface())
                 .maxPlayers(tournament.getMaxPlayers())
                 .location(tournament.getLocation())
+                .locationLatitude(tournament.getLocationLatitude())
+                .locationLongitude(tournament.getLocationLongitude())
+                .locationPlaceId(tournament.getLocationPlaceId())
+                .locationFormattedAddress(tournament.getLocationFormattedAddress())
                 .createdBy(creator)
                 .build();
 

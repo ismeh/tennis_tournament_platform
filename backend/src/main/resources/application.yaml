@@ -7,6 +7,11 @@ application:
   security:
     jwt:
       secret-key: ${JWT_SECRET_KEY:my_very_secret_and_long_key_for_tennis_platform_tfm_project}
+  google:
+    places:
+      api-key: ${GOOGLE_MAPS_API_KEY:}
+      base-url: ${GOOGLE_PLACES_BASE_URL:https://places.googleapis.com}
+      autocomplete-limit: ${GOOGLE_PLACES_AUTOCOMPLETE_LIMIT:5}
   pro-players:
     import:
       enabled: ${PRO_PLAYERS_IMPORT_ENABLED:false}

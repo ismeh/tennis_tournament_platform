@@ -15,5 +15,9 @@ public record TournamentRequest(
     Surface surfaceCategory,
     Integer maxPlayers,
     String location,
+    Double locationLatitude,
+    Double locationLongitude,
+    String locationPlaceId,
+    String locationFormattedAddress,
     Integer courtCount
 ) {}

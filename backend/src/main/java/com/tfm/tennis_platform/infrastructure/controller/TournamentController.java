@@ -18,6 +18,7 @@ import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentSummary;
+import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.infrastructure.controller.dto.CourtRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.CourtResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionRequest;
@@ -38,9 +39,11 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscripti
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentStatusUpdateRequest;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.TournamentWebMapper;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.MatchWebMapper;
+import com.tfm.tennis_platform.infrastructure.pdf.TournamentPdfExporter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.security.Principal;
@@ -59,6 +62,7 @@ public class TournamentController {
     private final EventService eventService;
     private final InscriptionService inscriptionService;
     private final CourtService courtService;
+    private final TournamentPdfExporter tournamentPdfExporter;
 
     @PostMapping
     public ResponseEntity<TournamentResponse> create(@RequestBody TournamentRequest request, Principal principal) {
@@ -241,6 +245,36 @@ public class TournamentController {
         ));
         }
 
+    @GetMapping("/{tournamentId}/export/pdf")
+    public ResponseEntity<byte[]> exportTournamentPdf(
+            @PathVariable UUID tournamentId
+    ) {
+        Tournament tournament = tournamentService.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+
+        TournamentInscriptionsView inscriptions = inscriptionService.findByTournament(tournamentId, null);
+        List<Court> courts = courtService.findByTournamentId(tournamentId);
+        List<com.tfm.tennis_platform.domain.models.Match> matches = matchService.findByTournamentId(tournamentId);
+
+        byte[] pdfBytes = tournamentPdfExporter.exportTournamentData(tournament, inscriptions, courts, matches);
+
+        String filename = sanitizeFilename(tournament.getName()) + ".pdf";
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                .body(pdfBytes);
+    }
+
+    private String sanitizeFilename(String name) {
+        if (name == null) {
+            return "torneo";
+        }
+        return name.replaceAll("[^a-zA-Z0-9_\\- ]", "")
+                   .replaceAll("\\s+", "_")
+                   .toLowerCase();
+    }
+
     private static EventInscriptionResponse toEventInscriptionResponse(EventInscriptionResult result) {
         return new EventInscriptionResponse(
                 result.id(),
@@ -267,6 +301,10 @@ public class TournamentController {
                 response.surfaceCategory(),
                 response.maxPlayers(),
                 response.location(),
+                response.locationLatitude(),
+                response.locationLongitude(),
+                response.locationPlaceId(),
+                response.locationFormattedAddress(),
                 response.status(),
                 response.providerOrganisationId(),
                 response.events(),

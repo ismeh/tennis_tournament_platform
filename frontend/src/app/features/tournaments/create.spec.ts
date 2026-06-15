@@ -1,13 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { CreateTournamentComponent } from './create';
 import { TournamentService } from '../../data/services/tournament.service';
+import { PlaceService } from '../../data/services/place.service';
 
 describe('CreateTournamentComponent', () => {
   let fixture: ComponentFixture<CreateTournamentComponent>;
   let component: CreateTournamentComponent;
   let tournamentServiceSpy: jasmine.SpyObj<TournamentService>;
+  let placeServiceSpy: jasmine.SpyObj<PlaceService>;
   const fixedNow = new Date('2026-04-12T10:00:00');
 
   beforeEach(async () => {
@@ -23,12 +26,14 @@ describe('CreateTournamentComponent', () => {
       {
         id: 1,
         category: 'Absoluto Individual Masculino',
-        description: 'Individual masculino open'
+        description: 'Individual masculino open',
+        custom: false
       },
       {
         id: 2,
         category: 'Absoluto Dobles Mixto',
-        description: 'Dobles mixto open'
+        description: 'Dobles mixto open',
+        custom: false
       }
     ]));
     tournamentServiceSpy.saveTournamentEvents.and.returnValue(of({
@@ -53,11 +58,16 @@ describe('CreateTournamentComponent', () => {
       ]
     }));
 
+    placeServiceSpy = jasmine.createSpyObj<PlaceService>('PlaceService', ['search']);
+    placeServiceSpy.search.and.returnValue(of([]));
+
     await TestBed.configureTestingModule({
       imports: [CreateTournamentComponent],
       providers: [
+        provideHttpClient(),
         provideRouter([]),
-        { provide: TournamentService, useValue: tournamentServiceSpy }
+        { provide: TournamentService, useValue: tournamentServiceSpy },
+        { provide: PlaceService, useValue: placeServiceSpy }
       ]
     }).compileComponents();
 
@@ -84,11 +94,11 @@ describe('CreateTournamentComponent', () => {
 
   it('should add checked events to the configuration list and allow multiple genders', () => {
     component.toggleCatalogEvent(
-      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open' },
+      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open', custom: false },
       true
     );
     component.toggleCatalogEvent(
-      { id: 2, category: 'Absoluto Dobles Mixto', description: 'Dobles mixto open' },
+      { id: 2, category: 'Absoluto Dobles Mixto', description: 'Dobles mixto open', custom: false },
       true
     );
 
@@ -142,6 +152,10 @@ describe('CreateTournamentComponent', () => {
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
       location: 'Club Central',
+      locationLatitude: null,
+      locationLongitude: null,
+      locationPlaceId: null,
+      locationFormattedAddress: null,
       courtCount: 4
     });
 
@@ -157,6 +171,10 @@ describe('CreateTournamentComponent', () => {
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
       location: 'Club Central',
+      locationLatitude: null,
+      locationLongitude: null,
+      locationPlaceId: null,
+      locationFormattedAddress: null,
       courtCount: 4
     });
     expect(tournamentServiceSpy.saveTournamentEvents).toHaveBeenCalledWith('tournament-id', {
@@ -194,6 +212,10 @@ describe('CreateTournamentComponent', () => {
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
       location: 'Club Central',
+      locationLatitude: null,
+      locationLongitude: null,
+      locationPlaceId: null,
+      locationFormattedAddress: null,
       courtCount: 4
     });
 
@@ -243,6 +265,10 @@ describe('CreateTournamentComponent', () => {
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
       location: 'Club Central',
+      locationLatitude: null,
+      locationLongitude: null,
+      locationPlaceId: null,
+      locationFormattedAddress: null,
       courtCount: 4
     });
 
