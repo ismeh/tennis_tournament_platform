@@ -2,9 +2,11 @@ package com.tfm.tennis_platform.infrastructure.controller;
 
 import com.tfm.tennis_platform.domain.exceptions.BaseException;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ErrorResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
@@ -184,8 +187,21 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException ex) {
+        log.debug("Client disconnected from SSE stream: {}", ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request, HttpServletResponse response) {
+        if (response.isCommitted()) {
+            log.error("Unexpected error after response committed", ex);
+            return null;
+        }
+        if (MediaType.TEXT_EVENT_STREAM_VALUE.equals(response.getContentType())) {
+            log.error("Unexpected error on SSE stream, resetting content type", ex);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        }
         BaseException baseException = findCause(ex, BaseException.class);
         if (baseException != null) {
             log.warn("Wrapped domain error: {} - {}", baseException.getCode(), baseException.getMessage());
