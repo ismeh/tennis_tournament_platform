@@ -54,6 +54,17 @@ public class CalendarController {
                 .toList());
     }
 
+    @GetMapping("/my-tournaments")
+    public ResponseEntity<List<TournamentCalendarResponse>> getMyTournaments(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(calendarService.findMyTournaments(principal.getName(), from, to).stream()
+                .map(CalendarController::toTournamentResponse)
+                .toList());
+    }
+
     private static TournamentCalendarResponse toTournamentResponse(TournamentCalendarItem item) {
         return new TournamentCalendarResponse(
                 item.id(),
