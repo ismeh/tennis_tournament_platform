@@ -19,6 +19,7 @@ services:
 
   backend:
     image: ${DOCKER_USERNAME:-ismeh}/tennis-backend:latest
+    pull_policy: always
     container_name: tfm-backend
     restart: unless-stopped
     ports:
@@ -58,6 +59,7 @@ services:
   
   frontend:
     image: ${DOCKER_USERNAME:-ismeh}/tennis-frontend:latest
+    pull_policy: always
     container_name: tfm-frontend
     restart: unless-stopped
     ports:
