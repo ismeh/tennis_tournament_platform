@@ -7,6 +7,7 @@ import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.TournamentSummary;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
@@ -52,6 +53,7 @@ class TournamentServiceTest {
         Member creator = Member.builder()
                 .id(creatorId)
                 .email("organizer@example.com")
+                .role(UserRole.ORGANIZER)
                 .build();
         Tournament incomingTournament = Tournament.builder()
                 .name("Open de Primavera")

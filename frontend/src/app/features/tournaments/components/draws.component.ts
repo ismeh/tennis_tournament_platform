@@ -48,6 +48,8 @@ type DrawViewMode = 'tree' | 'list';
                       [canManageInput]="canManageInput"
                       [showTitleInput]="false"
                       [showDrawCardInput]="false"
+                      [tournamentNameInput]="tournamentNameInput"
+                      [categoryNameInput]="categoryNameInput"
                       (matchSelected)="matchSelected.emit($event.id)"
                       (matchResultSaved)="onSaveMatchResult($event)"
                       (matchScheduleSaved)="onSaveMatchSchedule($event)"
@@ -92,6 +94,8 @@ export class DrawsComponent {
   @Input() participantOrderInput: Record<string, number> = {};
   @Input() courtsInput: CourtResponse[] = [];
   @Input() canManageInput = false;
+  @Input() tournamentNameInput = '';
+  @Input() categoryNameInput = '';
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
@@ -102,7 +106,7 @@ export class DrawsComponent {
   @ViewChild('matchModal') matchModal!: MatchDetailModalComponent;
 
   @Output() matchSelected = new EventEmitter<string>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -149,7 +153,7 @@ export class DrawsComponent {
     this.selectedMatch.set(null);
   }
 
-  onSaveMatchResult(event: { matchId: string; winnerId: string; result: string }) {
+  onSaveMatchResult(event: { matchId: string; winnerId: string | null; result: string }) {
     if (!this.canManageInput) {
       return;
     }

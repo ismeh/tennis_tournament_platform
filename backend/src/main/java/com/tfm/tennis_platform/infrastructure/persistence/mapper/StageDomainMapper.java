@@ -31,6 +31,7 @@ public class StageDomainMapper {
                 .eventId(entity.getEvent() != null ? entity.getEvent().getId() : null)
                 .stageNumber(entity.getOrder())
                 .stageType(entity.getStageType() != null ? StageType.valueOf(entity.getStageType()) : null)
+                .strategyName(entity.getStrategyName())
                 .description(entity.getDescription())
                 .draws(toDomainDraws(entity.getDraws()))
                 .build();
@@ -46,6 +47,7 @@ public class StageDomainMapper {
                 .event(mapEvent(domain.getEventId()))
                 .order(domain.getStageNumber())
                 .stageType(domain.getStageType() != null ? domain.getStageType().name() : null)
+                .strategyName(domain.getStrategyName())
                 .description(domain.getDescription())
                 .draws(new ArrayList<>())
                 .build();

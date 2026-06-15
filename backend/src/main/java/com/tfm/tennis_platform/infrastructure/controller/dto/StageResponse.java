@@ -10,6 +10,7 @@ public record StageResponse(
     UUID eventId,
     StageType stageType,
     Integer order,
+    String strategyName,
     String description,
     List<DrawResponse> draws
 ) {}

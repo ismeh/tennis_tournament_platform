@@ -1,7 +1,8 @@
-import { Component, Input, Output, EventEmitter, signal, computed, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, computed, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
+import { BracketExportService } from '../services/bracket-export.service';
 
 @Component({
   selector: 'app-bracket',
@@ -38,9 +39,14 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
                       Restablecer
                     </button>
                   </div>
-                  <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="toggleFullscreen()">
-                    {{ isFullscreen() ? 'Salir pantalla completa' : 'Pantalla completa' }}
-                  </button>
+                  <div class="flex items-center gap-2">
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="exportBracketPdf()" [disabled]="isExportingPdf()">
+                      {{ isExportingPdf() ? 'Exportando...' : 'Exportar PDF' }}
+                    </button>
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="toggleFullscreen()">
+                      {{ isFullscreen() ? 'Salir pantalla completa' : 'Pantalla completa' }}
+                    </button>
+                  </div>
                 </div>
                 <div class="bracket-shell">
                   <div class="bracket-scroll">
@@ -86,19 +92,21 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
 
                                   <span class="bracket-match-meta">
                                     <span class="bracket-match-number">P{{ getMatchNumber(match, draw.matches || []) }}</span>
-                                    @if (match.result) {
+                                    @if (match.winnerId) {
                                       <span class="bracket-status bracket-status-complete">Finalizado</span>
+                                    } @else if (match.result) {
+                                      <span class="bracket-status bracket-status-in-progress">En curso</span>
                                     } @else {
                                       <span class="bracket-status bracket-status-pending">Pendiente</span>
                                     }
                                   </span>
-                                  <span
+                                  <div
                                     class="bracket-player"
                                     [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
                                     [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
                                     [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
                                   >
-                                    <span class="truncate">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
+                                    <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
                                     @if (match.professionalMatch && match.firstInscriptionId) {
                                       <span
                                         class="bracket-points"
@@ -111,15 +119,15 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
                                     @if (isWinner(match, match.firstInscriptionId)) {
                                       <span class="bracket-winner-mark">G</span>
                                     }
-                                  </span>
+                                  </div>
 
-                                  <span
+                                  <div
                                     class="bracket-player"
                                     [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
                                     [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
                                     [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
                                   >
-                                    <span class="truncate">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
+                                    <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
                                     @if (match.professionalMatch && match.secondInscriptionId) {
                                       <span
                                         class="bracket-points"
@@ -132,7 +140,7 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
                                     @if (isWinner(match, match.secondInscriptionId)) {
                                       <span class="bracket-winner-mark">G</span>
                                     }
-                                  </span>
+                                  </div>
 
                                   @if (match.result) {
                                     <span class="bracket-result">{{ match.result }}</span>
@@ -196,8 +204,8 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
     }
 
     .bracket-round {
-      width: 15.75rem;
-      flex: 0 0 15.75rem;
+      width: 19rem;
+      flex: 0 0 19rem;
     }
 
     .bracket-round-header {
@@ -248,7 +256,6 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
       left: 0;
       display: flex;
       width: 100%;
-      min-height: 7.25rem;
       flex-direction: column;
       gap: 0.375rem;
       border: 1px solid rgb(203 213 225);
@@ -259,7 +266,6 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
       text-align: left;
       box-shadow: 0 8px 18px rgb(15 23 42 / 0.06);
       transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background 160ms ease;
-      transform: translateY(-50%);
       z-index: 2;
     }
 
@@ -269,7 +275,7 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
       background: rgb(248 250 252);
       box-shadow: 0 12px 26px rgb(37 99 235 / 0.14);
       outline: none;
-      transform: translateY(calc(-50% - 1px));
+      transform: translateY(-2px);
     }
 
     .bracket-match-complete {
@@ -305,25 +311,40 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
       color: rgb(22 101 52);
     }
 
+    .bracket-status-in-progress {
+      background: rgb(219 234 254);
+      color: rgb(30 64 175);
+    }
+
     .bracket-status-pending {
       background: rgb(254 249 195);
       color: rgb(133 77 14);
     }
 
     .bracket-player {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: center;
-      justify-content: space-between;
       gap: 0.5rem;
-      min-height: 2rem;
+      min-height: 3.75rem;
       border: 1px solid rgb(226 232 240);
       border-radius: 0.375rem;
       background: rgb(248 250 252);
-      padding: 0.375rem 0.5rem;
+      padding: 0.875rem 0.75rem;
       color: rgb(15 23 42);
-      font-size: 0.8125rem;
+      font-size: 0.875rem;
       font-weight: 700;
-      line-height: 1.1;
+      line-height: 1.5;
+    }
+
+    .bracket-player-name {
+      display: block;
+      min-width: 0;
+      overflow: visible;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 1.5;
+      padding-block: 0.125rem;
     }
 
     .bracket-player-empty {
@@ -349,7 +370,7 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 3rem;
+      min-width: 2.5rem;
       height: 1.375rem;
       flex: 0 0 auto;
       border-radius: 9999px;
@@ -377,13 +398,13 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.375rem;
-      height: 1.375rem;
+      width: 1.5rem;
+      height: 1.5rem;
       flex: 0 0 auto;
       border-radius: 9999px;
       background: rgb(22 163 74);
       color: white;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       font-weight: 800;
     }
 
@@ -428,11 +449,13 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
   `]
 })
 export class BracketComponent {
-  private readonly matchHeight = 136;
+  private readonly matchHeight = 144;
   private readonly slotPitch = 170;
   readonly minZoom = 0.6;
   readonly maxZoom = 1.6;
   private readonly zoomStep = 0.1;
+
+  private readonly bracketExportService = inject(BracketExportService);
 
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() participantOrderInput: Record<string, number> = {};
@@ -440,6 +463,8 @@ export class BracketComponent {
   @Input() showTitleInput = true;
   @Input() showDrawCardInput = true;
   @Input() canManageInput = false;
+  @Input() tournamentNameInput = '';
+  @Input() categoryNameInput = '';
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
@@ -448,13 +473,15 @@ export class BracketComponent {
   draws = computed(() => this._draws());
   zoomLevel = signal(1);
   isFullscreen = signal(false);
+  isExportingPdf = signal(false);
   selectedMatch = signal<MatchResponse | null>(null);
 
   @ViewChild('fullscreenRoot') fullscreenRoot?: ElementRef<HTMLElement>;
   @ViewChild('matchModal') matchModal?: MatchDetailModalComponent;
+  @ViewChild('bracketBoard') bracketBoard?: ElementRef<HTMLElement>;
 
   @Output() matchSelected = new EventEmitter<MatchResponse>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -477,7 +504,7 @@ export class BracketComponent {
     this.selectedMatch.set(null);
   }
 
-  onSaveMatchResult(event: { matchId: string; winnerId: string; result: string }): void {
+  onSaveMatchResult(event: { matchId: string; winnerId: string | null; result: string }): void {
     if (!this.canManageInput) {
       return;
     }
@@ -526,7 +553,7 @@ export class BracketComponent {
       return 400;
     }
     const rounds = this.getRounds(matches);
-    return Math.max(360, rounds.length * 300);
+    return Math.max(360, rounds.length * 304 + Math.max(0, rounds.length - 1) * 56);
   }
 
   getScaledBoardWidth(matches: MatchResponse[] | undefined): number {
@@ -559,12 +586,12 @@ export class BracketComponent {
 
   getBracketBodyHeight(rounds: Array<{ roundNumber: number; matches: MatchResponse[] }>): number {
     const firstRoundMatchCount = rounds[0]?.matches.length ?? 1;
-    return Math.max(320, this.matchHeight + Math.max(0, firstRoundMatchCount - 1) * this.slotPitch);
+    return Math.max(360, (firstRoundMatchCount - 1) * this.slotPitch + this.matchHeight + 24);
   }
 
   getMatchTop(roundIndex: number, matchIndex: number): number {
     const roundSpan = 2 ** roundIndex;
-    return this.matchHeight / 2 + (matchIndex * roundSpan + (roundSpan - 1) / 2) * this.slotPitch;
+    return (matchIndex * roundSpan + (roundSpan - 1) / 2) * this.slotPitch;
   }
 
   getRoundTopPadding(roundIndex: number): number {
@@ -606,7 +633,7 @@ export class BracketComponent {
     opponentInscriptionId: string | null | undefined
   ): string {
     if (this.isByeSlot(match, inscriptionId, opponentInscriptionId)) {
-      return 'Bye';
+      return 'Por determinar';
     }
 
     return this.getParticipantName(inscriptionId);
@@ -664,6 +691,30 @@ export class BracketComponent {
     }
 
     fullscreenElement.requestFullscreen().catch(() => undefined);
+  }
+
+  async exportBracketPdf(): Promise<void> {
+    const bracketElement = this.fullscreenRoot?.nativeElement;
+    if (!bracketElement || this.isExportingPdf()) {
+      return;
+    }
+
+    this.isExportingPdf.set(true);
+
+    try {
+      const firstDraw = this.draws()[0];
+      const drawLabel = firstDraw?.label ?? '';
+      await this.bracketExportService.exportBracket(
+        bracketElement,
+        this.tournamentNameInput,
+        this.categoryNameInput,
+        drawLabel
+      );
+    } catch (error) {
+      console.error('Error exporting bracket PDF:', error);
+    } finally {
+      this.isExportingPdf.set(false);
+    }
   }
 
   private setZoom(value: number): void {

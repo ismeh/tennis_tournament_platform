@@ -64,6 +64,8 @@ type DrawGenerationFeedback = {
                     [participantOrderInput]="participantOrderInput"
                     [courtsInput]="courtsInput"
                     [canManageInput]="canManageInput"
+                    [tournamentNameInput]="tournamentNameInput"
+                    [categoryNameInput]="categoryNameInput"
                     (matchSelected)="onMatchSelected($event)"
                     (matchResultSaved)="onMatchResultSaved($event)"
                     (matchScheduleSaved)="onMatchScheduleSaved($event)"
@@ -95,6 +97,8 @@ export class StagesComponent {
   @Input() participantOrderInput: Record<string, number> = {};
   @Input() courtsInput: CourtResponse[] = [];
   @Input() canManageInput = false;
+  @Input() tournamentNameInput = '';
+  @Input() categoryNameInput = '';
 
   @Input() set stagesInput(value: StageResponse[]) {
     this._stages.set(value);
@@ -110,7 +114,7 @@ export class StagesComponent {
 
   @Output() generateDraws = new EventEmitter<{ tournamentId: string; stageId: string }>();
   @Output() matchSelected = new EventEmitter<string>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -152,7 +156,7 @@ export class StagesComponent {
     this.matchSelected.emit(matchId);
   }
 
-  onMatchResultSaved(event: { matchId: string; winnerId: string; result: string }) {
+  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string }) {
     if (!this.canManageInput) {
       return;
     }
@@ -211,6 +215,7 @@ export class StagesComponent {
 
   getStageTypeLabel(stageType: string): string {
     const labels: Record<string, string> = {
+      MAIN: 'Cuadro Principal',
       SINGLE_ELIMINATION: 'Eliminatoria simple',
       ROUND_ROBIN: 'Liga',
       DOUBLE_ELIMINATION: 'Doble eliminación',
