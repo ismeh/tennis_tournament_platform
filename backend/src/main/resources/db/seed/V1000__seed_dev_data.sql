@@ -7,13 +7,23 @@ INSERT INTO persons (tennis_id, first_name, last_name, nationality, birth_date, 
     ('IPIN006', 'Coco', 'Gauff', 'USA', DATE '2004-03-13', 'FEMALE')
 ON CONFLICT (tennis_id) DO NOTHING;
 
-INSERT INTO users (email, password_hash, token_hash, email_verified, tier, person_id) VALUES
+INSERT INTO users (email, password_hash, token_hash, email_verified, tier, user_role, person_id) VALUES
+    (
+        'admin@example.com',
+        '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',
+        NULL,
+        TRUE,
+        'ADVANCED',
+        'ADMIN',
+        NULL
+    ),
     (
         'rafa@example.com',
         '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna',
         NULL,
         TRUE,
         'ADVANCED',
+        'PLAYER',
         (SELECT id FROM persons WHERE tennis_id = 'IPIN001' LIMIT 1)
     ),
     (
@@ -22,6 +32,7 @@ INSERT INTO users (email, password_hash, token_hash, email_verified, tier, perso
         NULL,
         TRUE,
         'ADVANCED',
+        'PLAYER',
         (SELECT id FROM persons WHERE tennis_id = 'IPIN002' LIMIT 1)
     ),
     (
@@ -30,6 +41,7 @@ INSERT INTO users (email, password_hash, token_hash, email_verified, tier, perso
         NULL,
         TRUE,
         'ADVANCED',
+        'PLAYER',
         (SELECT id FROM persons WHERE tennis_id = 'IPIN003' LIMIT 1)
     ),
     (
@@ -38,6 +50,7 @@ INSERT INTO users (email, password_hash, token_hash, email_verified, tier, perso
         NULL,
         TRUE,
         'ADVANCED',
+        'PLAYER',
         (SELECT id FROM persons WHERE tennis_id = 'IPIN004' LIMIT 1)
     ),
     (
@@ -46,6 +59,7 @@ INSERT INTO users (email, password_hash, token_hash, email_verified, tier, perso
         NULL,
         TRUE,
         'ADVANCED',
+        'PLAYER',
         (SELECT id FROM persons WHERE tennis_id = 'IPIN005' LIMIT 1)
     ),
     (
@@ -54,6 +68,7 @@ INSERT INTO users (email, password_hash, token_hash, email_verified, tier, perso
         NULL,
         TRUE,
         'INTERMEDIATE',
+        'PLAYER',
         (SELECT id FROM persons WHERE tennis_id = 'IPIN006' LIMIT 1)
     )
 ON CONFLICT (email) DO NOTHING;

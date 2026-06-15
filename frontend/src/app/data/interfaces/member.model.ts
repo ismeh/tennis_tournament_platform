@@ -11,6 +11,7 @@ export interface ProfileResponse {
   memberId: string;
   email: string;
   tier: string;
+  role: string;
   registeredAt: string;
   personId: string | null;
   firstName: string | null;

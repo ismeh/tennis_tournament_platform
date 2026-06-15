@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { UserRole } from '../../core/auth/auth.model';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,63}$/i;
@@ -18,6 +19,32 @@ const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`
 				<p class="mt-2 text-sm text-neutral-600">Regístrate para empezar a usar la plataforma.</p>
 
 				<form class="mt-6 space-y-4" [formGroup]="form" (ngSubmit)="submit()">
+					<div>
+						<label class="mb-1 block text-sm font-medium text-neutral-700">Tipo de cuenta</label>
+						<div class="grid grid-cols-2 gap-3">
+							<button type="button"
+								class="rounded-lg border-2 px-4 py-3 text-center transition-all"
+								[class.border-primary-500]="form.get('role')?.value === 'PLAYER'"
+								[class.border-neutral-200]="form.get('role')?.value !== 'PLAYER'"
+								[class.bg-primary-50]="form.get('role')?.value === 'PLAYER'"
+								(click)="form.patchValue({ role: 'PLAYER' })">
+								<span class="block text-lg mb-1">🎾</span>
+								<span class="block text-sm font-medium">Jugador</span>
+								<span class="block text-xs text-neutral-500">Inscribirte en torneos</span>
+							</button>
+							<button type="button"
+								class="rounded-lg border-2 px-4 py-3 text-center transition-all"
+								[class.border-primary-500]="form.get('role')?.value === 'ORGANIZER'"
+								[class.border-neutral-200]="form.get('role')?.value !== 'ORGANIZER'"
+								[class.bg-primary-50]="form.get('role')?.value === 'ORGANIZER'"
+								(click)="form.patchValue({ role: 'ORGANIZER' })">
+								<span class="block text-lg mb-1">🏆</span>
+								<span class="block text-sm font-medium">Organizador</span>
+								<span class="block text-xs text-neutral-500">Crear y gestionar torneos</span>
+							</button>
+						</div>
+					</div>
+
 					<div>
 						<label class="mb-1 block text-sm font-medium text-neutral-700" for="email">Email</label>
 						<input
@@ -74,6 +101,7 @@ export class RegisterComponent {
 	readonly successMessage = signal<string | null>(null);
 
 	readonly form = this.fb.nonNullable.group({
+		role: ['PLAYER' as UserRole, Validators.required],
 		email: ['', [Validators.required, Validators.pattern(EMAIL_PATTERN)]],
 		password: ['', [Validators.required, Validators.minLength(6)]]
 	});
@@ -87,7 +115,8 @@ export class RegisterComponent {
 		this.errorMessage.set(null);
 		this.successMessage.set(null);
 
-		this.authService.register(this.form.getRawValue()).subscribe({
+		const raw = this.form.getRawValue();
+		this.authService.register({ email: raw.email, password: raw.password, role: raw.role }).subscribe({
 			next: (response) => {
 				this.isSubmitting.set(false);
 				this.successMessage.set(response.message);

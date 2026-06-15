@@ -2,6 +2,7 @@ package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.models.Member;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.infrastructure.persistence.mapper.MemberMapper;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -56,5 +57,20 @@ public class MemberRepositoryAdapter implements MemberRepository {
     @Override
     public Optional<Member> findByEmailWithPersonId(String email) {
         return memberRepository.findByEmail(email).map(mapper::toDomain);
+    }
+
+    @Override
+    public void anonymize(UUID id, String anonymizedEmail) {
+        memberRepository.anonymize(id, anonymizedEmail);
+    }
+
+    @Override
+    public void updatePrivacyConsent(UUID id, boolean accepted, LocalDateTime acceptedAt, String version) {
+        memberRepository.updatePrivacyConsent(id, accepted, acceptedAt, version);
+    }
+
+    @Override
+    public Optional<Member> findByRole(UserRole role) {
+        return memberRepository.findFirstByRole(role).map(mapper::toDomain);
     }
 }

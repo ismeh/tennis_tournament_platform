@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../core/auth/auth.service';
 import { AppSettings } from '../shared/constants';
 
 @Component({
@@ -29,9 +30,15 @@ import { AppSettings } from '../shared/constants';
             </div>
 
             <div class="flex flex-col sm:flex-row gap-4">
-              <a routerLink="/torneos" class="px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:shadow-lg hover:from-primary-600 hover:to-primary-700 transition-all transform hover:scale-105 text-center">
-                Ver torneos
-              </a>
+              @if ((role$ | async) === 'ORGANIZER') {
+                <a routerLink="/torneos/crear" class="px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:shadow-lg hover:from-primary-600 hover:to-primary-700 transition-all transform hover:scale-105 text-center">
+                  Crear torneo
+                </a>
+              } @else {
+                <a routerLink="/torneos" class="px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-lg hover:shadow-lg hover:from-primary-600 hover:to-primary-700 transition-all transform hover:scale-105 text-center">
+                  Ver torneos
+                </a>
+              }
               <a routerLink="/como-funciona" class="px-8 py-4 bg-white text-primary-600 font-semibold rounded-lg border-2 border-primary-200 hover:border-primary-400 hover:bg-primary-50 transition-all text-center">
                 Cómo funciona
               </a>
@@ -282,5 +289,7 @@ import { AppSettings } from '../shared/constants';
 })
 export class HomeComponent {
   AppSettings: typeof AppSettings = AppSettings;
+  private readonly authService = inject(AuthService);
+  readonly role$ = this.authService.role$;
 }
 

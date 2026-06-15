@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.infrastructure.persistence.entity;
 
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -11,6 +12,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "users")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -44,7 +46,22 @@ public class MemberEntity {
     @Enumerated(EnumType.STRING)
     private MemberTier tier;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_role", nullable = false)
+    @Builder.Default
+    private UserRole role = UserRole.PLAYER;
+
     @Column(name = "registered_at", updatable = false)
     @CreationTimestamp
     private LocalDateTime registeredAt;
+
+    @Column(name = "privacy_policy_accepted", nullable = false)
+    @Builder.Default
+    private boolean privacyPolicyAccepted = false;
+
+    @Column(name = "privacy_policy_accepted_at")
+    private LocalDateTime privacyPolicyAcceptedAt;
+
+    @Column(name = "privacy_policy_version", length = 10)
+    private String privacyPolicyVersion;
 }

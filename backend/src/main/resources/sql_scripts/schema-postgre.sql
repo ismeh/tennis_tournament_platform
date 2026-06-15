@@ -49,6 +49,10 @@ CREATE TABLE tournaments (
     surface                  VARCHAR(20),                -- CLAY / HARD / GRASS / CARPET
     max_players             INTEGER,
     location                VARCHAR(200),
+    location_latitude       DOUBLE PRECISION,
+    location_longitude      DOUBLE PRECISION,
+    location_place_id       VARCHAR(255),
+    location_formatted_address VARCHAR(500),
     state                   VARCHAR(20) DEFAULT 'DRAFT', -- DRAFT / OPEN / CLOSED / IN_PROGRESS / COMPLETED / CANCELLED
     version                 BIGINT NOT NULL DEFAULT 0,
     created_by              UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -130,7 +134,8 @@ CREATE TABLE stages (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id        UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     stage_order     INTEGER NOT NULL,
-    stage_type      VARCHAR(30),                -- QUALIFYING / MAIN / CONSOLATION / PLAYOFF
+    stage_type      VARCHAR(30),
+    strategy_name   VARCHAR(50),
     description     VARCHAR
 );
 

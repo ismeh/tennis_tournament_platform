@@ -33,14 +33,16 @@ describe('RegisterComponent', () => {
 
     component.form.setValue({
       email: 'new@example.com',
-      password: 'secret123'
+      password: 'secret123',
+      role: 'PLAYER'
     });
 
     component.submit();
 
     expect(authServiceSpy.register).toHaveBeenCalledWith({
       email: 'new@example.com',
-      password: 'secret123'
+      password: 'secret123',
+      role: 'PLAYER'
     });
     expect(component.successMessage()).toBe('Cuenta creada. Revisa tu correo para confirmar el email.');
     expect(component.errorMessage()).toBeNull();
@@ -51,7 +53,8 @@ describe('RegisterComponent', () => {
 
     component.form.setValue({
       email: 'new@example.com',
-      password: 'secret123'
+      password: 'secret123',
+      role: 'PLAYER'
     });
 
     component.submit();

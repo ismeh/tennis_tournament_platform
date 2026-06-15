@@ -5,6 +5,8 @@ import { Router, RouterLink } from '@angular/router';
 import { MemberService } from '../../data/services/member.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
+import { NationalityOption } from '../../data/interfaces/reference-data.model';
+import { ReferenceDataService } from '../../data/services/reference-data.service';
 
 @Component({
   selector: 'app-profile-page',
@@ -17,6 +19,13 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
         <p class="mt-2 text-sm text-neutral-600">
           Para poder inscribirte en eventos debes completar, al menos, nombre, genero y fecha de nacimiento.
         </p>
+
+        <div class="mt-4 flex items-center gap-2 rounded-lg bg-primary-50 px-4 py-3">
+          <span class="text-sm font-medium text-neutral-700">Rol:</span>
+          <span class="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm font-semibold text-primary-700">
+            {{ roleLabel() }}
+          </span>
+        </div>
 
         <form class="mt-6 grid gap-4" [formGroup]="form" (ngSubmit)="submit()">
           <div>
@@ -36,7 +45,7 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
                 <option value="">Selecciona</option>
                 <option value="MALE">Masculino</option>
                 <option value="FEMALE">Femenino</option>
-                <option value="MIXED">Mixto</option>
+                <option value="MIXED">Prefiero no decirlo</option>
               </select>
             </div>
             <div>
@@ -47,8 +56,13 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
-              <label class="mb-1 block text-sm font-medium text-neutral-700" for="nationality">Nacionalidad (ISO3)</label>
-              <input id="nationality" type="text" formControlName="nationality" class="w-full rounded-lg border border-neutral-300 px-3 py-2 uppercase outline-none focus:border-primary-500" placeholder="ESP" />
+              <label class="mb-1 block text-sm font-medium text-neutral-700" for="nationality">País de nacionalidad</label>
+              <select id="nationality" formControlName="nationality" class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 outline-none focus:border-primary-500">
+                <option value="">Selecciona</option>
+                @for (nationality of nationalities(); track nationality.code) {
+                  <option [value]="nationality.code">{{ nationality.name }}</option>
+                }
+              </select>
             </div>
             <div>
               <label class="mb-1 block text-sm font-medium text-neutral-700" for="federationLicense">Licencia federativa</label>
@@ -79,12 +93,15 @@ export class ProfileComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly memberService = inject(MemberService);
   private readonly authService = inject(AuthService);
+  private readonly referenceDataService = inject(ReferenceDataService);
   private readonly router = inject(Router);
 
   readonly isSubmitting = signal(false);
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly nationalities = signal<NationalityOption[]>([]);
+  readonly roleLabel = signal('');
 
   readonly form = this.fb.nonNullable.group({
     firstName: ['', [Validators.required, Validators.minLength(2)]],
@@ -96,6 +113,15 @@ export class ProfileComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.referenceDataService.getNationalities().subscribe({
+      next: nationalities => {
+        this.nationalities.set(nationalities);
+      },
+      error: () => {
+        this.nationalities.set([]);
+      }
+    });
+
     this.memberService.getMyProfile().subscribe({
       next: profile => {
         this.form.patchValue({
@@ -106,6 +132,7 @@ export class ProfileComponent implements OnInit {
           nationality: profile.nationality ?? '',
           federationLicense: profile.federationLicense ?? ''
         });
+        this.roleLabel.set(profile.role === 'ORGANIZER' ? 'Organizador' : 'Jugador');
         this.isLoading.set(false);
       },
       error: (error) => {
@@ -139,6 +166,7 @@ export class ProfileComponent implements OnInit {
         const raw = this.form.getRawValue();
         const fullName = (raw.firstName || '').trim() + (raw.lastName ? ' ' + raw.lastName.trim() : '');
         this.authService.setDisplayName(fullName || null);
+        this.authService.setNationality(raw.nationality || null);
         this.router.navigateByUrl('/torneos');
       },
       error: (error) => {

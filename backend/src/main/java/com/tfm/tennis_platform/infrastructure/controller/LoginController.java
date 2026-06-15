@@ -33,7 +33,7 @@ public class LoginController {
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         AuthService.AuthTokens tokens = authService.login(loginRequest.email(), loginRequest.password());
         log.info("User logged in: {}", loginRequest.email());
-        return ResponseEntity.ok(new LoginResponse(tokens.accessToken(), tokens.refreshToken()));
+        return ResponseEntity.ok(new LoginResponse(tokens.accessToken(), tokens.refreshToken(), tokens.role()));
     }
 
     @PostMapping("/api/auth/register")
@@ -41,7 +41,8 @@ public class LoginController {
         AuthService.RegistrationResult result = authService.register(
                 registerRequest.email(),
                 registerRequest.password(),
-                registerRequest.name()
+                registerRequest.name(),
+                registerRequest.role()
         );
         log.info("User registered: {}", registerRequest.email());
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -97,6 +98,7 @@ public class LoginController {
                 profile.memberId(),
                 profile.email(),
                 profile.tier(),
+                profile.role(),
                 profile.registeredAt(),
                 profile.personId(),
                 profile.firstName(),
