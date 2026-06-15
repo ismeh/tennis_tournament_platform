@@ -10,6 +10,8 @@ import { ProfileComponent } from './features/profile/profile';
 import { CreateTournamentComponent } from './features/tournaments/create';
 import { TournamentDetailComponent } from './features/tournaments/detail';
 import { HowItWorksComponent } from './features/how-it-works';
+import { ManageCategoriesComponent } from './features/categories/manage-categories';
+import { AccountSettingsComponent } from './features/account/account-settings';
 
 export const routes: Routes = [
   {
@@ -42,6 +44,11 @@ export const routes: Routes = [
     data: { title: 'Detalle Torneo' }
   },
   {
+    path: 'mis-categorias',
+    component: ManageCategoriesComponent,
+    data: { title: 'Mis Categorías' }
+  },
+  {
     path: 'como-funciona',
     component: HowItWorksComponent,
     data: { title: 'Cómo Funciona' }
@@ -70,6 +77,11 @@ export const routes: Routes = [
     path: 'perfil',
     component: ProfileComponent,
     data: { title: 'Completar perfil' }
+  },
+  {
+    path: 'ajustes-cuenta',
+    component: AccountSettingsComponent,
+    data: { title: 'Ajustes de cuenta' }
   },
   {
     path: '**',

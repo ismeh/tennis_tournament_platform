@@ -11,4 +11,5 @@ public interface PersonRepository {
     Optional<Person> findById(UUID id);
     List<Person> findTop10();
     List<Person> searchByQuery(String query);
+    void anonymize(UUID id, String anonymizedFirstName);
 }

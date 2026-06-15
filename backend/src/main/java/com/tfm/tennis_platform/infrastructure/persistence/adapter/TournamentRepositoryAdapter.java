@@ -137,6 +137,12 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
         return toProfessionalFlag((Number) row[0], (Number) row[1]);
     }
 
+    @Override
+    @Transactional
+    public void transferTournaments(UUID oldOwnerId, UUID newOwnerId) {
+        tournamentJpaRepository.transferTournaments(oldOwnerId, newOwnerId);
+    }
+
     private List<TournamentSummary> findBaseSummaries() {
         return entityManager.createQuery("""
                 select new com.tfm.tennis_platform.domain.models.TournamentSummary(
@@ -225,6 +231,10 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
                        t.surface,
                        t.maxPlayers,
                        t.location,
+                       t.locationLatitude,
+                       t.locationLongitude,
+                       t.locationPlaceId,
+                       t.locationFormattedAddress,
                        t.status,
                        createdBy.id
                 from TournamentEntity t
@@ -256,8 +266,12 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
                 .surface((com.tfm.tennis_platform.domain.models.enums.Surface) tournament[7])
                 .maxPlayers((Integer) tournament[8])
                 .location((String) tournament[9])
-                .state((com.tfm.tennis_platform.domain.models.enums.TournamentStatus) tournament[10])
-                .createdBy(tournament[11] != null ? Member.builder().id((UUID) tournament[11]).build() : null)
+                .locationLatitude((Double) tournament[10])
+                .locationLongitude((Double) tournament[11])
+                .locationPlaceId((String) tournament[12])
+                .locationFormattedAddress((String) tournament[13])
+                .state((com.tfm.tennis_platform.domain.models.enums.TournamentStatus) tournament[14])
+                .createdBy(tournament[15] != null ? Member.builder().id((UUID) tournament[15]).build() : null)
                 .events(events)
                 .build());
     }
@@ -423,6 +437,7 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
             if (existingStage != null) {
                 existingStage.setOrder(domainStage.getStageNumber());
                 existingStage.setStageType(domainStage.getStageType() != null ? domainStage.getStageType().name() : null);
+                existingStage.setStrategyName(domainStage.getStrategyName());
                 existingStage.setDescription(domainStage.getDescription());
                 updateStageDraws(existingStage, domainStage);
                 continue;
@@ -433,6 +448,7 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
                 .event(eventEntity)
                 .order(domainStage.getStageNumber())
                 .stageType(domainStage.getStageType() != null ? domainStage.getStageType().name() : null)
+                .strategyName(domainStage.getStrategyName())
                 .description(domainStage.getDescription())
                 .build();
             updateStageDraws(newStage, domainStage);
