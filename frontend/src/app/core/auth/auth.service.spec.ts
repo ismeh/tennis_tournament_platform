@@ -66,7 +66,7 @@ describe('AuthService', () => {
   });
 
   it('does not create a session after register until email is confirmed', () => {
-    service.register({ email: 'new@example.com', password: 'secret123' }).subscribe();
+    service.register({ email: 'new@example.com', password: 'secret123', role: 'PLAYER' }).subscribe();
 
     const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/register`);
     expect(req.request.method).toBe('POST');
