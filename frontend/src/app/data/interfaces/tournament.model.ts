@@ -23,6 +23,10 @@ export interface TournamentCreateRequest {
   surfaceCategory: TournamentSurfaceCategory;
   maxPlayers: number;
   location: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationPlaceId?: string | null;
+  locationFormattedAddress?: string | null;
   courtCount: number;
 }
 
@@ -41,6 +45,10 @@ export interface TournamentResponse {
   surfaceCategory: TournamentSurfaceCategory;
   maxPlayers: number;
   location: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationPlaceId?: string | null;
+  locationFormattedAddress?: string | null;
   status: TournamentStatus;
   providerOrganisationId?: string | TournamentProviderSummary | null;
   events?: TournamentEventResponse[];
@@ -115,6 +123,7 @@ export interface StageResponse {
   eventId: string;
   stageType: string;
   order: number;
+  strategyName: string | null;
   description: string;
   draws?: DrawResponse[];
 }
@@ -176,6 +185,12 @@ export function getTournamentEventGenderLabel(gender: TournamentEventGender): st
 
 export type TournamentStageType = 'SINGLE_ELIMINATION' | 'ROUND_ROBIN' | 'DOUBLE_ELIMINATION' | 'CONSOLATION';
 
+const VALID_STAGE_TYPES: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
+
+export function isValidStageType(value: string): value is TournamentStageType {
+  return (VALID_STAGE_TYPES as string[]).includes(value);
+}
+
 export const TOURNAMENT_STAGE_TYPE_LABELS: Record<TournamentStageType, string> = {
   SINGLE_ELIMINATION: 'Eliminatoria simple',
   ROUND_ROBIN: 'Round Robin',
@@ -187,10 +202,96 @@ export function getTournamentStageTypeLabel(stageType: TournamentStageType): str
   return TOURNAMENT_STAGE_TYPE_LABELS[stageType] ?? stageType;
 }
 
+const TRANSITION_MATRIX: Record<TournamentStageType, TournamentStageType[]> = {
+  ROUND_ROBIN: ['ROUND_ROBIN', 'SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION'],
+  SINGLE_ELIMINATION: ['SINGLE_ELIMINATION', 'CONSOLATION'],
+  DOUBLE_ELIMINATION: ['ROUND_ROBIN', 'SINGLE_ELIMINATION'],
+  CONSOLATION: ['ROUND_ROBIN', 'SINGLE_ELIMINATION']
+};
+
+export interface StageValidationError {
+  rule: string;
+  message: string;
+}
+
+export function validateStageSequence(stages: TournamentStageType[]): StageValidationError[] {
+  const errors: StageValidationError[] = [];
+
+  if (stages.length === 0) {
+    errors.push({ rule: 'EMPTY', message: 'Debe haber al menos una fase definida.' });
+    return errors;
+  }
+
+  if (stages[0] === 'CONSOLATION') {
+    errors.push({ rule: 'R1', message: 'La primera fase no puede ser CONSOLATION. Requiere jugadores eliminados en una fase previa.' });
+  }
+
+  for (let i = 1; i < stages.length; i++) {
+    const current = stages[i];
+    const previous = stages[i - 1];
+
+    if (current === 'CONSOLATION' && previous !== 'SINGLE_ELIMINATION') {
+      errors.push({
+        rule: 'R2',
+        message: `CONSOLATION en la fase ${i + 1} solo es válida si la fase anterior es SINGLE_ELIMINATION (actual: ${previous}).`
+      });
+    }
+
+    if (current === 'DOUBLE_ELIMINATION' && i + 1 < stages.length && stages[i + 1] === 'CONSOLATION') {
+      errors.push({
+        rule: 'R3',
+        message: `Si la fase ${i + 1} es DOUBLE_ELIMINATION, la fase ${i + 2} no puede ser CONSOLATION.`
+      });
+    }
+  }
+
+  for (let i = 0; i < stages.length - 1; i++) {
+    const current = stages[i];
+    const next = stages[i + 1];
+    const allowed = TRANSITION_MATRIX[current];
+
+    if (!allowed || !allowed.includes(next)) {
+      errors.push({
+        rule: 'MATRIX',
+        message: allowed
+          ? `Transición inválida: '${current}' -> '${next}'. Desde ${current} solo se permite: ${allowed.join(', ')}.`
+          : `Fase desconocida: '${current}'. No se puede validar la transición.`
+      });
+    }
+  }
+
+  return errors;
+}
+
+export function isConsolationDisabled(stages: TournamentStageType[]): boolean {
+  if (stages.length === 0) {
+    return true;
+  }
+  const lastStage = stages[stages.length - 1];
+  return lastStage === 'DOUBLE_ELIMINATION' || lastStage === 'ROUND_ROBIN';
+}
+
+export function getAvailableStageOptions(stages: TournamentStageType[], currentIndex?: number): TournamentStageType[] {
+  if (currentIndex === undefined) {
+    return VALID_STAGE_TYPES;
+  }
+
+  if (currentIndex === 0) {
+    return VALID_STAGE_TYPES.filter(t => t !== 'CONSOLATION');
+  }
+
+  const previous = stages[currentIndex - 1];
+  if (previous === 'SINGLE_ELIMINATION') {
+    return VALID_STAGE_TYPES;
+  }
+  return VALID_STAGE_TYPES.filter(t => t !== 'CONSOLATION');
+}
+
 export interface TournamentEventCatalogItem {
   id: number;
   category: string;
   description: string;
+  custom: boolean;
 }
 
 export interface TournamentEventGenderEventId {

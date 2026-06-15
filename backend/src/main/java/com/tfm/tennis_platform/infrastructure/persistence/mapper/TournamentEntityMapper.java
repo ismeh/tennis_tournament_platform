@@ -127,6 +127,7 @@ public interface TournamentEntityMapper {
                 .eventId(entity.getEvent() != null ? entity.getEvent().getId() : null)
                 .stageNumber(entity.getOrder())
                 .stageType(entity.getStageType() != null ? StageType.valueOf(entity.getStageType()) : null)
+                .strategyName(entity.getStrategyName())
                 .description(entity.getDescription())
                 .draws(toDomainDraws(entity.getDraws()))
                 .build();
@@ -138,6 +139,7 @@ public interface TournamentEntityMapper {
                 .id(stage.getId())
                 .order(stage.getStageNumber())
                 .stageType(stage.getStageType() != null ? stage.getStageType().name() : null)
+                .strategyName(stage.getStrategyName())
                 .description(stage.getDescription())
                 .draws(toEntityDraws(stage.getDraws()))
                 .build();

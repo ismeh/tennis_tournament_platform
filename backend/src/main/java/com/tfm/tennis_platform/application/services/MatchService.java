@@ -65,45 +65,49 @@ public class MatchService {
         if (matchId == null) {
             throw new InvalidArgumentException("El partido es obligatorio.");
         }
-        if (winnerId == null) {
-            throw new InvalidArgumentException("Selecciona el ganador del partido.");
-        }
-        if (scoreString == null || scoreString.isBlank()) {
-            throw new InvalidArgumentException("Indica el resultado del partido.");
+        boolean hasWinner = winnerId != null;
+        boolean hasScore = scoreString != null && !scoreString.isBlank();
+        if (!hasWinner && !hasScore) {
+            throw new InvalidArgumentException("Debes proporcionar al menos el resultado o el ganador.");
         }
         tournamentService.assertTournamentAdmin(tournamentId, requesterEmail);
 
         Match currentMatch = matchRepository.findByIdAndTournamentId(matchId, tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
 
-        if (!winnerId.equals(currentMatch.getFirstInscriptionId()) && !winnerId.equals(currentMatch.getSecondInscriptionId())) {
+        if (hasWinner && !winnerId.equals(currentMatch.getFirstInscriptionId()) && !winnerId.equals(currentMatch.getSecondInscriptionId())) {
             throw new InvalidArgumentException("El ganador debe ser uno de los participantes del partido.");
         }
 
-        UUID loserId = resolveLoserId(currentMatch, winnerId);
-        UUID previousLoserId = resolveLoserId(currentMatch, currentMatch.getWinnerId());
-
-        Match updatedCurrentMatch = currentMatch.toBuilder()
-                .winner(createInscriptionReference(winnerId))
-                .result(scoreString.trim())
-                .build();
-
-        Match savedCurrentMatch = matchRepository.save(updatedCurrentMatch);
-
-        if (currentMatch.getNextMatch() != null && currentMatch.getNextMatch().getId() != null) {
-            Match nextMatch = matchRepository.findById(currentMatch.getNextMatch().getId().toString())
-                    .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getNextMatch().getId()));
-
-            Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, currentMatch, winnerId);
-            matchRepository.save(updatedNextMatch);
+        var builder = currentMatch.toBuilder();
+        if (hasScore) {
+            builder.result(scoreString.trim());
+        }
+        if (hasWinner) {
+            builder.winner(createInscriptionReference(winnerId));
         }
 
-        if (currentMatch.getLoserNextMatch() != null && currentMatch.getLoserNextMatch().getId() != null && loserId != null) {
-            Match loserNextMatch = matchRepository.findById(currentMatch.getLoserNextMatch().getId().toString())
-                    .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getLoserNextMatch().getId()));
+        Match savedCurrentMatch = matchRepository.save(builder.build());
 
-            Match updatedLoserNextMatch = placeLoserInNextMatch(loserNextMatch, currentMatch, loserId, previousLoserId);
-            matchRepository.save(updatedLoserNextMatch);
+        if (hasWinner) {
+            UUID loserId = resolveLoserId(currentMatch, winnerId);
+            UUID previousLoserId = resolveLoserId(currentMatch, currentMatch.getWinnerId());
+
+            if (currentMatch.getNextMatch() != null && currentMatch.getNextMatch().getId() != null) {
+                Match nextMatch = matchRepository.findById(currentMatch.getNextMatch().getId().toString())
+                        .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getNextMatch().getId()));
+
+                Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, currentMatch, winnerId);
+                matchRepository.save(updatedNextMatch);
+            }
+
+            if (currentMatch.getLoserNextMatch() != null && currentMatch.getLoserNextMatch().getId() != null && loserId != null) {
+                Match loserNextMatch = matchRepository.findById(currentMatch.getLoserNextMatch().getId().toString())
+                        .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getLoserNextMatch().getId()));
+
+                Match updatedLoserNextMatch = placeLoserInNextMatch(loserNextMatch, currentMatch, loserId, previousLoserId);
+                matchRepository.save(updatedLoserNextMatch);
+            }
         }
 
         return savedCurrentMatch;

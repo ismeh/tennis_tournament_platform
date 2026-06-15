@@ -67,6 +67,10 @@ public interface TournamentWebMapper {
                 .surface(t.getSurface())
                 .maxPlayers(t.getMaxPlayers())
                 .location(t.getLocation())
+                .locationLatitude(t.getLocationLatitude())
+                .locationLongitude(t.getLocationLongitude())
+                .locationPlaceId(t.getLocationPlaceId())
+                .locationFormattedAddress(t.getLocationFormattedAddress())
                 .state(t.getState())
                 .createdBy(t.getCreatedBy())
                 .events(events)
@@ -115,6 +119,7 @@ public interface TournamentWebMapper {
                 stage.getEventId(),
                 stage.getStageType(),
                 stage.getStageNumber(),
+                stage.getStrategyName(),
                 stage.getDescription(),
                 toDrawResponses(stage.getDraws())
             ))

@@ -41,7 +41,7 @@ describe('LoginComponent', () => {
   });
 
   it('calls login and navigates to tournaments on success when there is no return url', () => {
-    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token' }));
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token', role: 'PLAYER' }));
 
     component.form.setValue({ email: 'test@example.com', password: 'secret123' });
     component.submit();
@@ -52,7 +52,7 @@ describe('LoginComponent', () => {
   });
 
   it('navigates to the previous route after login when return url is present', () => {
-    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token' }));
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token', role: 'PLAYER' }));
     returnUrl = '/torneos/tournament-id?tab=inscriptions';
 
     component.form.setValue({ email: 'test@example.com', password: 'secret123' });

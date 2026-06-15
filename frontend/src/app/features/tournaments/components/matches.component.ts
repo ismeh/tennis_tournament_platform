@@ -54,9 +54,13 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                     </div>
                   </td>
                   <td class="px-3 py-2">
-                    @if (match.result) {
+                    @if (match.winnerId) {
                       <span class="inline-block rounded bg-green-100 px-2 py-1 text-xs text-green-800">
                         Jugado: {{ match.result }}
+                      </span>
+                    } @else if (match.result) {
+                      <span class="inline-block rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
+                        En curso: {{ match.result }}
                       </span>
                     } @else {
                       <span class="inline-block rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-800">
@@ -110,7 +114,7 @@ export class MatchesComponent {
 
   getParticipantName(inscriptionId: string | null | undefined): string {
     if (!inscriptionId) {
-      return 'Bye';
+      return 'Por determinar';
     }
 
     return this.participantNamesInput[inscriptionId] ?? inscriptionId.substring(0, 8);

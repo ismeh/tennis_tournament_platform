@@ -1,11 +1,20 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  AfterViewInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { PersonService } from '../../data/services/person.service';
 import { ProPlayerService } from '../../data/services/pro-player.service';
+import { NationalityOption } from '../../data/interfaces/reference-data.model';
 import {
   CourtResponse,
   TournamentInscriptionCategoryCount,
@@ -15,6 +24,7 @@ import {
   TournamentEventGender,
   TournamentEventResponse,
   TournamentEventSelection,
+  TournamentEventStageSelection,
   TournamentEventsConfigRequest,
   ManualParticipantSource,
   ManualEventInscriptionRequest,
@@ -28,11 +38,16 @@ import {
   getTournamentEventGenderLabel,
   getTournamentStageTypeLabel,
   getTournamentSurfaceCategoryLabel,
-  TournamentStageType
+  TournamentStageType,
+  validateStageSequence,
+  isConsolationDisabled,
+  getAvailableStageOptions,
+  isValidStageType
 } from '../../data/interfaces/tournament.model';
 import { MemberService } from '../../data/services/member.service';
 import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
 import { TournamentService } from '../../data/services/tournament.service';
+import { ReferenceDataService } from '../../data/services/reference-data.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { StagesComponent } from './components/stages.component';
 
@@ -95,9 +110,25 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
             <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h1 class="text-3xl font-black text-neutral-900 sm:text-4xl">{{ tournament()!.formalName }}</h1>
-                <p class="mt-2 text-neutral-600">{{ tournament()!.location }}</p>
+                <p class="mt-2 text-neutral-600">
+                  📍 {{ tournament()!.location }}
+                  @if (tournament()!.locationFormattedAddress) {
+                    <span class="text-neutral-400 mx-2">|</span>
+                    <span class="text-neutral-500 text-sm">{{ tournament()!.locationFormattedAddress }}</span>
+                  }
+                  @if (hasTournamentMapsLink(tournament()!)) {
+                    <a
+                      [href]="getTournamentMapsLink(tournament()!)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="ml-2 text-primary-600 hover:text-primary-800 hover:underline inline-flex items-center gap-0.5 text-sm font-medium"
+                    >
+                      Ver en mapa ↗
+                    </a>
+                  }
+                </p>
               </div>
-              <span class="inline-flex w-fit rounded-full border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700">
+              <span class="inline-flex w-fit rounded-full border px-4 py-2 text-sm font-semibold {{ getStatusColorClasses(tournament()!.status) }}">
                 Estado: {{ getStatusLabel(tournament()!.status) }}
               </span>
               @if (isProfessionalTournament()) {
@@ -105,6 +136,25 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   PRO
                 </span>
               }
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                (click)="exportTournamentPdf()"
+                [disabled]="isExportingTournamentPdf()"
+                class="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                @if (isExportingTournamentPdf()) {
+                  <span class="h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-primary-600"></span>
+                  Exportando...
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Exportar datos (PDF)
+                }
+              </button>
             </div>
 
             <div class="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-2">
@@ -171,6 +221,16 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   </p>
                 </div>
               </div>
+
+              @if (tournament()!.locationLatitude != null && tournament()!.locationLongitude != null) {
+                <div class="mt-6">
+                  <p class="mb-2 text-xs uppercase tracking-widest text-neutral-500">Ubicación</p>
+                  <div
+                    id="tournament-map"
+                    class="h-64 w-full rounded-2xl border border-neutral-200 overflow-hidden"
+                  ></div>
+                </div>
+              }
             </section>
           }
 
@@ -220,7 +280,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       <p class="mt-2 text-sm text-neutral-600">Selecciona las categorías del catálogo, marca sus modalidades y define el formato del cuadro.</p>
                     </div>
                     <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-neutral-600">
-                      {{ selectedEvents().length }} seleccionados
+                      {{ selectedEvents().length }} seleccionadas
                     </span>
                   </div>
 
@@ -296,14 +356,14 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 <div class="flex items-center justify-between gap-3">
                                   <div>
                                     <p class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Formato de cuadro</p>
-                                    <p class="mt-1 text-sm text-neutral-600">Define el orden y tipo de las fases que tendrá esta prueba.</p>
+                                    <p class="mt-1 text-sm text-neutral-600">Define el orden y tipo de las cuadros que tendrá esta prueba.</p>
                                   </div>
                                   <button
                                     type="button"
                                     class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700"
                                     (click)="addEventStage(event.categoryId)"
                                   >
-                                    Añadir fase
+                                    Añadir cuadro
                                   </button>
                                 </div>
 
@@ -313,13 +373,13 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                         <div class="flex-1">
                                           <label class="block">
-                                            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Tipo de fase {{ stageIndex + 1 }}</span>
+                                            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Tipo de cuadro {{ stageIndex + 1 }}</span>
                                             <select
                                               class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:bg-white"
                                               [value]="stage.stageType"
                                               (change)="updateEventStageType(event.categoryId, stageIndex, $any($event.target).value)"
                                             >
-                                              @for (option of stageOptions; track option) {
+                                              @for (option of getAvailableStageOptions(event.stages, stageIndex); track option) {
                                                 <option [value]="option">{{ getStageLabel(option) }}</option>
                                               }
                                             </select>
@@ -327,22 +387,6 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                         </div>
 
                                         <div class="flex items-center gap-2">
-                                          <button
-                                            type="button"
-                                            class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                            [disabled]="stageIndex === 0"
-                                            (click)="moveEventStage(event.categoryId, stageIndex, 'up')"
-                                          >
-                                            Subir
-                                          </button>
-                                          <button
-                                            type="button"
-                                            class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                            [disabled]="stageIndex === event.stages.length - 1"
-                                            (click)="moveEventStage(event.categoryId, stageIndex, 'down')"
-                                          >
-                                            Bajar
-                                          </button>
                                           <button
                                             type="button"
                                             class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
@@ -379,16 +423,9 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
                     <button
                       type="button"
-                      (click)="clearSelectedEvents()"
-                      class="rounded-2xl border border-neutral-300 px-5 py-3 font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-white"
-                    >
-                      Limpiar pruebas
-                    </button>
-                    <button
-                      type="button"
                       (click)="saveTournamentEvents()"
                       class="rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-3 font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
-                      [disabled]="isSavingEvents() || isLoadingEvents() || selectedEvents().length === 0"
+                      [disabled]="isSavingEvents() || isLoadingEvents()"
                     >
                       {{ isSavingEvents() ? 'Guardando pruebas...' : 'Guardar pruebas del torneo' }}
                     </button>
@@ -515,26 +552,67 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             <p class="mt-2 text-xs text-neutral-500">La lista se actualiza automáticamente cuando escribes al menos 2 caracteres.</p>
                           </label>
 
-                          <div class="flex gap-2">
-                            <button
-                              type="button"
-                              class="rounded-2xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-60"
-                              [disabled]="isSearchingPersons() || manualPlayerSearchQuery().trim().length < 2"
-                              (click)="searchManualPlayerCandidates()"
-                            >
-                              {{ isSearchingPersons() ? 'Buscando...' : 'Buscar' }}
-                            </button>
+                          <div class="flex flex-wrap gap-2 sm:justify-end">
+                            @if (manualPlayerSource() === 'PROFESSIONAL') {
+                              <button
+                                type="button"
+                                class="rounded-2xl border px-4 py-2 text-sm font-semibold transition-colors"
+                                [class.border-primary-300]="hasActiveManualPlayerFilters() || isManualPlayerFiltersPanelExpanded()"
+                                [class.bg-primary-50]="hasActiveManualPlayerFilters() || isManualPlayerFiltersPanelExpanded()"
+                                [class.text-primary-700]="hasActiveManualPlayerFilters() || isManualPlayerFiltersPanelExpanded()"
+                                [class.border-neutral-300]="!hasActiveManualPlayerFilters() && !isManualPlayerFiltersPanelExpanded()"
+                                [class.bg-white]="!hasActiveManualPlayerFilters() && !isManualPlayerFiltersPanelExpanded()"
+                                [class.text-neutral-700]="!hasActiveManualPlayerFilters() && !isManualPlayerFiltersPanelExpanded()"
+                                (click)="toggleManualPlayerFiltersPanel()"
+                              >
+                                Filtros{{ hasActiveManualPlayerFilters() ? ' activos' : '' }}
+                              </button>
+                            }
 
                             <button
                               type="button"
-                              class="rounded-2xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
-                              [disabled]="isSearchingPersons() && !manualPlayerSearchQuery().trim()"
-                              (click)="onManualPlayerSearchQueryChange('')"
+                              class="rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                              [disabled]="isSubmittingManualPlayer()"
+                              (click)="submitManualPlayer()"
                             >
-                              Limpiar
+                              {{ isSubmittingManualPlayer() ? 'Añadiendo...' : 'Añadir jugador' }}
                             </button>
                           </div>
                         </div>
+
+                        @if (manualPlayerSource() === 'PROFESSIONAL' && isManualPlayerFiltersPanelExpanded()) {
+                          <div class="mt-4 grid gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-2">
+                            <label class="block">
+                              <span class="mb-1 block text-sm font-medium text-neutral-700">Categoría</span>
+                              <select
+                                class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                [ngModel]="manualPlayerFilterCategory()"
+                                (ngModelChange)="onManualPlayerFilterCategoryChange($event)"
+                                name="manualPlayerFilterCategory"
+                              >
+                                <option value="">Todas las categorías</option>
+                                @for (category of manualPlayerProfessionalCategoryOptions(); track category) {
+                                  <option [value]="category">{{ category }}</option>
+                                }
+                              </select>
+                            </label>
+
+                            <label class="block">
+                              <span class="mb-1 block text-sm font-medium text-neutral-700">Género</span>
+                              <select
+                                class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                [ngModel]="manualPlayerFilterGender()"
+                                (ngModelChange)="onManualPlayerFilterGenderChange($event)"
+                                name="manualPlayerFilterGender"
+                              >
+                                <option value="">Todos los géneros</option>
+                                <option value="MALE">Masculino</option>
+                                <option value="FEMALE">Femenino</option>
+                                <option value="MIXED">Mixto</option>
+                              </select>
+                            </label>
+                          </div>
+                        }
 
                         @if (manualPlayerSearchError()) {
                           <div class="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -586,7 +664,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                               </button>
                             }
                           </div>
-                        } @else if (!isSearchingPersons() && manualPlayerSearchQuery().trim().length >= 2 && !manualPlayerSearchError()) {
+                        } @else if (!isSearchingPersons() && (manualPlayerSearchQuery().trim().length >= 2 || hasActiveManualPlayerFilters()) && !manualPlayerSearchError()) {
                           <div class="mt-4 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
                             No se han encontrado jugadores con ese criterio. Prueba con otro nombre, apellido o licencia.
                           </div>
@@ -651,14 +729,17 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
 
                         <label class="block">
                           <span class="mb-1 block text-sm font-medium text-neutral-700">Nacionalidad</span>
-                          <input
-                            type="text"
+                          <select
                             class="w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
                             [ngModel]="manualPlayerNationality()"
                             (ngModelChange)="manualPlayerNationality.set($event)"
                             name="manualPlayerNationality"
-                            placeholder="ESP"
-                          />
+                          >
+                            <option value="">Selecciona</option>
+                            @for (nationality of nationalities(); track nationality.code) {
+                              <option [value]="nationality.code">{{ nationality.name }}</option>
+                            }
+                          </select>
                         </label>
 
                         <label class="block">
@@ -688,6 +769,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     </div>
                   }
 
+                  @if (manualPlayerSource() === 'MANUAL') {
                   <div class="mt-4 flex justify-end">
                     <button
                       type="button"
@@ -698,6 +780,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       {{ isSubmittingManualPlayer() ? 'Añadiendo jugador...' : 'Añadir jugador a la prueba' }}
                     </button>
                   </div>
+                  }
                   }
                 </div>
               } @else {
@@ -874,7 +957,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
               <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 class="text-xl font-bold text-neutral-900">Cuadros del torneo</h2>
-                  <p class="mt-2 text-neutral-600">Visualiza las pruebas, fases, cuadros y partidos generados.</p>
+                  <p class="mt-2 text-neutral-600">Visualiza las pruebas, cuadros y partidos generados.</p>
                 </div>
               </div>
 
@@ -1241,7 +1324,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                       <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
-                        {{ tournament()!.events!.length }} pruebas
+                        {{ tournament()!.events!.length }} {{ (tournament()!.events!.length || 0) === 1 ? 'prueba' : 'pruebas' }}
                       </span>
                     </div>
                   </div>
@@ -1258,13 +1341,13 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                           </h4>
                         </div>
                         <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200">
-                          {{ event.stages?.length || 0 }} fases
+                          {{ event.stages?.length || 0 }} {{ (event.stages?.length || 0) === 1 ? 'cuadro' : 'cuadros' }}
                         </span>
                       </div>
 
                       <div class="mt-4 rounded-xl border border-neutral-200 bg-white p-4">
                         <div class="mb-3 flex items-center justify-between gap-3">
-                          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary-600">Fases</p>
+                          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary-600">Cuadros</p>
                         </div>
                         
                         @if (event.stages && event.stages.length > 0) {
@@ -1275,6 +1358,8 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             [participantOrderInput]="participantOrderByInscriptionId()"
                             [courtsInput]="courts()"
                             [canManageInput]="isCreator()"
+                            [tournamentNameInput]="tournament()!.formalName"
+                            [categoryNameInput]="getCategoryLabel(event.categoryId) + ' - ' + getGenderLabelForString(event.gender)"
                             [generatingDrawsForStageIdInput]="generatingDrawsStageId()"
                             [drawGenerationFeedbackInput]="drawGenerationFeedbackByStageId()"
                             (generateDraws)="onGenerateDraws($event, event.eventId!)"
@@ -1284,7 +1369,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                           ></app-stages>
                         } @else {
                           <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-                            Sin fases generadas aún
+                            Sin cuadros generados aún
                           </div>
                         }
                       </div>
@@ -1305,7 +1390,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
     </section>
   `
 })
-export class TournamentDetailComponent implements OnInit, OnDestroy {
+export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewInit {
   private readonly route = inject(ActivatedRoute);
   private readonly tournamentService = inject(TournamentService);
   private readonly tournamentLiveUpdatesService = inject(TournamentLiveUpdatesService);
@@ -1313,6 +1398,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly personService = inject(PersonService);
   private readonly proPlayerService = inject(ProPlayerService);
+  private readonly referenceDataService = inject(ReferenceDataService);
+
+  private mapInstance?: any;
 
   readonly eventGenderOptions: TournamentEventGender[] = ['MALE', 'FEMALE', 'MIXED'];
   readonly stageOptions: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
@@ -1327,6 +1415,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   readonly isLoadingEvents = signal(true);
   readonly isSavingEvents = signal(false);
   readonly eventCatalog = signal<TournamentEventCatalogItem[]>([]);
+  readonly nationalities = signal<NationalityOption[]>([]);
   readonly selectedEvents = signal<TournamentEventSelection[]>([]);
   readonly eventsSuccessMessage = signal<string | null>(null);
   readonly eventsErrorMessage = signal<string | null>(null);
@@ -1363,6 +1452,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   readonly manualPlayerSearchResults = signal<ManualPlayerLookupResult[]>([]);
   readonly manualPlayerSelectedPersonId = signal<string>('');
   readonly manualPlayerSearchError = signal<string | null>(null);
+  readonly manualPlayerFilterGender = signal<string>('');
+  readonly manualPlayerFilterCategory = signal<string>('');
   readonly manualPlayerFirstName = signal<string>('');
   readonly manualPlayerLastName = signal<string>('');
   readonly manualPlayerGender = signal<string>('MALE');
@@ -1380,11 +1471,13 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   readonly isCourtsPanelExpanded = signal(false);
   readonly isMatchSchedulePanelExpanded = signal(false);
   readonly isManualPlayerPanelExpanded = signal(false);
+  readonly isManualPlayerFiltersPanelExpanded = signal(false);
   readonly isRegisteredPlayersPanelExpanded = signal(false);
   readonly isEventsDrawsPanelExpanded = signal(false);
   readonly isCreatingCourt = signal(false);
   readonly isUpdatingCourt = signal(false);
   readonly isDeletingCourt = signal(false);
+  readonly isExportingTournamentPdf = signal(false);
   readonly newCourtName = signal('');
   readonly selectedCourtId = signal<string | null>(null);
   readonly selectedCourtName = signal('');
@@ -1521,6 +1614,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
 
   readonly tournamentInscriptionEvents = computed<TournamentInscriptionEvent[]>(() => this.tournamentInscriptions()?.events ?? []);
 
+  readonly manualPlayerProfessionalCategoryOptions = computed<string[]>(() =>
+    Array.from(new Set(this.manualPlayerEventOptions().map(event => event.category))).sort((a, b) => a.localeCompare(b))
+  );
+
   readonly tournamentInscriptionCategoryCounts = computed<TournamentInscriptionCategoryCount[]>(() =>
     this.tournamentInscriptions()?.categoryCounts ?? []
   );
@@ -1639,6 +1736,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
 
   constructor() {
     this.loadEventCatalog();
+    this.loadNationalities();
   }
 
   ngOnInit(): void {
@@ -1654,9 +1752,14 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.startTournamentLiveUpdates(tournamentId);
   }
 
+  ngAfterViewInit(): void {
+    this.tryInitMap();
+  }
+
   ngOnDestroy(): void {
     this.liveUpdatesSubscription?.unsubscribe();
     this.cancelManualPlayerSearch();
+    this.mapInstance?.remove();
   }
 
   setActiveSection(section: TournamentDetailSection): void {
@@ -1664,9 +1767,49 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.actionMessage.set(null);
     this.actionError.set(null);
 
+    if (section === 'overview') {
+      setTimeout(() => this.tryInitMap(), 0);
+    }
+
     if (section === 'inscriptions' && !this.tournamentInscriptions() && !this.isLoadingTournamentInscriptions()) {
       this.loadTournamentInscriptions();
     }
+  }
+
+  exportTournamentPdf(): void {
+    const currentTournament = this.tournament();
+    if (!currentTournament || this.isExportingTournamentPdf()) {
+      return;
+    }
+
+    this.isExportingTournamentPdf.set(true);
+
+    this.tournamentService.exportTournamentPdf(currentTournament.id).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = this.sanitizeFilename(currentTournament.formalName) + '.pdf';
+        link.click();
+        window.URL.revokeObjectURL(url);
+        this.isExportingTournamentPdf.set(false);
+        this.actionMessage.set('PDF exportado correctamente.');
+      },
+      error: (error) => {
+        this.isExportingTournamentPdf.set(false);
+        this.actionError.set(getApiErrorMessage(error, 'No se pudo exportar el PDF del torneo.'));
+      }
+    });
+  }
+
+  private sanitizeFilename(name: string): string {
+    if (!name) return 'torneo';
+    return name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_\- ]/g, '')
+      .replace(/\s+/g, '_')
+      .toLowerCase();
   }
 
   onManualPlayerSourceChange(source: ManualParticipantSource): void {
@@ -1690,12 +1833,48 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
       if (this.manualPlayerSearchQuery().trim().length >= 2) {
         this.scheduleManualPlayerSearch();
       }
+
+      if (source !== 'PROFESSIONAL') {
+        this.manualPlayerFilterGender.set('');
+        this.manualPlayerFilterCategory.set('');
+        this.isManualPlayerFiltersPanelExpanded.set(false);
+      }
     } else {
       this.manualPlayerSearchQuery.set('');
+      this.manualPlayerFilterGender.set('');
+      this.manualPlayerFilterCategory.set('');
+      this.isManualPlayerFiltersPanelExpanded.set(false);
     }
   }
 
+  toggleManualPlayerFiltersPanel(): void {
+    this.isManualPlayerFiltersPanelExpanded.update(expanded => !expanded);
+  }
+
+  onManualPlayerFilterGenderChange(gender: string): void {
+    this.manualPlayerFilterGender.set(gender);
+    this.onManualPlayerFiltersChange();
+  }
+
+  onManualPlayerFilterCategoryChange(category: string): void {
+    this.manualPlayerFilterCategory.set(category);
+    this.onManualPlayerFiltersChange();
+  }
+
+  hasActiveManualPlayerFilters(): boolean {
+    return !!this.manualPlayerFilterGender().trim() || !!this.manualPlayerFilterCategory().trim();
+  }
+
+  private onManualPlayerFiltersChange(): void {
+    this.manualPlayerSearchError.set(null);
+    this.manualPlayerSuccess.set(null);
+    this.manualPlayerSelectedPersonId.set('');
+    this.scheduleManualPlayerSearch();
+  }
+
   toggleCatalogEvent(catalogEvent: TournamentEventCatalogItem, checked: boolean): void {
+    this.eventsErrorMessage.set(null);
+
     if (checked) {
       if (this.isEventSelected(catalogEvent.id)) {
         return;
@@ -1722,38 +1901,80 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   }
 
   toggleEventGender(categoryId: number, gender: TournamentEventGender, checked: boolean): void {
+    this.eventsErrorMessage.set(null);
+
     this.selectedEvents.update(events =>
-      events.map(event =>
-        event.categoryId === categoryId
-          ? {
-            ...event,
-            genders: checked
-              ? Array.from(new Set([...event.genders, gender]))
-              : event.genders.filter(currentGender => currentGender !== gender)
-          }
-          : event
-      )
+      events.map(event => {
+        if (event.categoryId !== categoryId) {
+          return event;
+        }
+
+        const nextGenders = checked
+          ? Array.from(new Set([...event.genders, gender]))
+          : event.genders.filter(currentGender => currentGender !== gender);
+
+        const genderSet = new Set(nextGenders);
+        const nextEventsByGender = checked
+          ? event.eventsByGender.some(eg => eg.gender === gender)
+            ? event.eventsByGender
+            : [...event.eventsByGender, { gender, eventId: null }]
+          : event.eventsByGender.filter(eg => eg.gender !== gender);
+
+        return {
+          ...event,
+          genders: nextGenders,
+          eventsByGender: nextEventsByGender
+        };
+      })
     );
   }
 
   addEventStage(categoryId: number): void {
+    this.eventsErrorMessage.set(null);
+
     this.selectedEvents.update(events =>
-      events.map(event =>
-        event.categoryId === categoryId
-          ? {
-            ...event,
-            stages: [...event.stages, { stageType: 'SINGLE_ELIMINATION' }]
-          }
-          : event
-      )
+      events.map(event => {
+        if (event.categoryId !== categoryId) {
+          return event;
+        }
+        const newStageType: TournamentStageType = isConsolationDisabled(event.stages.map(s => s.stageType))
+          ? 'SINGLE_ELIMINATION'
+          : 'SINGLE_ELIMINATION';
+        return {
+          ...event,
+          stages: [...event.stages, { stageType: newStageType }]
+        };
+      })
     );
   }
 
   removeEventStage(categoryId: number, stageIndex: number): void {
+    this.eventsErrorMessage.set(null);
+
     this.selectedEvents.update(events =>
       events.map(event => {
         if (event.categoryId !== categoryId || event.stages.length <= 1) {
           return event;
+        }
+
+        const removedType = event.stages[stageIndex].stageType;
+        const nextIndex = stageIndex + 1;
+        const hasConsolationAfter = removedType === 'SINGLE_ELIMINATION'
+          && nextIndex < event.stages.length
+          && event.stages[nextIndex].stageType === 'CONSOLATION';
+
+        if (hasConsolationAfter) {
+          const confirmed = window.confirm(
+            'Al eliminar el cuadro de eliminación simple, el cuadro de consolación también será eliminada. ¿Deseas continuar?'
+          );
+          if (!confirmed) {
+            return event;
+          }
+          const newStages = event.stages.filter((_, index) => index !== stageIndex && index !== nextIndex);
+          return {
+            ...event,
+            stages: newStages.length > 0 ? newStages : [{ stageType: 'SINGLE_ELIMINATION' }]
+          };
         }
 
         return {
@@ -1764,52 +1985,39 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     );
   }
 
-  moveEventStage(categoryId: number, stageIndex: number, direction: 'up' | 'down'): void {
+  updateEventStageType(categoryId: number, stageIndex: number, stageType: TournamentStageType): void {
     this.selectedEvents.update(events =>
       events.map(event => {
         if (event.categoryId !== categoryId) {
           return event;
         }
 
-        const targetIndex = direction === 'up' ? stageIndex - 1 : stageIndex + 1;
-        if (targetIndex < 0 || targetIndex >= event.stages.length) {
+        const newStages = event.stages.map((stage, index) => (index === stageIndex ? { stageType } : stage));
+        const stageTypes = newStages.map(s => s.stageType);
+        const errors = validateStageSequence(stageTypes);
+
+        if (errors.length > 0) {
+          this.eventsErrorMessage.set(errors[0].message);
           return event;
         }
 
-        const stages = [...event.stages];
-        [stages[stageIndex], stages[targetIndex]] = [stages[targetIndex], stages[stageIndex]];
-
+        this.eventsErrorMessage.set(null);
         return {
           ...event,
-          stages
+          stages: newStages
         };
       })
     );
   }
 
-  updateEventStageType(categoryId: number, stageIndex: number, stageType: TournamentStageType): void {
-    this.selectedEvents.update(events =>
-      events.map(event =>
-        event.categoryId === categoryId
-          ? {
-            ...event,
-            stages: event.stages.map((stage, index) => (index === stageIndex ? { stageType } : stage))
-          }
-          : event
-      )
-    );
+  getAvailableStageOptions(stages: TournamentEventStageSelection[], currentIndex: number): TournamentStageType[] {
+    return getAvailableStageOptions(stages.map(s => s.stageType), currentIndex);
   }
 
   hasEventGender(categoryId: number, gender: TournamentEventGender): boolean {
     return this.selectedEvents()
       .find(event => event.categoryId === categoryId)
-      ?.genders.includes(gender) ?? false;
-  }
-
-  clearSelectedEvents(): void {
-    this.selectedEvents.set([]);
-    this.eventsSuccessMessage.set(null);
-    this.eventsErrorMessage.set(null);
+      ?.genders?.includes(gender) ?? false;
   }
 
   isEventSelected(categoryId: number): boolean {
@@ -1883,19 +2091,23 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (selectedEvents.length === 0) {
-      this.eventsErrorMessage.set('Selecciona al menos una prueba antes de guardar.');
-      return;
-    }
-
     if (selectedEvents.some(event => event.genders.length === 0)) {
       this.eventsErrorMessage.set('Debes seleccionar al menos una modalidad en cada prueba antes de guardar.');
       return;
     }
 
     if (selectedEvents.some(event => event.stages.length === 0)) {
-      this.eventsErrorMessage.set('Debes definir al menos una fase en cada prueba antes de guardar.');
+      this.eventsErrorMessage.set('Debes definir al menos un cuadro en cada prueba antes de guardar.');
       return;
+    }
+
+    for (const event of selectedEvents) {
+      const stageTypes = event.stages.map(s => s.stageType);
+      const errors = validateStageSequence(stageTypes);
+      if (errors.length > 0) {
+        this.eventsErrorMessage.set(`Prueba "${event.eventCategory}": ${errors[0].message}`);
+        return;
+      }
     }
 
     const payload: TournamentEventsConfigRequest = {
@@ -2003,7 +2215,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
 
   searchManualPlayerCandidates(): void {
     const query = this.manualPlayerSearchQuery().trim();
-    if (query.length < 2) {
+    const canSearchWithFilters = this.manualPlayerSource() === 'PROFESSIONAL' && this.hasActiveManualPlayerFilters();
+
+    if (query.length < 2 && !canSearchWithFilters) {
       this.manualPlayerSearchResults.set([]);
       this.manualPlayerSearchError.set('Escribe al menos 2 caracteres para buscar un jugador.');
       return;
@@ -2014,7 +2228,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.manualPlayerSearchError.set(null);
 
     if (this.manualPlayerSource() === 'PROFESSIONAL') {
-      this.proPlayerService.searchProPlayers(query).subscribe({
+      this.proPlayerService.searchProPlayers(query, {
+        gender: this.manualPlayerFilterGender(),
+        category: this.manualPlayerFilterCategory()
+      }).subscribe({
         next: players => {
           if (requestId !== this.manualPlayerSearchRequestId) {
             return;
@@ -2342,6 +2559,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         if (!preserveActiveSection) {
           this.activeSection.set(this.isCreator() ? 'setup' : 'overview');
         }
+        setTimeout(() => this.tryInitMap(), 0);
       },
       error: (error) => {
         this.errorMessage.set(getApiErrorMessage(error, 'No se pudo cargar el detalle del torneo.'));
@@ -2426,7 +2644,12 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.isLoadingEvents.set(true);
     this.eventCatalogError.set(null);
 
-    this.tournamentService.getEventCatalog().subscribe({
+    const isOrganizer = this.authService.currentRole === 'ORGANIZER';
+    const catalog$ = isOrganizer
+      ? this.tournamentService.getEventCatalogAll()
+      : this.tournamentService.getEventCatalog();
+
+    catalog$.subscribe({
       next: catalog => {
         this.eventCatalog.set(catalog);
         this.isLoadingEvents.set(false);
@@ -2435,6 +2658,17 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         this.eventCatalog.set([]);
         this.eventCatalogError.set(getApiErrorMessage(error, 'No se pudo cargar el catálogo de categorías.'));
         this.isLoadingEvents.set(false);
+      }
+    });
+  }
+
+  private loadNationalities(): void {
+    this.referenceDataService.getNationalities().subscribe({
+      next: nationalities => {
+        this.nationalities.set(nationalities);
+      },
+      error: () => {
+        this.nationalities.set([]);
       }
     });
   }
@@ -2481,7 +2715,11 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
           ? event.stages
               .slice()
               .sort((left, right) => left.order - right.order)
-              .map(stage => ({ stageType: stage.stageType as TournamentStageType }))
+              .map(stage => {
+                const raw = stage.strategyName ?? stage.stageType;
+                const stageType: TournamentStageType = isValidStageType(raw) ? raw : 'SINGLE_ELIMINATION';
+                return { stageType };
+              })
           : [{ stageType: 'SINGLE_ELIMINATION' as TournamentStageType }]
       };
       currentEntry.eventIdsByGender.set(normalizedGender, event.eventId);
@@ -2636,7 +2874,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.cancelManualPlayerSearch();
 
     const query = this.manualPlayerSearchQuery().trim();
-    if (query.length < 2 || this.manualPlayerSource() === 'MANUAL') {
+    const canSearchWithFilters = this.manualPlayerSource() === 'PROFESSIONAL' && this.hasActiveManualPlayerFilters();
+
+    if ((query.length < 2 && !canSearchWithFilters) || this.manualPlayerSource() === 'MANUAL') {
       this.manualPlayerSearchRequestId += 1;
       this.manualPlayerSearchResults.set([]);
       this.isSearchingPersons.set(false);
@@ -2718,7 +2958,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     console.log('Match selected:', matchId);
   }
 
-  onMatchResultSaved(event: { matchId: string; winnerId: string; result: string }): void {
+  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string }): void {
     if (!this.isCreator()) {
       this.actionError.set('Solo el administrador del torneo puede registrar resultados.');
       return;
@@ -2750,7 +2990,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.actionError.set(null);
     this.actionMessage.set('Guardando resultado...');
     this.tournamentService.submitMatchResult(currentTournament.id, event.matchId, {
-      winnerId: event.winnerId,
+      winnerId: event.winnerId || undefined,
       scoreString: event.result
     }).subscribe({
       next: (updatedMatch) => {
@@ -3019,7 +3259,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
 
   private createOptimisticMatchResult(
     tournament: TournamentResponse,
-    event: { matchId: string; winnerId: string; result: string }
+    event: { matchId: string; winnerId: string | null; result: string }
   ): MatchResponse | null {
     const match = this.findMatchInTournament(tournament, event.matchId);
     if (!match) {
@@ -3028,8 +3268,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
 
     return {
       ...match,
-      winnerId: event.winnerId,
-      result: event.result
+      winnerId: event.winnerId !== null ? event.winnerId : match.winnerId,
+      result: event.result || match.result
     };
   }
 
@@ -3354,7 +3594,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
 
   private getScheduleParticipantName(inscriptionId: string | null | undefined): string {
     if (!inscriptionId) {
-      return 'Bye';
+      return 'Por determinar';
     }
 
     return this.participantNamesByInscriptionId()[inscriptionId] ?? inscriptionId.substring(0, 8);
@@ -3380,5 +3620,67 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     };
 
     return labels[status] ?? status;
+  }
+
+  getStatusColorClasses(status: TournamentStatus): string {
+    const colors: Record<TournamentStatus, string> = {
+      DRAFT: 'border-neutral-200 bg-neutral-100 text-neutral-600',
+      OPEN: 'border-blue-200 bg-blue-100 text-blue-700',
+      ACTIVE: 'border-green-200 bg-green-100 text-green-700',
+      CLOSED: 'border-amber-200 bg-amber-100 text-amber-700',
+      IN_PROGRESS: 'border-sky-200 bg-sky-100 text-sky-700',
+      COMPLETED: 'border-emerald-200 bg-emerald-100 text-emerald-700',
+      CANCELLED: 'border-red-200 bg-red-100 text-red-700'
+    };
+
+    return colors[status] ?? 'border-primary-200 bg-primary-50 text-primary-700';
+  }
+
+  private tryInitMap(): void {
+    if (this.mapInstance) return;
+
+    const t = this.tournament();
+    if (!t?.locationLatitude || !t?.locationLongitude) return;
+
+    const el = document.getElementById('tournament-map');
+    if (!el) return;
+
+    this.initMap(t, el as HTMLDivElement);
+  }
+
+  private async initMap(tournament: TournamentResponse, el: HTMLDivElement): Promise<void> {
+    this.mapInstance?.remove();
+
+    await import('leaflet');
+    const L = (window as any).L;
+
+    this.mapInstance = L.map(el).setView([tournament.locationLatitude!, tournament.locationLongitude!], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(this.mapInstance);
+
+    L.circleMarker([tournament.locationLatitude!, tournament.locationLongitude!], {
+      radius: 8,
+      color: '#1a6b4a',
+      fillColor: '#22c55e',
+      fillOpacity: 0.8,
+    })
+      .addTo(this.mapInstance)
+      .bindPopup(tournament.location);
+  }
+
+  hasTournamentMapsLink(tournament: TournamentResponse): boolean {
+    return !!tournament.locationPlaceId || (tournament.locationLatitude != null && tournament.locationLongitude != null);
+  }
+
+  getTournamentMapsLink(tournament: TournamentResponse): string {
+    const query = tournament.locationFormattedAddress || tournament.location;
+    if (tournament.locationPlaceId) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}&query_place_id=${encodeURIComponent(tournament.locationPlaceId)}`;
+    }
+
+    return `https://www.google.com/maps/search/?api=1&query=${tournament.locationLatitude},${tournament.locationLongitude}`;
   }
 }

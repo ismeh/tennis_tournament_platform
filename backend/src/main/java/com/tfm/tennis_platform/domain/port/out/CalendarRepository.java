@@ -27,4 +27,10 @@ public interface CalendarRepository {
             LocalDateTime to,
             List<TournamentStatus> statuses
     );
+
+    List<TournamentCalendarItem> findMyTournaments(
+            String organizerEmail,
+            LocalDate from,
+            LocalDate to
+    );
 }

@@ -6,6 +6,7 @@ import com.tfm.tennis_platform.application.services.strategies.stage.RoundRobinS
 import com.tfm.tennis_platform.application.services.strategies.stage.SingleEliminationStageGenerator;
 import com.tfm.tennis_platform.application.services.strategies.stage.StageGenerationStrategy;
 import com.tfm.tennis_platform.domain.models.Stage;
+import com.tfm.tennis_platform.domain.models.enums.StageType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,10 @@ public class StageGenerationService {
     public List<Stage> generateStagesForEvent(String eventName, Integer categoryId, String gender, String tournamentType) {
         String strategyName = determineTournamentType(tournamentType);
         StageGenerationStrategy strategy = selectStrategy(strategyName);
-        return strategy.generateStages(eventName, categoryId, gender);
+        List<Stage> generated = strategy.generateStages(eventName, categoryId, gender);
+        return generated.stream()
+                .map(s -> s.toBuilder().strategyName(strategyName).build())
+                .toList();
     }
 
     public List<Stage> generateStagesForEvent(String eventName, Integer categoryId, String gender, List<String> strategyNames) {
@@ -37,9 +41,19 @@ public class StageGenerationService {
             String strategyName = determineTournamentType(name);
             StageGenerationStrategy strategy = selectStrategy(strategyName);
             List<Stage> generated = strategy.generateStages(eventName, categoryId, gender);
+
+            boolean alreadyHasMain = result.stream()
+                    .anyMatch(s -> StageType.MAIN.equals(s.getStageType()));
+
+            int localCounter = 0;
             for (Stage s : generated) {
+                if (alreadyHasMain && StageType.MAIN.equals(s.getStageType())) {
+                    continue;
+                }
+                localCounter++;
                 Stage adjusted = s.toBuilder()
-                        .stageNumber(offset + s.getStageNumber())
+                        .stageNumber(offset + localCounter)
+                        .strategyName(strategyName)
                         .build();
                 result.add(adjusted);
             }

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/auth/auth.service';
+import { UserRole } from '../../core/auth/auth.model';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import {
   PlayerMatchCalendarResponse,
@@ -35,13 +36,6 @@ type TournamentCalendarGroup = {
               Busca torneos por fecha, nombre, lugar, estado y tipo de participantes.
             </p>
           </div>
-
-          <a
-            routerLink="/torneos/crear"
-            class="inline-flex w-fit items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 shadow-sm transition hover:border-primary-300 hover:text-primary-700"
-          >
-            Crear torneo
-          </a>
         </header>
 
         <form class="mt-6 grid gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1fr_1.2fr_1.2fr_1fr_1fr_auto]" (ngSubmit)="applyFilters()">
@@ -139,7 +133,7 @@ type TournamentCalendarGroup = {
             <button
               type="submit"
               class="h-11 rounded-lg bg-primary-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
-              [disabled]="isLoadingTournaments() || isLoadingMatches()"
+              [disabled]="isLoadingTournaments() || isLoadingSidebar()"
             >
               Filtrar
             </button>
@@ -190,7 +184,7 @@ type TournamentCalendarGroup = {
                         >
                           <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
-                              <span class="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">{{ getStatusLabel(tournament.status) }}</span>
+                              <span class="rounded-full px-3 py-1 text-xs font-semibold {{ getStatusColorClasses(tournament.status) }}">{{ getStatusLabel(tournament.status) }}</span>
                               @if (tournament.professionalTournament) {
                                 <span class="rounded-full bg-neutral-900 px-3 py-1 text-xs font-semibold text-white">PRO</span>
                               }
@@ -223,57 +217,101 @@ type TournamentCalendarGroup = {
             <div class="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <h2 class="text-xl font-bold text-neutral-950">Mis partidos</h2>
-                  <p class="mt-1 text-sm text-neutral-600">Partidos con horario asignado dentro del rango.</p>
+                  <h2 class="text-xl font-bold text-neutral-950">{{ isOrganizer() ? 'Mis torneos' : 'Mis partidos' }}</h2>
+                  <p class="mt-1 text-sm text-neutral-600">{{ isOrganizer() ? 'Torneos que has creado.' : 'Partidos con horario asignado dentro del rango.' }}</p>
                 </div>
-                <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ myMatches().length }}</span>
+                <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ sidebarItems().length }}</span>
               </div>
 
               @if (!isLoggedIn()) {
                 <div class="mt-4 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  Inicia sesión para ver tus partidos asignados.
+                  {{ isOrganizer() ? 'Inicia sesión para ver tus torneos.' : 'Inicia sesión para ver tus partidos asignados.' }}
                 </div>
-              } @else if (isLoadingMatches()) {
-                <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">Cargando partidos...</div>
-              } @else if (matchesError()) {
-                <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ matchesError() }}</div>
-              } @else if (myMatches().length === 0) {
+              } @else if (isLoadingSidebar()) {
+                <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">{{ isOrganizer() ? 'Cargando torneos...' : 'Cargando partidos...' }}</div>
+              } @else if (sidebarError()) {
+                <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ sidebarError() }}</div>
+              } @else if (sidebarItems().length === 0) {
                 <div class="mt-4 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  No tienes partidos programados en estas fechas.
+                  {{ isOrganizer() ? 'No tienes torneos creados en estas fechas.' : 'No tienes partidos programados en estas fechas.' }}
                 </div>
               } @else {
+                <div class="mt-3 mb-3">
+                  <select
+                    class="h-9 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                    [ngModel]="sidebarSortOrder()"
+                    (ngModelChange)="sidebarSortOrder.set($event); sortSidebarItems()"
+                  >
+                    <option value="newest">Más recientes primero</option>
+                    <option value="oldest">Más antiguos primero</option>
+                  </select>
+                </div>
                 <div class="mt-4 space-y-3">
-                  @for (match of myMatches(); track match.matchId) {
-                    <a
-                      [routerLink]="['/torneos', match.tournamentId]"
-                      class="block rounded-lg border border-neutral-200 bg-neutral-50 p-4 transition hover:border-primary-300 hover:bg-primary-50"
-                    >
-                      <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                          <p class="truncate text-sm font-bold text-neutral-950">{{ match.tournamentName }}</p>
-                          <p class="mt-1 truncate text-xs font-medium uppercase tracking-widest text-neutral-500">{{ match.eventName }}</p>
-                        </div>
-                        <span class="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700">R{{ match.roundNumber }}</span>
-                      </div>
+                  @if (isOrganizer()) {
+                    @for (tournament of sortedSidebarTournaments(); track tournament.id) {
+                      <a
+                        [routerLink]="['/torneos', tournament.id]"
+                        class="block rounded-lg border border-neutral-200 bg-neutral-50 p-4 transition hover:border-primary-300 hover:bg-primary-50"
+                      >
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                              <span class="rounded-full px-3 py-1 text-xs font-semibold {{ getStatusColorClasses(tournament.status) }}">{{ getStatusLabel(tournament.status) }}</span>
+                              @if (tournament.professionalTournament) {
+                                <span class="rounded-full bg-neutral-900 px-3 py-1 text-xs font-semibold text-white">PRO</span>
+                              }
+                              <span class="text-xs font-medium text-neutral-500">{{ getSurfaceLabel(tournament.surfaceCategory) }}</span>
+                            </div>
+                            <h4 class="mt-2 truncate text-lg font-bold text-neutral-950">{{ tournament.formalName }}</h4>
+                            <p class="mt-1 text-sm text-neutral-600">{{ tournament.location }}</p>
+                          </div>
 
-                      <div class="mt-3 text-sm text-neutral-700">
-                        <p class="font-semibold text-neutral-950">{{ match.firstParticipantName }}</p>
-                        <p class="text-neutral-600">{{ match.secondParticipantName }}</p>
-                      </div>
+                          <div class="grid grid-cols-2 gap-3 text-sm md:min-w-52">
+                            <div>
+                              <p class="text-xs uppercase tracking-widest text-neutral-500">Juego</p>
+                              <p class="mt-1 font-semibold text-neutral-900">{{ tournament.playStartDate | date: 'dd/MM' }} - {{ tournament.playEndDate | date: 'dd/MM' }}</p>
+                            </div>
+                            <div>
+                              <p class="text-xs uppercase tracking-widest text-neutral-500">Inicio</p>
+                              <p class="mt-1 font-semibold text-neutral-900">{{ tournament.tournamentStartTime || 'Por definir' }}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    }
+                  } @else {
+                    @for (match of sortedSidebarMatches(); track match.matchId) {
+                      <a
+                        [routerLink]="['/torneos', match.tournamentId]"
+                        class="block rounded-lg border border-neutral-200 bg-neutral-50 p-4 transition hover:border-primary-300 hover:bg-primary-50"
+                      >
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <p class="truncate text-sm font-bold text-neutral-950">{{ match.tournamentName }}</p>
+                            <p class="mt-1 truncate text-xs font-medium uppercase tracking-widest text-neutral-500">{{ match.eventName }}</p>
+                          </div>
+                          <span class="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700">R{{ match.roundNumber }}</span>
+                        </div>
 
-                      <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p class="text-xs uppercase tracking-widest text-neutral-500">Horario</p>
-                          <p class="mt-1 font-semibold text-neutral-900">
-                            {{ getSchedulePrefix(match.scheduleTimeType) }} {{ match.scheduledAt | date: 'dd/MM HH:mm' }}
-                          </p>
+                        <div class="mt-3 text-sm text-neutral-700">
+                          <p class="font-semibold text-neutral-950">{{ match.firstParticipantName }}</p>
+                          <p class="text-neutral-600">{{ match.secondParticipantName }}</p>
                         </div>
-                        <div>
-                          <p class="text-xs uppercase tracking-widest text-neutral-500">Pista</p>
-                          <p class="mt-1 font-semibold text-neutral-900">{{ match.court || 'Por definir' }}</p>
+
+                        <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p class="text-xs uppercase tracking-widest text-neutral-500">Horario</p>
+                            <p class="mt-1 font-semibold text-neutral-900">
+                              {{ getSchedulePrefix(match.scheduleTimeType) }} {{ match.scheduledAt | date: 'dd/MM HH:mm' }}
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-xs uppercase tracking-widest text-neutral-500">Pista</p>
+                            <p class="mt-1 font-semibold text-neutral-900">{{ match.court || 'Por definir' }}</p>
+                          </div>
                         </div>
-                      </div>
-                    </a>
+                      </a>
+                    }
                   }
                 </div>
               }
@@ -301,12 +339,24 @@ export class CalendarComponent implements OnInit {
   readonly location = signal('');
   readonly tournaments = signal<TournamentCalendarResponse[]>([]);
   readonly myMatches = signal<PlayerMatchCalendarResponse[]>([]);
+  readonly myTournaments = signal<TournamentCalendarResponse[]>([]);
   readonly isLoadingTournaments = signal(false);
-  readonly isLoadingMatches = signal(false);
+  readonly isLoadingSidebar = signal(false);
   readonly tournamentsError = signal<string | null>(null);
-  readonly matchesError = signal<string | null>(null);
+  readonly sidebarError = signal<string | null>(null);
   readonly dateRangeError = signal<string | null>(null);
   readonly isLoggedIn = signal(false);
+  readonly userRole = signal<UserRole | null>(null);
+  readonly sidebarSortOrder = signal<'newest' | 'oldest'>('newest');
+
+  readonly isOrganizer = computed(() => this.userRole() === 'ORGANIZER');
+
+  readonly sidebarItems = computed(() => {
+    return this.isOrganizer() ? this.myTournaments() : this.myMatches();
+  });
+
+  readonly sortedSidebarTournaments = signal<TournamentCalendarResponse[]>([]);
+  readonly sortedSidebarMatches = signal<PlayerMatchCalendarResponse[]>([]);
 
   readonly tournamentGroups = computed<TournamentCalendarGroup[]>(() => {
     const groups = new Map<string, TournamentCalendarResponse[]>();
@@ -331,11 +381,23 @@ export class CalendarComponent implements OnInit {
       .subscribe(isLoggedIn => {
         this.isLoggedIn.set(isLoggedIn);
         if (isLoggedIn) {
-          this.loadMatches();
+          this.loadSidebarData();
         } else {
           this.myMatches.set([]);
-          this.matchesError.set(null);
-          this.isLoadingMatches.set(false);
+          this.myTournaments.set([]);
+          this.sortedSidebarMatches.set([]);
+          this.sortedSidebarTournaments.set([]);
+          this.sidebarError.set(null);
+          this.isLoadingSidebar.set(false);
+        }
+      });
+
+    this.authService.role$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(role => {
+        this.userRole.set(role);
+        if (this.isLoggedIn()) {
+          this.loadSidebarData();
         }
       });
   }
@@ -347,7 +409,7 @@ export class CalendarComponent implements OnInit {
 
     this.loadTournaments();
     if (this.isLoggedIn()) {
-      this.loadMatches();
+      this.loadSidebarData();
     }
   }
 
@@ -376,6 +438,25 @@ export class CalendarComponent implements OnInit {
     this.professionalTournament.set(value === '' ? null : value === 'true');
   }
 
+  sortSidebarItems(): void {
+    const order = this.sidebarSortOrder();
+    if (this.isOrganizer()) {
+      const sorted = [...this.myTournaments()].sort((a, b) => {
+        const dateA = new Date(a.playStartDate).getTime();
+        const dateB = new Date(b.playStartDate).getTime();
+        return order === 'newest' ? dateB - dateA : dateA - dateB;
+      });
+      this.sortedSidebarTournaments.set(sorted);
+    } else {
+      const sorted = [...this.myMatches()].sort((a, b) => {
+        const dateA = new Date(a.scheduledAt).getTime();
+        const dateB = new Date(b.scheduledAt).getTime();
+        return order === 'newest' ? dateB - dateA : dateA - dateB;
+      });
+      this.sortedSidebarMatches.set(sorted);
+    }
+  }
+
   getDateGroupLabel(date: string): string {
     return new Intl.DateTimeFormat('es-ES', {
       weekday: 'long',
@@ -396,6 +477,20 @@ export class CalendarComponent implements OnInit {
     };
 
     return labels[status] ?? status;
+  }
+
+  getStatusColorClasses(status: string): string {
+    const colors: Record<string, string> = {
+      DRAFT: 'bg-neutral-100 text-neutral-600',
+      OPEN: 'bg-blue-100 text-blue-700',
+      ACTIVE: 'bg-green-100 text-green-700',
+      CLOSED: 'bg-amber-100 text-amber-700',
+      IN_PROGRESS: 'bg-sky-100 text-sky-700',
+      COMPLETED: 'bg-emerald-100 text-emerald-700',
+      CANCELLED: 'bg-red-100 text-red-700'
+    };
+
+    return colors[status] ?? 'bg-primary-50 text-primary-700';
   }
 
   getSchedulePrefix(scheduleTimeType: string | null | undefined): string {
@@ -422,22 +517,45 @@ export class CalendarComponent implements OnInit {
     });
   }
 
-  private loadMatches(): void {
+  private loadSidebarData(): void {
     if (!this.isDateRangeValid()) {
       return;
     }
 
-    this.isLoadingMatches.set(true);
-    this.matchesError.set(null);
+    this.isLoadingSidebar.set(true);
+    this.sidebarError.set(null);
 
+    if (this.isOrganizer()) {
+      this.loadMyTournaments();
+    } else {
+      this.loadMyMatches();
+    }
+  }
+
+  private loadMyMatches(): void {
     this.tournamentService.getMyMatchCalendar(this.currentFilters()).subscribe({
       next: matches => {
         this.myMatches.set(matches);
-        this.isLoadingMatches.set(false);
+        this.sortSidebarItems();
+        this.isLoadingSidebar.set(false);
       },
       error: error => {
-        this.matchesError.set(getApiErrorMessage(error, 'No se pudieron cargar tus partidos.'));
-        this.isLoadingMatches.set(false);
+        this.sidebarError.set(getApiErrorMessage(error, 'No se pudieron cargar tus partidos.'));
+        this.isLoadingSidebar.set(false);
+      }
+    });
+  }
+
+  private loadMyTournaments(): void {
+    this.tournamentService.getMyTournamentCalendar(this.currentFilters()).subscribe({
+      next: tournaments => {
+        this.myTournaments.set(tournaments);
+        this.sortSidebarItems();
+        this.isLoadingSidebar.set(false);
+      },
+      error: error => {
+        this.sidebarError.set(getApiErrorMessage(error, 'No se pudieron cargar tus torneos.'));
+        this.isLoadingSidebar.set(false);
       }
     });
   }

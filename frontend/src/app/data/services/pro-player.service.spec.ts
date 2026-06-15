@@ -45,4 +45,15 @@ describe('ProPlayerService', () => {
       }
     ]);
   });
+
+  it('should include professional player filters when provided', () => {
+    service.searchProPlayers(' Carlos ', { gender: 'MALE', category: 'Absoluta' }).subscribe(response => {
+      expect(response).toEqual([]);
+    });
+
+    const request = httpMock.expectOne(`${AppSettings.API_URL}/pro-players?query=Carlos&gender=MALE&category=Absoluta`);
+    expect(request.request.method).toBe('GET');
+
+    request.flush([]);
+  });
 });

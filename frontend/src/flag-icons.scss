@@ -1,0 +1,5 @@
+@use "flag-icons/sass/variables" with (
+  $flag-icons-use-square: false
+);
+@use "flag-icons/sass/flag-icons-base";
+@use "flag-icons/sass/flag-icons-list";

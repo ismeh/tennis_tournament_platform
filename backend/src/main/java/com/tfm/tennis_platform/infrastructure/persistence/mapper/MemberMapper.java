@@ -16,6 +16,10 @@ public interface MemberMapper {
     @Mapping(target = "username", ignore = true)
     @Mapping(target = "gender", ignore = true)
     @Mapping(target = "personId", source = "personId")
+    @Mapping(target = "role", source = "role")
+    @Mapping(target = "privacyPolicyAccepted", source = "privacyPolicyAccepted")
+    @Mapping(target = "privacyPolicyAcceptedAt", source = "privacyPolicyAcceptedAt")
+    @Mapping(target = "privacyPolicyVersion", source = "privacyPolicyVersion")
     Member toDomain(MemberEntity entity);
 
     @Mapping(target = "passwordHash", source = "password")
@@ -24,5 +28,9 @@ public interface MemberMapper {
     @Mapping(target = "emailConfirmationTokenHash", source = "emailConfirmationTokenHash")
     @Mapping(target = "emailConfirmationExpiresAt", source = "emailConfirmationExpiresAt")
     @Mapping(target = "personId", source = "personId")
+    @Mapping(target = "role", source = "role")
+    @Mapping(target = "privacyPolicyAccepted", source = "privacyPolicyAccepted")
+    @Mapping(target = "privacyPolicyAcceptedAt", source = "privacyPolicyAcceptedAt")
+    @Mapping(target = "privacyPolicyVersion", source = "privacyPolicyVersion")
     MemberEntity toEntity(Member domain);
 }

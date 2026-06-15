@@ -48,6 +48,18 @@ public class TournamentEntity {
 
     private String location;
 
+    @Column(name = "location_latitude")
+    private Double locationLatitude;
+
+    @Column(name = "location_longitude")
+    private Double locationLongitude;
+
+    @Column(name = "location_place_id")
+    private String locationPlaceId;
+
+    @Column(name = "location_formatted_address", length = 500)
+    private String locationFormattedAddress;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "state", nullable = false)
     @Setter

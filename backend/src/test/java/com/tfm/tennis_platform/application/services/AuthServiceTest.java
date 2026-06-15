@@ -8,6 +8,7 @@ import com.tfm.tennis_platform.domain.port.out.PersonRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.Person;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.infrastructure.email.EmailProperties;
 import com.tfm.tennis_platform.infrastructure.security.JwtService;
 import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
@@ -131,7 +132,7 @@ class AuthServiceTest {
 
         when(memberRepository.save(any(Member.class))).thenReturn(persistedMember);
 
-        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User");
+        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User", UserRole.PLAYER);
 
         assertEquals(true, result.emailVerificationRequired());
         assertEquals("Cuenta creada. Revisa tu correo para confirmar el email.", result.message());
@@ -142,6 +143,7 @@ class AuthServiceTest {
         assertEquals("new@example.com", memberCaptor.getValue().getEmail());
         assertEquals("encoded-password", memberCaptor.getValue().getPassword());
         assertEquals(MemberTier.FREE, memberCaptor.getValue().getTier());
+        assertEquals(UserRole.PLAYER, memberCaptor.getValue().getRole());
         assertEquals(false, memberCaptor.getValue().isEmailVerified());
     }
 
@@ -180,7 +182,7 @@ class AuthServiceTest {
 
         when(memberRepository.save(any(Member.class))).thenReturn(persistedMember);
 
-        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User");
+        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User", UserRole.PLAYER);
 
         assertEquals(false, result.emailVerificationRequired());
         assertEquals("Cuenta creada. Ya puedes iniciar sesión.", result.message());
@@ -199,7 +201,7 @@ class AuthServiceTest {
 
         DuplicateResourceException ex = assertThrows(
                 DuplicateResourceException.class,
-                () -> authService.register("used@example.com", "secret123", "Used User")
+                () -> authService.register("used@example.com", "secret123", "Used User", UserRole.PLAYER)
         );
 
         assertEquals("Ya existe una cuenta registrada con ese email.", ex.getMessage());

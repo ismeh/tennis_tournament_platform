@@ -49,4 +49,9 @@ public class PersonRepositoryAdapter implements PersonRepository {
                 .map(personMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public void anonymize(UUID id, String anonymizedFirstName) {
+        jpaPersonRepository.anonymize(id, anonymizedFirstName);
+    }
 }

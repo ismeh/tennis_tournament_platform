@@ -70,6 +70,46 @@ public class CalendarRepositoryAdapter implements CalendarRepository {
                 .orElse(List.of());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<TournamentCalendarItem> findMyTournaments(
+            String organizerEmail,
+            LocalDate from,
+            LocalDate to
+    ) {
+        if (isBlank(organizerEmail)) {
+            return List.of();
+        }
+
+        var criteriaBuilder = entityManager.getCriteriaBuilder();
+        var query = criteriaBuilder.createQuery(TournamentEntity.class);
+        var tournament = query.from(TournamentEntity.class);
+        var createdBy = tournament.join("createdBy", JoinType.LEFT);
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        predicates.add(criteriaBuilder.equal(criteriaBuilder.lower(createdBy.get("email")), organizerEmail.toLowerCase(Locale.ROOT)));
+
+        if (from != null) {
+            predicates.add(criteriaBuilder.greaterThanOrEqualTo(tournament.get("playEndDate"), from));
+        }
+        if (to != null) {
+            predicates.add(criteriaBuilder.lessThanOrEqualTo(tournament.get("playStartDate"), to));
+        }
+
+        query.select(tournament)
+                .where(predicates.toArray(Predicate[]::new))
+                .orderBy(
+                        criteriaBuilder.desc(tournament.get("playStartDate")),
+                        criteriaBuilder.desc(tournament.get("startTime")),
+                        criteriaBuilder.asc(tournament.get("formalName"))
+                );
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(this::toTournamentCalendarItem)
+                .toList();
+    }
+
     private List<PlayerMatchCalendarItem> findMatchesForPerson(
             UUID personId,
             LocalDateTime from,

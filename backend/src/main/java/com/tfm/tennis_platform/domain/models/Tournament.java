@@ -32,6 +32,10 @@ public class Tournament {
     private final Surface surface;
     private final Integer maxPlayers;
     private final String location;
+    private final Double locationLatitude;
+    private final Double locationLongitude;
+    private final String locationPlaceId;
+    private final String locationFormattedAddress;
     private final TournamentStatus state; // 'soon', 'inscription', 'playing', 'finished'
     private final Member createdBy;
     private final List<Event> events;

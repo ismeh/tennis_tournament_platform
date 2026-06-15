@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize, of, switchMap } from 'rxjs';
 import { TournamentService } from '../../data/services/tournament.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
+import { LocationInputComponent } from '../../components/location-input';
 import {
   getTournamentEventGenderLabel,
   getTournamentStageTypeLabel,
@@ -13,16 +15,20 @@ import {
   TournamentEventCatalogItem,
   TournamentEventGender,
   TournamentEventSelection,
+  TournamentEventStageSelection,
   TournamentEventsConfigRequest,
   TournamentResponse,
   TournamentStageType,
-  TournamentSurfaceCategory
+  TournamentSurfaceCategory,
+  validateStageSequence,
+  isConsolationDisabled,
+  getAvailableStageOptions
 } from '../../data/interfaces/tournament.model';
 
 @Component({
   selector: 'app-create-tournament-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, LocationInputComponent],
   template: `
     <section class="relative overflow-hidden bg-gradient-to-br from-neutral-50 via-white to-primary-50/60 py-10 sm:py-14">
       <div class="absolute inset-0 -z-10 opacity-60">
@@ -136,7 +142,14 @@ import {
 
               <label class="block">
                 <span class="mb-1 block text-sm font-medium text-neutral-700">Ubicación</span>
-                <input type="text" formControlName="location" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" placeholder="Club de Tenis Principal" />
+                <app-location-input
+                  formControlName="location"
+                  placeholder="Club de Tenis Principal"
+                  (locationSelected)="onLocationSelected($event)"
+                ></app-location-input>
+                @if (form.controls.location.touched && form.controls.location.invalid) {
+                  <p class="mt-2 text-xs text-red-600">La ubicación es obligatoria y debe tener al menos 3 caracteres.</p>
+                }
               </label>
             </div>
 
@@ -252,7 +265,7 @@ import {
                                           [value]="stage.stageType"
                                           (change)="updateEventStageType(event.categoryId, stageIndex, $any($event.target).value)"
                                         >
-                                          @for (option of stageOptions; track option) {
+                                          @for (option of getAvailableStageOptions(event.stages, stageIndex); track option) {
                                             <option [value]="option">{{ getStageLabel(option) }}</option>
                                           }
                                         </select>
@@ -260,22 +273,6 @@ import {
                                     </div>
 
                                     <div class="flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                        [disabled]="stageIndex === 0"
-                                        (click)="moveEventStage(event.categoryId, stageIndex, 'up')"
-                                      >
-                                        Subir
-                                      </button>
-                                      <button
-                                        type="button"
-                                        class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                        [disabled]="stageIndex === event.stages.length - 1"
-                                        (click)="moveEventStage(event.categoryId, stageIndex, 'down')"
-                                      >
-                                        Bajar
-                                      </button>
                                       <button
                                         type="button"
                                         class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
@@ -362,10 +359,11 @@ import {
     </section>
   `
 })
-export class CreateTournamentComponent {
+export class CreateTournamentComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly tournamentService = inject(TournamentService);
+  private readonly authService = inject(AuthService);
 
   readonly surfaceOptions: TournamentSurfaceCategory[] = ['CLAY', 'HARD', 'GRASS', 'CARPET'];
   readonly eventGenderOptions: TournamentEventGender[] = ['MALE', 'FEMALE', 'MIXED'];
@@ -382,18 +380,38 @@ export class CreateTournamentComponent {
   readonly eventCatalog = signal<TournamentEventCatalogItem[]>([]);
   readonly selectedEvents = signal<TournamentEventSelection[]>([]);
 
-  readonly form = this.fb.nonNullable.group({
+  readonly form = this.fb.group({
     formalName: ['', [Validators.required, Validators.minLength(3)]],
     ...this.buildInitialDateValues(),
     tournamentStartTime: ['09:00', [Validators.required]],
     surfaceCategory: ['CLAY' as TournamentSurfaceCategory, [Validators.required]],
     maxPlayers: [32, [Validators.required, Validators.min(2)]],
     location: ['', [Validators.required, Validators.minLength(3)]],
+    locationLatitude: [null as number | null],
+    locationLongitude: [null as number | null],
+    locationPlaceId: [null as string | null],
+    locationFormattedAddress: [null as string | null],
     courtCount: [4, [Validators.required, Validators.min(0)]]
   });
 
   constructor() {
     this.loadEventCatalog();
+  }
+
+  ngOnInit(): void {
+    const role = this.authService.currentRole;
+    if (role !== 'ORGANIZER') {
+      this.router.navigateByUrl('/torneos');
+    }
+  }
+
+  onLocationSelected(suggestion: any): void {
+    this.form.patchValue({
+      locationLatitude: suggestion.latitude,
+      locationLongitude: suggestion.longitude,
+      locationPlaceId: suggestion.placeId,
+      locationFormattedAddress: suggestion.formattedAddress
+    });
   }
 
   submit(): void {
@@ -402,7 +420,7 @@ export class CreateTournamentComponent {
       return;
     }
 
-    const payload = this.form.getRawValue() satisfies TournamentCreateRequest;
+    const payload = this.form.value as TournamentCreateRequest;
     const configuredEvents = this.selectedEvents();
 
     if (configuredEvents.some(event => event.genders.length === 0)) {
@@ -413,6 +431,15 @@ export class CreateTournamentComponent {
     if (configuredEvents.some(event => event.stages.length === 0)) {
       this.errorMessage.set('Debes definir al menos una fase en cada prueba antes de guardar.');
       return;
+    }
+
+    for (const event of configuredEvents) {
+      const stageTypes = event.stages.map(s => s.stageType);
+      const errors = validateStageSequence(stageTypes);
+      if (errors.length > 0) {
+        this.errorMessage.set(`Prueba "${event.eventCategory}": ${errors[0].message}`);
+        return;
+      }
     }
 
     this.isSubmitting.set(true);
@@ -467,6 +494,10 @@ export class CreateTournamentComponent {
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
       location: '',
+      locationLatitude: null,
+      locationLongitude: null,
+      locationPlaceId: null,
+      locationFormattedAddress: null,
       courtCount: 4
     });
     this.errorMessage.set(null);
@@ -519,14 +550,18 @@ export class CreateTournamentComponent {
 
   addEventStage(categoryId: number): void {
     this.selectedEvents.update(events =>
-      events.map(event =>
-        event.categoryId === categoryId
-          ? {
-            ...event,
-            stages: [...event.stages, { stageType: 'SINGLE_ELIMINATION' }]
-          }
-          : event
-      )
+      events.map(event => {
+        if (event.categoryId !== categoryId) {
+          return event;
+        }
+        const newStageType: TournamentStageType = isConsolationDisabled(event.stages.map(s => s.stageType))
+          ? 'SINGLE_ELIMINATION'
+          : 'SINGLE_ELIMINATION';
+        return {
+          ...event,
+          stages: [...event.stages, { stageType: newStageType }]
+        };
+      })
     );
   }
 
@@ -537,6 +572,26 @@ export class CreateTournamentComponent {
           return event;
         }
 
+        const removedType = event.stages[stageIndex].stageType;
+        const nextIndex = stageIndex + 1;
+        const hasConsolationAfter = removedType === 'SINGLE_ELIMINATION'
+          && nextIndex < event.stages.length
+          && event.stages[nextIndex].stageType === 'CONSOLATION';
+
+        if (hasConsolationAfter) {
+          const confirmed = window.confirm(
+            'Al eliminar la fase SINGLE_ELIMINATION, la fase CONSOLATION siguiente también será eliminada. ¿Deseas continuar?'
+          );
+          if (!confirmed) {
+            return event;
+          }
+          const newStages = event.stages.filter((_, index) => index !== stageIndex && index !== nextIndex);
+          return {
+            ...event,
+            stages: newStages.length > 0 ? newStages : [{ stageType: 'SINGLE_ELIMINATION' }]
+          };
+        }
+
         return {
           ...event,
           stages: event.stages.filter((_, index) => index !== stageIndex)
@@ -545,40 +600,33 @@ export class CreateTournamentComponent {
     );
   }
 
-  moveEventStage(categoryId: number, stageIndex: number, direction: 'up' | 'down'): void {
+  updateEventStageType(categoryId: number, stageIndex: number, stageType: TournamentStageType): void {
     this.selectedEvents.update(events =>
       events.map(event => {
         if (event.categoryId !== categoryId) {
           return event;
         }
 
-        const targetIndex = direction === 'up' ? stageIndex - 1 : stageIndex + 1;
-        if (targetIndex < 0 || targetIndex >= event.stages.length) {
+        const newStages = event.stages.map((stage, index) => (index === stageIndex ? { stageType } : stage));
+        const stageTypes = newStages.map(s => s.stageType);
+        const errors = validateStageSequence(stageTypes);
+
+        if (errors.length > 0) {
+          this.errorMessage.set(errors[0].message);
           return event;
         }
 
-        const stages = [...event.stages];
-        [stages[stageIndex], stages[targetIndex]] = [stages[targetIndex], stages[stageIndex]];
-
+        this.errorMessage.set(null);
         return {
           ...event,
-          stages
+          stages: newStages
         };
       })
     );
   }
 
-  updateEventStageType(categoryId: number, stageIndex: number, stageType: TournamentStageType): void {
-    this.selectedEvents.update(events =>
-      events.map(event =>
-        event.categoryId === categoryId
-          ? {
-            ...event,
-            stages: event.stages.map((stage, index) => (index === stageIndex ? { stageType } : stage))
-          }
-          : event
-      )
-    );
+  getAvailableStageOptions(stages: TournamentEventStageSelection[], currentIndex: number): TournamentStageType[] {
+    return getAvailableStageOptions(stages.map(s => s.stageType), currentIndex);
   }
 
   hasEventGender(categoryId: number, gender: TournamentEventGender): boolean {
@@ -599,7 +647,12 @@ export class CreateTournamentComponent {
     this.isLoadingEvents.set(true);
     this.eventCatalogError.set(null);
 
-    this.tournamentService.getEventCatalog().subscribe({
+    const isOrganizer = this.authService.currentRole === 'ORGANIZER';
+    const catalog$ = isOrganizer
+      ? this.tournamentService.getEventCatalogAll()
+      : this.tournamentService.getEventCatalog();
+
+    catalog$.subscribe({
       next: catalog => {
         this.eventCatalog.set(catalog);
         this.isLoadingEvents.set(false);

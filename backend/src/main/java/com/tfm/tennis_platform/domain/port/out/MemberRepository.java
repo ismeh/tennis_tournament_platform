@@ -13,4 +13,7 @@ public interface MemberRepository {
     void updateEmailConfirmation(UUID id, boolean emailVerified, String tokenHash, java.time.LocalDateTime expiresAt);
     void updatePersonId(UUID id, UUID personId);
     Optional<Member> findByEmailWithPersonId(String email);
+    void anonymize(UUID id, String anonymizedEmail);
+    void updatePrivacyConsent(UUID id, boolean accepted, java.time.LocalDateTime acceptedAt, String version);
+    Optional<Member> findByRole(com.tfm.tennis_platform.domain.models.enums.UserRole role);
 }

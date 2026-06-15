@@ -75,6 +75,21 @@ public class CalendarService {
         );
     }
 
+    public List<TournamentCalendarItem> findMyTournaments(String organizerEmail, LocalDate from, LocalDate to) {
+        if (organizerEmail == null || organizerEmail.isBlank()) {
+            throw new InvalidArgumentException("Inicia sesión para consultar tus torneos.");
+        }
+
+        LocalDate startDate = from != null ? from : null;
+        LocalDate endDate = to != null ? to : null;
+
+        if (startDate != null && endDate != null) {
+            validateDateRange(startDate, endDate);
+        }
+
+        return calendarRepository.findMyTournaments(organizerEmail, startDate, endDate);
+    }
+
     private LocalDate resolveStartDate(LocalDate from) {
         return from != null ? from : LocalDate.now();
     }

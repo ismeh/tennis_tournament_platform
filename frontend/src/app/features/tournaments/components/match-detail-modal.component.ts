@@ -51,7 +51,7 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                       </div>
                     } @else {
                       <div class="rounded bg-neutral-50 px-3 py-2">
-                        <p class="text-sm italic text-neutral-500">Bye</p>
+                        <p class="text-sm italic text-neutral-500">Por determinar</p>
                       </div>
                     }
                     <div class="text-center text-xs text-neutral-500">vs</div>
@@ -68,7 +68,7 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                       </div>
                     } @else {
                       <div class="rounded bg-neutral-50 px-3 py-2">
-                        <p class="text-sm italic text-neutral-500">Bye</p>
+                        <p class="text-sm italic text-neutral-500">Por determinar</p>
                       </div>
                     }
                   </div>
@@ -254,7 +254,7 @@ export class MatchDetailModalComponent {
   selectedScheduleTimeType: MatchScheduleTimeType = 'EXACT';
 
   @Output() close = new EventEmitter<void>();
-  @Output() saveResult = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() saveResult = new EventEmitter<{ matchId: string; winnerId: string | null; result: string }>();
   @Output() saveSchedule = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -298,13 +298,13 @@ export class MatchDetailModalComponent {
     }
 
     if (!this.isFormValid()) {
-      this.validationMessage.set('Selecciona un ganador y registra un resultado antes de guardar.');
+      this.validationMessage.set('Selecciona un ganador o registra un resultado antes de guardar.');
       return;
     }
 
     this.saveResult.emit({
       matchId: this.match()!.id,
-      winnerId: this.selectedWinnerId,
+      winnerId: this.selectedWinnerId || null,
       result: this.matchResult
     });
     this.validationMessage.set(null);
@@ -369,7 +369,7 @@ export class MatchDetailModalComponent {
   }
 
   isFormValid(): boolean {
-    return !!this.match() && !!this.selectedWinnerId && this.matchResult.trim().length > 0;
+    return !!this.match() && (!!this.selectedWinnerId || this.matchResult.trim().length > 0);
   }
 
   isScheduleValid(): boolean {

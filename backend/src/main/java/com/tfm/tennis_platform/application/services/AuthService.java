@@ -10,6 +10,7 @@ import com.tfm.tennis_platform.domain.port.out.PersonRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.Person;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
 import com.tfm.tennis_platform.domain.exceptions.UnauthorizedException;
 import com.tfm.tennis_platform.infrastructure.email.EmailProperties;
@@ -67,11 +68,16 @@ public class AuthService {
         UserDetails userDetails = (UserDetails) authenticationResponse.getPrincipal();
         Member member = memberRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Email o contraseña incorrectos."));
+
+        if (member.getRole() == UserRole.ADMIN) {
+            throw new UnauthorizedException("Esta cuenta no tiene acceso a la plataforma.");
+        }
+
         ensureEmailVerified(member);
-        return issueTokens(userDetails, member.getId());
+        return issueTokens(userDetails, member.getId(), member.getRole());
     }
 
-    public RegistrationResult register(String email, String password, String name) {
+    public RegistrationResult register(String email, String password, String name, UserRole role) {
         String normalizedEmail = normalizeEmail(email);
         memberRepository.findByEmail(normalizedEmail).ifPresent(existing -> {
             throw new DuplicateResourceException("Member", "email", normalizedEmail);
@@ -80,11 +86,14 @@ public class AuthService {
         MemberTier tier = MemberTier.FREE;
         String encodedPassword = passwordEncoder.encode(password);
 
+        UserRole resolvedRole = role != null ? role : UserRole.PLAYER;
+
         Member member = Member.builder()
                 .email(normalizedEmail)
                 .username(name)
                 .password(encodedPassword)
                 .tier(tier)
+                .role(resolvedRole)
                 .emailVerified(!emailProperties.required())
                 .build();
 
@@ -132,7 +141,7 @@ public class AuthService {
             throw new UnauthorizedException("Tu sesión no es válida. Inicia sesión de nuevo.");
         }
 
-        return issueTokens(userDetails, member.getId());
+        return issueTokens(userDetails, member.getId(), member.getRole());
     }
 
     public void logout(String refreshToken) {
@@ -252,14 +261,14 @@ public class AuthService {
         return toUserProfile(updatedMember, savedPerson);
     }
 
-    private AuthTokens issueTokens(UserDetails userDetails, UUID memberId) {
+    private AuthTokens issueTokens(UserDetails userDetails, UUID memberId, UserRole role) {
         String accessToken = jwtService.generateAccessToken(userDetails);
         String refreshToken = jwtService.generateRefreshToken(userDetails);
 
         String refreshTokenHash = hashToken(refreshToken);
         persistTokenHash(memberId, refreshTokenHash);
 
-        return new AuthTokens(accessToken, refreshToken);
+        return new AuthTokens(accessToken, refreshToken, role);
     }
 
     private void ensureEmailVerified(Member member) {
@@ -339,6 +348,7 @@ public class AuthService {
                 member.getId(),
                 member.getEmail(),
                 member.getTier(),
+                member.getRole(),
                 member.getRegisteredAt(),
                 person != null ? person.getId() : null,
                 person != null ? person.getFirstName() : null,
@@ -350,7 +360,7 @@ public class AuthService {
         );
     }
 
-    public record AuthTokens(String accessToken, String refreshToken) {
+    public record AuthTokens(String accessToken, String refreshToken, UserRole role) {
     }
 
     public record RegistrationResult(boolean emailVerificationRequired, String message) {
@@ -363,6 +373,7 @@ public class AuthService {
             UUID memberId,
             String email,
             MemberTier tier,
+            UserRole role,
             java.time.LocalDateTime registeredAt,
             UUID personId,
             String firstName,

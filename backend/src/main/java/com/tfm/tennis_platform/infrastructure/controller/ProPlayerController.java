@@ -20,8 +20,12 @@ public class ProPlayerController {
     private final ProPlayerQueryService proPlayerQueryService;
 
     @GetMapping
-    public ResponseEntity<List<ProPlayerSearchResponse>> search(@RequestParam(required = false) String query) {
-        return ResponseEntity.ok(proPlayerQueryService.search(query).stream()
+    public ResponseEntity<List<ProPlayerSearchResponse>> search(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String gender,
+            @RequestParam(required = false) String category
+    ) {
+        return ResponseEntity.ok(proPlayerQueryService.search(query, gender, category).stream()
                 .map(ProPlayerController::toResponse)
                 .toList());
     }

@@ -13,6 +13,7 @@ import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.enums.DrawType;
 import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
 import com.tfm.tennis_platform.domain.models.enums.StageType;
+import com.tfm.tennis_platform.domain.models.validation.StageSequenceValidator;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.InscriptionRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
@@ -23,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -53,6 +56,12 @@ public class EventService {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
         tournamentService.assertTournamentAdmin(tournament, requesterEmail);
+
+        for (EventCommand.EventItem item : eventCommand.events()) {
+            if (item.stages() != null && !item.stages().isEmpty()) {
+                StageSequenceValidator.validate(item.stages());
+            }
+        }
 
         List<Event> events = eventCommand.events().stream()
                 .map(item -> {
@@ -380,24 +389,39 @@ public class EventService {
             return matches;
         }
 
-        return matches.stream()
-                .map(match -> {
-                    if (isByeMatch(match)) {
-                        return match;
-                    }
+        Map<Integer, List<Match>> matchesByRound = matches.stream()
+                .filter(match -> !isByeMatch(match))
+                .collect(Collectors.groupingBy(
+                        Match::getRoundNumber,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
 
-                    int index = scheduleIndex.getAndIncrement();
-                    int courtIndex = index % courts.size();
-                    int courtSlot = index / courts.size();
-                    Court court = courts.get(courtIndex);
-                    return match.toBuilder()
-                            .scheduledAt(firstMatchStart.plusHours(courtSlot))
-                            .scheduleTimeType(courtSlot == 0 ? ScheduleTimeType.EXACT : ScheduleTimeType.NOT_BEFORE)
-                            .courtId(court.getId())
-                            .court(court.getName())
-                            .build();
-                })
-                .toList();
+        if (matchesByRound.isEmpty()) {
+            return matches;
+        }
+
+        List<Match> result = new ArrayList<>();
+        for (List<Match> roundMatches : matchesByRound.values()) {
+            for (Match match : roundMatches) {
+                int index = scheduleIndex.getAndIncrement();
+                int courtIndex = index % courts.size();
+                int courtSlot = index / courts.size();
+                Court court = courts.get(courtIndex);
+                result.add(match.toBuilder()
+                        .scheduledAt(firstMatchStart.plusHours(courtSlot))
+                        .scheduleTimeType(courtSlot == 0 ? ScheduleTimeType.EXACT : ScheduleTimeType.NOT_BEFORE)
+                        .courtId(court.getId())
+                        .court(court.getName())
+                        .build());
+            }
+        }
+
+        matches.stream()
+                .filter(this::isByeMatch)
+                .forEach(result::add);
+
+        return result;
     }
 
     private boolean isByeMatch(Match match) {

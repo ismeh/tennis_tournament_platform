@@ -27,6 +27,7 @@ import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.InscriptionRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
@@ -115,6 +116,7 @@ class TournamentGenerationFlowTest {
         Member creator = Member.builder()
                 .id(creatorId)
                 .email("organizer@example.com")
+                .role(UserRole.ORGANIZER)
                 .build();
 
         when(memberRepository.findByEmail("organizer@example.com")).thenReturn(Optional.of(creator));
@@ -138,7 +140,7 @@ class TournamentGenerationFlowTest {
 
         Tournament tournamentWithEvents = eventService.replaceAllEvents(
                 createdTournament.getId(),
-                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("1")))),
+                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("SINGLE_ELIMINATION")))),
                 "organizer@example.com"
         );
 
@@ -195,6 +197,7 @@ class TournamentGenerationFlowTest {
         Member creator = Member.builder()
                 .id(creatorId)
                 .email("organizer@example.com")
+                .role(UserRole.ORGANIZER)
                 .build();
 
         when(memberRepository.findByEmail("organizer@example.com")).thenReturn(Optional.of(creator));
@@ -209,7 +212,7 @@ class TournamentGenerationFlowTest {
         Tournament createdTournament = tournamentService.create(createTournament(), "organizer@example.com");
         Tournament tournamentWithEvents = eventService.replaceAllEvents(
                 createdTournament.getId(),
-                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("CONSOLATION")))),
+                new EventCommand(List.of(new EventCommand.EventItem(UUID.randomUUID(), 1, "MALE", List.of("SINGLE_ELIMINATION", "CONSOLATION")))),
                 "organizer@example.com"
         );
         Event event = tournamentWithEvents.getEvents().get(0);

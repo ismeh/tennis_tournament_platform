@@ -18,6 +18,7 @@ public class Stage {
     private UUID eventId;
     private Integer stageNumber;
     private StageType stageType;
+    private String strategyName;
     private String description;
     @Singular
     private List<Draw> draws;

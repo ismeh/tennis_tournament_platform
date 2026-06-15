@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { AppSettings } from '../shared/constants';
+import { alpha3ToAlpha2 } from '../shared/country-flag.util';
 
 @Component({
   selector: 'app-header',
@@ -50,12 +51,21 @@ import { AppSettings } from '../shared/constants';
           <!-- Auth Buttons -->
           <div class="flex items-center gap-2 sm:gap-3">
             @if (isLoggedIn$ | async) {
-              <a
-                routerLink="/torneos/crear"
-                class="inline-flex whitespace-nowrap rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 sm:px-4"
-              >
-                Crear torneo
-              </a>
+              @if ((role$ | async) === 'ORGANIZER') {
+                <a
+                  routerLink="/torneos/crear"
+                  class="inline-flex whitespace-nowrap rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 sm:px-4"
+                >
+                  Crear torneo
+                </a>
+              } @else {
+                <a
+                  routerLink="/torneos"
+                  class="inline-flex whitespace-nowrap rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 sm:px-4"
+                >
+                  Inscribirse
+                </a>
+              }
               <div class="relative flex items-center gap-2 sm:gap-3">
                 <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
                   {{ getUserInitial(displayName$ | async) }}
@@ -65,6 +75,9 @@ import { AppSettings } from '../shared/constants';
                   (click)="toggleProfileMenu()"
                   class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-primary-50 hover:text-primary-600"
                 >
+                  @if (countryCode(); as cc) {
+                    <span class="fi fi-{{ cc }}"></span>
+                  }
                   {{ resolveDisplayName(displayName$ | async) }}
                   <span class="text-xs">⌄</span>
                 </button>
@@ -77,6 +90,22 @@ import { AppSettings } from '../shared/constants';
                     >
                       Perfil
                     </a>
+                    <a
+                      routerLink="/ajustes-cuenta"
+                      class="block px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+                      (click)="closeProfileMenu()"
+                    >
+                      Ajustes de cuenta
+                    </a>
+                    @if ((role$ | async) === 'ORGANIZER') {
+                      <a
+                        routerLink="/mis-categorias"
+                        class="block px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+                        (click)="closeProfileMenu()"
+                      >
+                        Mis Categorías
+                      </a>
+                    }
                     <button
                       type="button"
                       (click)="onLogout()"
@@ -116,7 +145,15 @@ export class HeaderComponent {
 
   readonly isLoggedIn$ = this.authService.isLoggedIn$;
   readonly displayName$ = this.authService.displayName$;
+  readonly role$ = this.authService.role$;
+  readonly nationality$ = this.authService.nationality$;
   readonly isProfileMenuOpen = signal(false);
+
+  readonly countryCode = signal<string | null>(null);
+
+  constructor() {
+    this.nationality$.subscribe(n => this.countryCode.set(alpha3ToAlpha2(n)));
+  }
 
   getUserInitial(displayName: string | null): string {
     const name = displayName ?? this.authService.getCurrentUserEmail()?.split('@')[0] ?? null;

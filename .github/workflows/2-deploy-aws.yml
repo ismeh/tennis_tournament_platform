@@ -54,4 +54,4 @@ jobs:
             export DOCKER_USERNAME="${DOCKER_USERNAME}"
 
             docker compose pull
-            docker compose up -d --remove-orphans
+            docker compose -f compose.yaml -f compose.https-local.yaml up -d --remove-orphans

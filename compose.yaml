@@ -50,6 +50,8 @@ services:
       - PRO_PLAYERS_IMPORT_BATCH_SIZE=${PRO_PLAYERS_IMPORT_BATCH_SIZE:-1000}
       - PRO_PLAYERS_MALE_CSV_LOCATION=${PRO_PLAYERS_MALE_CSV_LOCATION:-classpath:db/seed/pro_players_male.csv}
       - PRO_PLAYERS_FEMALE_CSV_LOCATION=${PRO_PLAYERS_FEMALE_CSV_LOCATION:-classpath:db/seed/pro_players_female.csv}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
+      - GOOGLE_PLACES_BASE_URL=${GOOGLE_PLACES_BASE_URL}
     depends_on:
       postgres:
         condition: service_healthy

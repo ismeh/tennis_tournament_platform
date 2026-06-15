@@ -1,6 +1,7 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { AppSettings } from '../../shared/constants';
 import {
   CourtCreateRequest,
@@ -47,6 +48,15 @@ export class TournamentService {
     });
   }
 
+  getMyTournamentCalendar(filters: TournamentCalendarFilters = {}): Observable<TournamentCalendarResponse[]> {
+    return this.http.get<TournamentCalendarResponse[]>(this.myTournamentsCalendarUrl, {
+      params: this.toCalendarParams({
+        from: filters.from,
+        to: filters.to
+      })
+    });
+  }
+
   getTournamentById(id: string): Observable<TournamentResponse> {
     return this.http.get<TournamentResponse>(`${this.apiUrl}/${id}`);
   }
@@ -73,6 +83,10 @@ export class TournamentService {
 
   getEventCatalog(): Observable<TournamentEventCatalogItem[]> {
     return this.http.get<TournamentEventCatalogItem[]>(this.eventCatalogUrl);
+  }
+
+  getEventCatalogAll(): Observable<TournamentEventCatalogItem[]> {
+    return this.http.get<TournamentEventCatalogItem[]>(this.eventCatalogAllUrl);
   }
 
   saveTournamentEvents(tournamentId: string, payload: TournamentEventsConfigRequest): Observable<TournamentResponse> {
@@ -106,7 +120,7 @@ export class TournamentService {
   submitMatchResult(
     tournamentId: string,
     matchId: string,
-    payload: { winnerId: string; scoreString: string }
+    payload: { winnerId?: string | null; scoreString: string }
   ): Observable<MatchResponse> {
     return this.http.post<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/result`, payload);
   }
@@ -119,6 +133,15 @@ export class TournamentService {
     return this.http.patch<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/schedule`, payload);
   }
 
+  exportTournamentPdf(tournamentId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${tournamentId}/export/pdf`, {
+      responseType: 'blob',
+      observe: 'response'
+    }).pipe(
+      map((response: HttpResponse<Blob>) => response.body as Blob)
+    );
+  }
+
   private get apiUrl(): string {
     return `${AppSettings.API_URL}/tournaments`;
   }
@@ -127,12 +150,20 @@ export class TournamentService {
     return `${AppSettings.API_URL}/age-categories`;
   }
 
+  private get eventCatalogAllUrl(): string {
+    return `${AppSettings.API_URL}/age-categories/all`;
+  }
+
   private get calendarTournamentsUrl(): string {
     return `${AppSettings.API_URL}/calendar/tournaments`;
   }
 
   private get myMatchesCalendarUrl(): string {
     return `${AppSettings.API_URL}/calendar/my-matches`;
+  }
+
+  private get myTournamentsCalendarUrl(): string {
+    return `${AppSettings.API_URL}/calendar/my-tournaments`;
   }
 
   private toCalendarParams(filters: TournamentCalendarFilters): HttpParams {

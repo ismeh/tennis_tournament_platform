@@ -33,6 +33,9 @@ public class StageEntity {
     @Column(name = "stage_type")
     private String stageType;
 
+    @Column(name = "strategy_name")
+    private String strategyName;
+
     @Column(name = "description")
     private String description;
 
