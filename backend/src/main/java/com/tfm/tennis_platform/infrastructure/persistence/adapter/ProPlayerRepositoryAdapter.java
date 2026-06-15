@@ -44,7 +44,12 @@ public class ProPlayerRepositoryAdapter implements ProPlayerRepository {
 
     @Override
     public List<ProPlayer> searchByQuery(String query) {
-        return jpaProPlayerRepository.searchByQuery(query, PageRequest.of(0, SEARCH_LIMIT)).stream()
+        return search(query, null, null);
+    }
+
+    @Override
+    public List<ProPlayer> search(String query, String gender, String category) {
+        return jpaProPlayerRepository.search(query, gender, category, PageRequest.of(0, SEARCH_LIMIT)).stream()
                 .map(proPlayerMapper::toDomain)
                 .toList();
     }

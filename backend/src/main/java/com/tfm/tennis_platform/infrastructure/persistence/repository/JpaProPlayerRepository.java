@@ -40,6 +40,25 @@ public interface JpaProPlayerRepository extends JpaRepository<ProPlayerEntity, I
     @Query("""
             SELECT p
             FROM ProPlayerEntity p
+            WHERE (:query IS NULL
+               OR :query = ''
+               OR LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(COALESCE(p.license, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(COALESCE(p.clubName, '')) LIKE LOWER(CONCAT('%', :query, '%')))
+              AND (:gender IS NULL OR UPPER(COALESCE(p.gender, '')) = :gender)
+              AND (:category IS NULL OR UPPER(COALESCE(p.ageCategory, '')) = :category)
+            ORDER BY p.rankingPosition ASC
+            """)
+    List<ProPlayerEntity> search(
+            @Param("query") String query,
+            @Param("gender") String gender,
+            @Param("category") String category,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT p
+            FROM ProPlayerEntity p
             WHERE (:gender IS NULL OR UPPER(COALESCE(p.gender, '')) = :gender)
               AND (:category IS NULL OR UPPER(COALESCE(p.ageCategory, '')) = :category)
             """)

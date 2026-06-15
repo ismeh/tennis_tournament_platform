@@ -10,4 +10,5 @@ public interface ProPlayerRepository {
     Optional<ProPlayer> findByLicense(String license);
     List<ProPlayer> findTop10();
     List<ProPlayer> searchByQuery(String query);
+    List<ProPlayer> search(String query, String gender, String category);
 }

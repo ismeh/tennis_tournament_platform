@@ -37,11 +37,22 @@ class ProPlayerQueryServiceTest {
     @Test
     void searchShouldTrimQueryAndDelegateToRepository() {
         List<ProPlayer> expected = List.of(ProPlayer.builder().id(2).fullName("FEDERER, ROGER").build());
-        when(proPlayerRepository.searchByQuery("Roger")).thenReturn(expected);
+        when(proPlayerRepository.search("Roger", null, null)).thenReturn(expected);
 
         List<ProPlayer> actual = proPlayerQueryService.search("  Roger ");
 
         assertEquals(expected, actual);
-        verify(proPlayerRepository).searchByQuery("Roger");
+        verify(proPlayerRepository).search("Roger", null, null);
+    }
+
+    @Test
+    void searchShouldNormalizeFiltersAndDelegateToRepository() {
+        List<ProPlayer> expected = List.of(ProPlayer.builder().id(3).fullName("SWIATEK, IGA").build());
+        when(proPlayerRepository.search(null, "FEMALE", "ABSOLUTA")).thenReturn(expected);
+
+        List<ProPlayer> actual = proPlayerQueryService.search(" ", " female ", " absoluta ");
+
+        assertEquals(expected, actual);
+        verify(proPlayerRepository).search(null, "FEMALE", "ABSOLUTA");
     }
 }
