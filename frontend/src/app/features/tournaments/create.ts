@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize, of, switchMap } from 'rxjs';
 import { TournamentService } from '../../data/services/tournament.service';
@@ -28,7 +28,7 @@ import {
 @Component({
   selector: 'app-create-tournament-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, LocationInputComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, LocationInputComponent],
   template: `
     <section class="relative overflow-hidden bg-gradient-to-br from-neutral-50 via-white to-primary-50/60 py-10 sm:py-14">
       <div class="absolute inset-0 -z-10 opacity-60">
@@ -262,8 +262,8 @@ import {
                                         <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Tipo de fase {{ stageIndex + 1 }}</span>
                                         <select
                                           class="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:bg-white"
-                                          [value]="stage.stageType"
-                                          (change)="updateEventStageType(event.categoryId, stageIndex, $any($event.target).value)"
+                                          [ngModel]="stage.stageType"
+                                          (ngModelChange)="updateEventStageType(event.categoryId, stageIndex, $event)"
                                         >
                                           @for (option of getAvailableStageOptions(event.stages, stageIndex); track option) {
                                             <option [value]="option">{{ getStageLabel(option) }}</option>
@@ -556,7 +556,7 @@ export class CreateTournamentComponent implements OnInit {
         }
         const newStageType: TournamentStageType = isConsolationDisabled(event.stages.map(s => s.stageType))
           ? 'SINGLE_ELIMINATION'
-          : 'SINGLE_ELIMINATION';
+          : 'CONSOLATION';
         return {
           ...event,
           stages: [...event.stages, { stageType: newStageType }]

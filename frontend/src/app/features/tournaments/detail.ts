@@ -375,10 +375,10 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                           <label class="block">
                                             <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Tipo de cuadro {{ stageIndex + 1 }}</span>
                                             <select
-                                              class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:bg-white"
-                                              [value]="stage.stageType"
-                                              (change)="updateEventStageType(event.categoryId, stageIndex, $any($event.target).value)"
-                                            >
+                                               class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:bg-white"
+                                               [ngModel]="stage.stageType"
+                                               (ngModelChange)="updateEventStageType(event.categoryId, stageIndex, $event)"
+                                             >
                                               @for (option of getAvailableStageOptions(event.stages, stageIndex); track option) {
                                                 <option [value]="option">{{ getStageLabel(option) }}</option>
                                               }
@@ -452,10 +452,6 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
               </p>
 
               @if (isCreator()) {
-                <div class="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                  Desde esta sección puedes revisar inscritos y añadir jugadores a una prueba.
-                </div>
-
                 <div class="mt-5 rounded-3xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm sm:p-6" (keydown.enter)="submitManualPlayer()">
                   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -1939,7 +1935,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         }
         const newStageType: TournamentStageType = isConsolationDisabled(event.stages.map(s => s.stageType))
           ? 'SINGLE_ELIMINATION'
-          : 'SINGLE_ELIMINATION';
+          : 'CONSOLATION';
         return {
           ...event,
           stages: [...event.stages, { stageType: newStageType }]

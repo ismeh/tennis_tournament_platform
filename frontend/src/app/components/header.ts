@@ -14,16 +14,14 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <!-- Logo -->
-          <a routerLink="/" class="flex items-center gap-2 group">
-            <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-lg flex items-center justify-center text-white font-bold text-lg group-hover:shadow-lg transition-shadow">
-              🎾
-            </div>
+          <a routerLink="/" (click)="closeMobileMenu()" class="flex items-center gap-2 group">
+            <img src="/logo_sin_texto_resized.svg" alt="Tennis Platform Logo" class="w-10 h-10 group-hover:shadow-lg transition-shadow">
             <span class="text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent hidden sm:inline">
               {{ AppSettings.PROJECT_NAME }}
             </span>
           </a>
 
-          <!-- Navigation Links -->
+          <!-- Desktop Navigation Links -->
           <nav class="hidden md:flex items-center gap-1">
             <a routerLink="/" routerLinkActive="text-primary-600 bg-primary-50" 
                [routerLinkActiveOptions]="{ exact: true }"
@@ -48,8 +46,8 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
             </a>
           </nav>
 
-          <!-- Auth Buttons -->
-          <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Desktop Auth Buttons -->
+          <div class="hidden md:flex items-center gap-2 sm:gap-3">
             @if (isLoggedIn$ | async) {
               @if ((role$ | async) === 'ORGANIZER') {
                 <a
@@ -132,8 +130,167 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
               </a>
             }
           </div>
+
+          <!-- Mobile Hamburger Button -->
+          <button
+            type="button"
+            (click)="toggleMobileMenu()"
+            class="md:hidden inline-flex items-center justify-center rounded-lg p-2 text-neutral-600 transition-colors hover:bg-primary-50 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            [attr.aria-expanded]="isMobileMenuOpen()"
+            aria-label="Abrir menú de navegación"
+          >
+            @if (isMobileMenuOpen()) {
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            } @else {
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            }
+          </button>
         </div>
       </div>
+
+      <!-- Mobile Menu Panel -->
+      @if (isMobileMenuOpen()) {
+        <div class="md:hidden border-t border-neutral-200 bg-white shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
+          <nav class="max-w-7xl mx-auto px-4 py-3 space-y-1">
+            <a routerLink="/" routerLinkActive="text-primary-600 bg-primary-50"
+               [routerLinkActiveOptions]="{ exact: true }"
+               (click)="closeMobileMenu()"
+               class="block px-4 py-2.5 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
+              Inicio
+            </a>
+            <a routerLink="/torneos" routerLinkActive="text-primary-600 bg-primary-50"
+               (click)="closeMobileMenu()"
+               class="block px-4 py-2.5 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
+              Torneos
+            </a>
+            <a routerLink="/ranking" routerLinkActive="text-primary-600 bg-primary-50"
+               (click)="closeMobileMenu()"
+               class="block px-4 py-2.5 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
+              Ranking
+            </a>
+            <a routerLink="/como-funciona" routerLinkActive="text-primary-600 bg-primary-50"
+               (click)="closeMobileMenu()"
+               class="block px-4 py-2.5 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
+              Cómo Funciona
+            </a>
+            <a routerLink="/contacto" routerLinkActive="text-primary-600 bg-primary-50"
+               (click)="closeMobileMenu()"
+               class="block px-4 py-2.5 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
+              Contacto
+            </a>
+          </nav>
+
+          <!-- Mobile Auth Section -->
+          <div class="border-t border-neutral-200 px-4 py-3">
+            @if (isLoggedIn$ | async) {
+              <div class="flex items-center gap-3 mb-3 px-2">
+                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
+                  {{ getUserInitial(displayName$ | async) }}
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-sm font-medium text-neutral-800">
+                    {{ resolveDisplayName(displayName$ | async) }}
+                  </span>
+                  @if (countryCode(); as cc) {
+                    <span class="text-xs text-neutral-500">
+                      <span class="fi fi-{{ cc }}"></span>
+                    </span>
+                  }
+                </div>
+              </div>
+              @if ((role$ | async) === 'ORGANIZER') {
+                <a
+                  routerLink="/torneos/crear"
+                  (click)="closeMobileMenu()"
+                  class="block w-full text-center rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-600 mb-2"
+                >
+                  Crear torneo
+                </a>
+              } @else {
+                <a
+                  routerLink="/torneos"
+                  (click)="closeMobileMenu()"
+                  class="block w-full text-center rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-600 mb-2"
+                >
+                  Inscribirse
+                </a>
+              }
+
+              <!-- Perfil accordion -->
+              <div class="space-y-1">
+                <button
+                  type="button"
+                  (click)="toggleMobileProfile()"
+                  class="flex w-full items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-neutral-600 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                >
+                  <span>Perfil</span>
+                  <svg class="h-4 w-4 text-neutral-400 transition-transform duration-200"
+                       [class.rotate-180]="isMobileProfileOpen()">
+                    <path fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                          d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                @if (isMobileProfileOpen()) {
+                  <div class="ml-4 space-y-1">
+                    <a
+                      routerLink="/perfil"
+                      (click)="closeMobileMenu()"
+                      class="block px-4 py-2 rounded-lg text-sm font-medium text-neutral-500 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                    >
+                      Ver perfil
+                    </a>
+                    <a
+                      routerLink="/ajustes-cuenta"
+                      (click)="closeMobileMenu()"
+                      class="block px-4 py-2 rounded-lg text-sm font-medium text-neutral-500 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                    >
+                      Ajustes de cuenta
+                    </a>
+                    @if ((role$ | async) === 'ORGANIZER') {
+                      <a
+                        routerLink="/mis-categorias"
+                        (click)="closeMobileMenu()"
+                        class="block px-4 py-2 rounded-lg text-sm font-medium text-neutral-500 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                      >
+                        Mis Categorías
+                      </a>
+                    }
+                    <button
+                      type="button"
+                      (click)="onLogout(); closeMobileMenu()"
+                      class="block w-full px-4 py-2 text-left rounded-lg text-sm font-medium text-neutral-500 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                    >
+                      Cerrar sesión
+                    </button>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="space-y-2">
+                <a
+                  routerLink="/login"
+                  [queryParams]="loginQueryParams()"
+                  (click)="closeMobileMenu()"
+                  class="block w-full text-center rounded-lg border border-primary-500 px-4 py-2.5 text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-50"
+                >
+                  Iniciar Sesión
+                </a>
+                <a
+                  routerLink="/register"
+                  (click)="closeMobileMenu()"
+                  class="block w-full text-center rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-600"
+                >
+                  Crear torneo
+                </a>
+              </div>
+            }
+          </div>
+        </div>
+      }
     </header>
   `,
   styles: []
@@ -148,6 +305,8 @@ export class HeaderComponent {
   readonly role$ = this.authService.role$;
   readonly nationality$ = this.authService.nationality$;
   readonly isProfileMenuOpen = signal(false);
+  readonly isMobileMenuOpen = signal(false);
+  readonly isMobileProfileOpen = signal(false);
 
   readonly countryCode = signal<string | null>(null);
 
@@ -183,6 +342,7 @@ export class HeaderComponent {
 
   onLogout(): void {
     this.closeProfileMenu();
+    this.closeMobileMenu();
     this.authService.logout().subscribe(() => {
       this.router.navigateByUrl('/');
     });
@@ -194,6 +354,21 @@ export class HeaderComponent {
 
   closeProfileMenu(): void {
     this.isProfileMenuOpen.set(false);
+  }
+
+  toggleMobileMenu(): void {
+    this.isMobileMenuOpen.update(isOpen => !isOpen);
+    this.closeProfileMenu();
+    this.isMobileProfileOpen.set(false);
+  }
+
+  closeMobileMenu(): void {
+    this.isMobileMenuOpen.set(false);
+    this.isMobileProfileOpen.set(false);
+  }
+
+  toggleMobileProfile(): void {
+    this.isMobileProfileOpen.update(isOpen => !isOpen);
   }
 
   private resolveLoginReturnUrl(): string {
