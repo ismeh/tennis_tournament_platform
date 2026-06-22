@@ -65,6 +65,9 @@ public class ParticipantEntity {
     @Column(name = "seed")
     private Integer seed;
 
+    @Column(name = "points")
+    private Integer points;
+
     @ManyToMany
     @JoinTable(
         name = "participant_persons",

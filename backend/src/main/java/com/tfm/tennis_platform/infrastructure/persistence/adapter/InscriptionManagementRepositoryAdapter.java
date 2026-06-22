@@ -3,6 +3,7 @@ package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionCommand;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionResult;
 import com.tfm.tennis_platform.domain.models.inscription.ManualEventInscriptionCommand;
+import com.tfm.tennis_platform.domain.models.inscription.ParticipantPointsUpdateCommand;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionCategoryCount;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionEventView;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionGenderCount;
@@ -226,7 +227,9 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                         person.getTennisId(),
                         person.getFirstName(),
                         person.getLastName(),
-                        normalizeGender(person.getGender())
+                        normalizeGender(person.getGender()),
+                        participant != null ? participant.getPoints() : null,
+                        participant != null ? participant.getSeed() : null
                 ))
                 .toList();
     }
@@ -345,6 +348,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                         .displayBirthDate(proPlayer.getBirthDate())
                         .displayNationality("ESP")
                         .displayTennisId(proPlayer.getLicense())
+                        .points(proPlayer.getPoints())
                         .members(List.of())
                         .build()));
     }
@@ -562,5 +566,26 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
 
             return new TournamentInscriptionCategoryCount(categoryId, category, totalPlayers, genders);
         }
+    }
+
+    @Override
+    public void updateParticipantsPoints(UUID tournamentId, List<ParticipantPointsUpdateCommand> updates) {
+        List<UUID> participantIds = updates.stream()
+                .map(ParticipantPointsUpdateCommand::participantId)
+                .toList();
+
+        List<ParticipantEntity> participants = participantRepository.findByTournamentIdAndIdIn(tournamentId, participantIds);
+
+        for (ParticipantEntity participant : participants) {
+            updates.stream()
+                    .filter(u -> u.participantId().equals(participant.getId()))
+                    .findFirst()
+                    .ifPresent(update -> {
+                        participant.setPoints(update.points());
+                        participant.setSeed(update.seed());
+                    });
+        }
+
+        participantRepository.saveAll(participants);
     }
 }

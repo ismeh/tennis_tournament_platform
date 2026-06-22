@@ -14,6 +14,8 @@ public record TournamentInscriptionPlayerResponse(
         String tennisId,
         String firstName,
         String lastName,
-        String gender
+        String gender,
+        Integer points,
+        Integer seed
 ) {
 }
