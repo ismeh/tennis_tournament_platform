@@ -12,6 +12,8 @@ import com.tfm.tennis_platform.application.services.strategies.draw.DoubleElimin
 import com.tfm.tennis_platform.application.services.strategies.draw.RoundRobinDrawGenerator;
 import com.tfm.tennis_platform.application.services.strategies.draw.SingleEliminationDrawGenerator;
 import com.tfm.tennis_platform.application.services.strategies.match.ConsolationMatchGenerator;
+import com.tfm.tennis_platform.application.services.strategies.match.DoubleEliminationMatchGenerator;
+import com.tfm.tennis_platform.application.services.strategies.match.RoundRobinMatchGenerator;
 import com.tfm.tennis_platform.application.services.strategies.match.SingleEliminationMatchGenerator;
 import com.tfm.tennis_platform.application.services.strategies.stage.ConsolationStageGenerator;
 import com.tfm.tennis_platform.application.services.strategies.stage.DoubleEliminationStageGenerator;
@@ -32,6 +34,7 @@ import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.InscriptionRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
+import com.tfm.tennis_platform.domain.port.out.ScheduleConfigRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -73,6 +76,9 @@ class TournamentGenerationFlowTest {
     @Mock
     private CourtRepository courtRepository;
 
+    @Mock
+    private ScheduleConfigRepository scheduleConfigRepository;
+
     private TournamentService tournamentService;
     private EventService eventService;
 
@@ -90,12 +96,12 @@ class TournamentGenerationFlowTest {
                 new DoubleEliminationDrawGenerator(),
                 new ConsolationDrawGenerator()
         );
-        MatchGenerationService matchGenerationService = new MatchGenerationService(new SingleEliminationMatchGenerator(), new ConsolationMatchGenerator());
+        MatchGenerationService matchGenerationService = new MatchGenerationService(new SingleEliminationMatchGenerator(), new ConsolationMatchGenerator(), new RoundRobinMatchGenerator(), new DoubleEliminationMatchGenerator());
         MatchPersistenceService matchPersistenceService = new MatchPersistenceService(matchRepository);
 
         lenient().when(matchRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        tournamentService = new TournamentService(tournamentRepository, memberRepository, courtRepository);
+        tournamentService = new TournamentService(tournamentRepository, memberRepository, courtRepository, scheduleConfigRepository);
         eventService = new EventService(
                 tournamentRepository,
                 inscriptionRepository,
