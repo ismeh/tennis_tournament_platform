@@ -36,7 +36,7 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                   <td class="px-3 py-2">
                     <div class="max-w-64">
                       <p class="flex items-center gap-2 truncate font-medium text-neutral-900">
-                        <span class="truncate">{{ getParticipantName(match.firstInscriptionId) }}</span>
+                        <span class="truncate" [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
                         @if (match.professionalMatch && match.firstInscriptionId) {
                           <span [class]="getWinPointsClasses(match, match.firstInscriptionId)">
                             {{ getWinPointsLabel(match.firstWinPoints) }}
@@ -44,7 +44,7 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                         }
                       </p>
                       <p class="mt-1 flex items-center gap-2 truncate text-neutral-600">
-                        <span class="truncate">{{ getParticipantName(match.secondInscriptionId) }}</span>
+                        <span class="truncate" [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
                         @if (match.professionalMatch && match.secondInscriptionId) {
                           <span [class]="getWinPointsClasses(match, match.secondInscriptionId)">
                             {{ getWinPointsLabel(match.secondWinPoints) }}
@@ -83,7 +83,15 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
         </div>
       }
     </div>
-  `
+  `,
+  styles: [`
+    .bracket-player-bye {
+      border-style: dashed;
+      color: rgb(100 116 139);
+      font-style: italic;
+      font-weight: 700;
+    }
+  `]
 })
 export class MatchesComponent {
   @Input() participantNamesInput: Record<string, string> = {};
@@ -120,6 +128,25 @@ export class MatchesComponent {
     return this.participantNamesInput[inscriptionId] ?? inscriptionId.substring(0, 8);
   }
 
+  isByeSlot(
+    match: MatchResponse,
+    inscriptionId: string | null | undefined,
+    opponentInscriptionId: string | null | undefined
+  ): boolean {
+    return !inscriptionId && !!opponentInscriptionId && (match.roundNumber ?? 1) === 1;
+  }
+
+  getMatchSlotLabel(
+    match: MatchResponse,
+    inscriptionId: string | null | undefined,
+    opponentInscriptionId: string | null | undefined
+  ): string {
+    if (this.isByeSlot(match, inscriptionId, opponentInscriptionId)) {
+      return 'Bye';
+    }
+    return this.getParticipantName(inscriptionId);
+  }
+
   getSchedulePrefix(scheduleTimeType: string | null | undefined): string {
     return scheduleTimeType === 'NOT_BEFORE' ? 'No antes de' : 'A las';
   }
@@ -151,7 +178,10 @@ export class MatchesComponent {
   }
 
   private compareMatches(left: MatchResponse, right: MatchResponse, leftIndex: number, rightIndex: number): number {
+    const leftTime = left.scheduledAt ?? '9999-12-31T23:59';
+    const rightTime = right.scheduledAt ?? '9999-12-31T23:59';
     return (
+      this.compareStrings(leftTime, rightTime) ||
       this.compareNumbers(left.roundNumber, right.roundNumber) ||
       this.compareNumbers(this.getMatchSeedOrder(left), this.getMatchSeedOrder(right)) ||
       this.compareStrings(this.getParticipantName(left.firstInscriptionId), this.getParticipantName(right.firstInscriptionId)) ||

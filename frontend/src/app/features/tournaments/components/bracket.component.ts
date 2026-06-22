@@ -13,9 +13,301 @@ import { BracketExportService } from '../services/bracket-export.service';
       @if (showTitleInput) {
         <h5 class="text-sm font-medium text-neutral-900">Cuadro de partidos</h5>
       }
-      
+
       @if (draws().length === 0) {
         <p class="text-xs text-neutral-600">Sin cuadros</p>
+      } @else if (isDoubleElimination()) {
+        <div class="space-y-4">
+          @if (getWinnersDraw(); as winnersDraw) {
+            <div [ngClass]="showDrawCardInput ? 'rounded-md border border-neutral-200 bg-white p-4' : ''">
+              @if (showDrawCardInput) {
+                <p class="mb-3 font-medium text-neutral-900">{{ winnersDraw.label }} — Cuadro de Ganadores</p>
+              }
+              @if (winnersDraw.matches && winnersDraw.matches.length > 0) {
+                @let rounds = getRounds(winnersDraw.matches);
+                <div class="mb-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" class="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-45" (click)="zoomOut()" [disabled]="zoomLevel() <= minZoom">
+                      -
+                    </button>
+                    <span class="min-w-14 text-center text-xs font-extrabold text-slate-600">{{ getZoomLabel() }}</span>
+                    <button type="button" class="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-45" (click)="zoomIn()" [disabled]="zoomLevel() >= maxZoom">
+                      +
+                    </button>
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="resetZoom()">
+                      Restablecer
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="exportBracketPdf()" [disabled]="isExportingPdf()">
+                      {{ isExportingPdf() ? 'Exportando...' : 'Exportar PDF' }}
+                    </button>
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="toggleFullscreen()">
+                      {{ isFullscreen() ? 'Salir pantalla completa' : 'Pantalla completa' }}
+                    </button>
+                  </div>
+                </div>
+                <div class="bracket-shell">
+                  <div class="bracket-scroll">
+                    <div
+                      class="bracket-zoom-surface"
+                      [style.width.px]="getScaledBoardWidth(winnersDraw.matches)"
+                      [style.height.px]="getScaledBoardHeight(rounds)"
+                    >
+                      <div
+                        class="bracket-board"
+                        [style.min-width.px]="getMinWidth(winnersDraw.matches)"
+                        [style.transform]="getZoomTransform()"
+                      >
+                        @for (round of rounds; track round.roundNumber; let roundIndex = $index) {
+                          <section class="bracket-round">
+                            <div class="bracket-round-header">
+                              <div>
+                                <p class="bracket-round-title">{{ getDoubleEliminationRoundLabel(round.roundNumber, rounds.length, 'WINNERS') }}</p>
+                                <p class="bracket-round-subtitle">Ronda {{ round.roundNumber }}</p>
+                              </div>
+                              <span class="bracket-round-count">{{ round.matches.length }}</span>
+                            </div>
+
+                            <div class="bracket-round-matches" [style.height.px]="getBracketBodyHeight(rounds)">
+                              @for (match of round.matches; track match.id; let matchIndex = $index) {
+                                <button
+                                  type="button"
+                                  (click)="onMatchClicked(match)"
+                                  class="bracket-match"
+                                  [class.bracket-match-complete]="!!match.winnerId"
+                                  [style.top.px]="getMatchTop(roundIndex, matchIndex)"
+                                >
+                                  @if (roundIndex > 0) {
+                                    <span class="bracket-input-line"></span>
+                                  }
+
+                                  @if (!isLastRound(roundIndex, rounds.length)) {
+                                    <span class="bracket-output-line"></span>
+                                    @if (shouldShowConnectorRail(matchIndex, round.matches.length)) {
+                                      <span class="bracket-connector-rail" [style.height.px]="getConnectorHeight(roundIndex)"></span>
+                                    }
+                                  }
+
+                                  <span class="bracket-match-meta">
+                                    <span class="bracket-match-number">P{{ getMatchNumber(match, winnersDraw.matches || []) }}</span>
+                                    @if (match.winnerId) {
+                                      <span class="bracket-status bracket-status-complete">Finalizado</span>
+                                    } @else if (match.result) {
+                                      <span class="bracket-status bracket-status-in-progress">En curso</span>
+                                    } @else {
+                                      <span class="bracket-status bracket-status-pending">Pendiente</span>
+                                    }
+                                  </span>
+                                  <div
+                                    class="bracket-player"
+                                    [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
+                                    [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                    [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                  >
+                                    <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
+                                    @if (match.professionalMatch && match.firstInscriptionId) {
+                                      <span
+                                        class="bracket-points"
+                                        [class.bracket-points-winner]="isWinner(match, match.firstInscriptionId)"
+                                        [class.bracket-points-loser]="isLoser(match, match.firstInscriptionId)"
+                                      >
+                                        {{ getWinPointsLabel(match.firstWinPoints) }}
+                                      </span>
+                                    }
+                                    @if (isWinner(match, match.firstInscriptionId)) {
+                                      <span class="bracket-winner-mark">G</span>
+                                    }
+                                  </div>
+
+                                  <div
+                                    class="bracket-player"
+                                    [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
+                                    [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                    [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                  >
+                                    <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
+                                    @if (match.professionalMatch && match.secondInscriptionId) {
+                                      <span
+                                        class="bracket-points"
+                                        [class.bracket-points-winner]="isWinner(match, match.secondInscriptionId)"
+                                        [class.bracket-points-loser]="isLoser(match, match.secondInscriptionId)"
+                                      >
+                                        {{ getWinPointsLabel(match.secondWinPoints) }}
+                                      </span>
+                                    }
+                                    @if (isWinner(match, match.secondInscriptionId)) {
+                                      <span class="bracket-winner-mark">G</span>
+                                    }
+                                  </div>
+
+                                  @if (match.result) {
+                                    <span class="bracket-result">{{ match.result }}</span>
+                                  }
+                                </button>
+                              }
+                            </div>
+                          </section>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <p class="text-xs text-neutral-600">Sin partidos generados</p>
+              }
+            </div>
+          }
+
+          <div class="flex items-center gap-3 py-2">
+            <div class="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
+            <span class="rounded-full border border-amber-300 bg-amber-50 px-4 py-1.5 text-sm font-bold text-amber-700 shadow-sm">
+              Gran Final
+            </span>
+            <div class="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
+          </div>
+
+          @if (getLosersDraw(); as losersDraw) {
+            <div [ngClass]="showDrawCardInput ? 'rounded-md border border-neutral-200 bg-white p-4' : ''">
+              @if (showDrawCardInput) {
+                <p class="mb-3 font-medium text-neutral-900">{{ losersDraw.label }} — Cuadro de Perdedores</p>
+              }
+              @if (losersDraw.matches && losersDraw.matches.length > 0) {
+                @let rounds = getRounds(losersDraw.matches);
+                <div class="mb-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" class="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-45" (click)="zoomOut()" [disabled]="zoomLevel() <= minZoom">
+                      -
+                    </button>
+                    <span class="min-w-14 text-center text-xs font-extrabold text-slate-600">{{ getZoomLabel() }}</span>
+                    <button type="button" class="inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-45" (click)="zoomIn()" [disabled]="zoomLevel() >= maxZoom">
+                      +
+                    </button>
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="resetZoom()">
+                      Restablecer
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="exportBracketPdf()" [disabled]="isExportingPdf()">
+                      {{ isExportingPdf() ? 'Exportando...' : 'Exportar PDF' }}
+                    </button>
+                    <button type="button" class="inline-flex h-8 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-extrabold text-slate-900 transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700" (click)="toggleFullscreen()">
+                      {{ isFullscreen() ? 'Salir pantalla completa' : 'Pantalla completa' }}
+                    </button>
+                  </div>
+                </div>
+                <div class="bracket-shell">
+                  <div class="bracket-scroll">
+                    <div
+                      class="bracket-zoom-surface"
+                      [style.width.px]="getScaledBoardWidth(losersDraw.matches)"
+                      [style.height.px]="getScaledBoardHeight(rounds)"
+                    >
+                      <div
+                        class="bracket-board"
+                        [style.min-width.px]="getMinWidth(losersDraw.matches)"
+                        [style.transform]="getZoomTransform()"
+                      >
+                        @for (round of rounds; track round.roundNumber; let roundIndex = $index) {
+                          <section class="bracket-round">
+                            <div class="bracket-round-header">
+                              <div>
+                                <p class="bracket-round-title">{{ getDoubleEliminationRoundLabel(round.roundNumber, rounds.length, 'LOSERS') }}</p>
+                                <p class="bracket-round-subtitle">Ronda {{ round.roundNumber }}</p>
+                              </div>
+                              <span class="bracket-round-count">{{ round.matches.length }}</span>
+                            </div>
+
+                            <div class="bracket-round-matches" [style.height.px]="getBracketBodyHeight(rounds)">
+                              @for (match of round.matches; track match.id; let matchIndex = $index) {
+                                <button
+                                  type="button"
+                                  (click)="onMatchClicked(match)"
+                                  class="bracket-match"
+                                  [class.bracket-match-complete]="!!match.winnerId"
+                                  [style.top.px]="getMatchTop(roundIndex, matchIndex)"
+                                >
+                                  @if (roundIndex > 0) {
+                                    <span class="bracket-input-line"></span>
+                                  }
+
+                                  @if (!isLastRound(roundIndex, rounds.length)) {
+                                    <span class="bracket-output-line"></span>
+                                    @if (shouldShowConnectorRail(matchIndex, round.matches.length)) {
+                                      <span class="bracket-connector-rail" [style.height.px]="getConnectorHeight(roundIndex)"></span>
+                                    }
+                                  }
+
+                                  <span class="bracket-match-meta">
+                                    <span class="bracket-match-number">P{{ getMatchNumber(match, losersDraw.matches || []) }}</span>
+                                    @if (match.winnerId) {
+                                      <span class="bracket-status bracket-status-complete">Finalizado</span>
+                                    } @else if (match.result) {
+                                      <span class="bracket-status bracket-status-in-progress">En curso</span>
+                                    } @else {
+                                      <span class="bracket-status bracket-status-pending">Pendiente</span>
+                                    }
+                                  </span>
+                                  <div
+                                    class="bracket-player"
+                                    [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
+                                    [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                    [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                  >
+                                    <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
+                                    @if (match.professionalMatch && match.firstInscriptionId) {
+                                      <span
+                                        class="bracket-points"
+                                        [class.bracket-points-winner]="isWinner(match, match.firstInscriptionId)"
+                                        [class.bracket-points-loser]="isLoser(match, match.firstInscriptionId)"
+                                      >
+                                        {{ getWinPointsLabel(match.firstWinPoints) }}
+                                      </span>
+                                    }
+                                    @if (isWinner(match, match.firstInscriptionId)) {
+                                      <span class="bracket-winner-mark">G</span>
+                                    }
+                                  </div>
+
+                                  <div
+                                    class="bracket-player"
+                                    [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
+                                    [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                    [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                  >
+                                    <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
+                                    @if (match.professionalMatch && match.secondInscriptionId) {
+                                      <span
+                                        class="bracket-points"
+                                        [class.bracket-points-winner]="isWinner(match, match.secondInscriptionId)"
+                                        [class.bracket-points-loser]="isLoser(match, match.secondInscriptionId)"
+                                      >
+                                        {{ getWinPointsLabel(match.secondWinPoints) }}
+                                      </span>
+                                    }
+                                    @if (isWinner(match, match.secondInscriptionId)) {
+                                      <span class="bracket-winner-mark">G</span>
+                                    }
+                                  </div>
+
+                                  @if (match.result) {
+                                    <span class="bracket-result">{{ match.result }}</span>
+                                  }
+                                </button>
+                              }
+                            </div>
+                          </section>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <p class="text-xs text-neutral-600">Sin partidos generados</p>
+              }
+            </div>
+          }
+        </div>
       } @else {
         <div class="space-y-4">
           @for (draw of draws(); track draw.id) {
@@ -449,8 +741,8 @@ import { BracketExportService } from '../services/bracket-export.service';
   `]
 })
 export class BracketComponent {
-  private readonly matchHeight = 144;
-  private readonly slotPitch = 170;
+  private readonly matchHeight = 170;
+  private readonly slotPitch = 200;
   readonly minZoom = 0.6;
   readonly maxZoom = 1.6;
   private readonly zoomStep = 0.1;
@@ -488,6 +780,31 @@ export class BracketComponent {
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
   }>();
+
+  isDoubleElimination = computed(() => {
+    const draws = this.draws();
+    if (draws.length !== 2) {
+      return false;
+    }
+    return (
+      (draws[0].drawType === 'ELIMINATION' && draws[1].drawType === 'DOUBLE_ELIMINATION') ||
+      (draws[0].drawType === 'DOUBLE_ELIMINATION' && draws[1].drawType === 'ELIMINATION')
+    );
+  });
+
+  getWinnersDraw = computed(() => {
+    if (!this.isDoubleElimination()) {
+      return null;
+    }
+    return this.draws().find(d => d.drawType === 'ELIMINATION') ?? null;
+  });
+
+  getLosersDraw = computed(() => {
+    if (!this.isDoubleElimination()) {
+      return null;
+    }
+    return this.draws().find(d => d.drawType === 'DOUBLE_ELIMINATION') ?? null;
+  });
 
   @HostListener('document:fullscreenchange')
   onFullscreenChange(): void {
@@ -584,6 +901,27 @@ export class BracketComponent {
     return `Ronda ${roundNumber}`;
   }
 
+  getDoubleEliminationRoundLabel(
+    roundNumber: number,
+    totalRounds: number,
+    bracket: 'WINNERS' | 'LOSERS'
+  ): string {
+    if (bracket === 'WINNERS') {
+      if (roundNumber === totalRounds) {
+        return 'Gran Final';
+      }
+      if (roundNumber === totalRounds - 1) {
+        return 'Semifinal Ganadores';
+      }
+      if (roundNumber === totalRounds - 2) {
+        return 'Cuartos Ganadores';
+      }
+      return `Ronda Ganadores ${roundNumber}`;
+    }
+
+    return `Ronda Perdedores ${roundNumber}`;
+  }
+
   getBracketBodyHeight(rounds: Array<{ roundNumber: number; matches: MatchResponse[] }>): number {
     const firstRoundMatchCount = rounds[0]?.matches.length ?? 1;
     return Math.max(360, (firstRoundMatchCount - 1) * this.slotPitch + this.matchHeight + 24);
@@ -633,7 +971,7 @@ export class BracketComponent {
     opponentInscriptionId: string | null | undefined
   ): string {
     if (this.isByeSlot(match, inscriptionId, opponentInscriptionId)) {
-      return 'Por determinar';
+      return 'Bye';
     }
 
     return this.getParticipantName(inscriptionId);
