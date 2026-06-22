@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:integrationtestdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+  mail:
+    host: localhost
+    port: 25
+
+application:
+  security:
+    jwt:
+      secret-key: test-secret-key-for-integration-tests-that-is-long-enough-for-hmac-sha
+  email:
+    confirmation:
+      required: false
+      enabled: false
