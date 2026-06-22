@@ -6,6 +6,7 @@ import com.tfm.tennis_platform.domain.models.calendar.TournamentCalendarItem;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.infrastructure.controller.dto.PlayerMatchCalendarResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentCalendarPageResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentCalendarResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -27,7 +28,7 @@ public class CalendarController {
     private final CalendarService calendarService;
 
     @GetMapping("/tournaments")
-    public ResponseEntity<List<TournamentCalendarResponse>> getPublishedTournaments(
+    public ResponseEntity<TournamentCalendarPageResponse> getPublishedTournaments(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Surface surface,
@@ -35,12 +36,22 @@ public class CalendarController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Boolean professionalTournament,
             @RequestParam(required = false) TournamentStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Principal principal
     ) {
         String requesterEmail = principal != null ? principal.getName() : null;
-        return ResponseEntity.ok(calendarService.findPublishedTournaments(from, to, surface, location, name, professionalTournament, status, requesterEmail).stream()
+        var result = calendarService.findPublishedTournamentsPaginated(from, to, surface, location, name, professionalTournament, status, requesterEmail, page, size);
+        List<TournamentCalendarResponse> content = result.content().stream()
                 .map(CalendarController::toTournamentResponse)
-                .toList());
+                .toList();
+        return ResponseEntity.ok(new TournamentCalendarPageResponse(
+                content,
+                page,
+                size,
+                result.totalElements(),
+                (int) Math.ceil((double) result.totalElements() / size)
+        ));
     }
 
     @GetMapping("/my-matches")

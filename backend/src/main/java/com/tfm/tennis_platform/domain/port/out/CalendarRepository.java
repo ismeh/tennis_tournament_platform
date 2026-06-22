@@ -10,6 +10,22 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface CalendarRepository {
+
+    record PageResult<T>(List<T> content, long totalElements) {}
+
+    PageResult<TournamentCalendarItem> findPublishedTournamentsPaginated(
+            LocalDate from,
+            LocalDate to,
+            List<TournamentStatus> statuses,
+            Surface surface,
+            String location,
+            String name,
+            Boolean professionalTournament,
+            String requesterEmail,
+            int page,
+            int size
+    );
+
     List<TournamentCalendarItem> findPublishedTournaments(
             LocalDate from,
             LocalDate to,

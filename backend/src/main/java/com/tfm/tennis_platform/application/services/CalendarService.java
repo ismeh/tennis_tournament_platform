@@ -30,6 +30,36 @@ public class CalendarService {
 
     private final CalendarRepository calendarRepository;
 
+    public CalendarRepository.PageResult<TournamentCalendarItem> findPublishedTournamentsPaginated(
+            LocalDate from,
+            LocalDate to,
+            Surface surface,
+            String location,
+            String name,
+            Boolean professionalTournament,
+            TournamentStatus status,
+            String requesterEmail,
+            int page,
+            int size
+    ) {
+        LocalDate startDate = resolveStartDate(from);
+        LocalDate endDate = resolveEndDate(startDate, to);
+        validateDateRange(startDate, endDate);
+
+        return calendarRepository.findPublishedTournamentsPaginated(
+                startDate,
+                endDate,
+                status != null ? List.of(status) : VISIBLE_CALENDAR_STATUSES,
+                surface,
+                normalizeFilter(location),
+                normalizeFilter(name),
+                professionalTournament,
+                normalizeFilter(requesterEmail),
+                page,
+                size
+        );
+    }
+
     public List<TournamentCalendarItem> findPublishedTournaments(
             LocalDate from,
             LocalDate to,

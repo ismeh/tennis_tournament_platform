@@ -39,6 +39,35 @@ public class CalendarRepositoryAdapter implements CalendarRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResult<TournamentCalendarItem> findPublishedTournamentsPaginated(
+            LocalDate from,
+            LocalDate to,
+            List<TournamentStatus> statuses,
+            Surface surface,
+            String location,
+            String name,
+            Boolean professionalTournament,
+            String requesterEmail,
+            int page,
+            int size
+    ) {
+        List<TournamentEntity> allEntities = findTournamentEntities(from, to, statuses, surface, location, name, requesterEmail);
+
+        List<TournamentCalendarItem> allItems = allEntities.stream()
+                .map(this::toTournamentCalendarItem)
+                .filter(item -> professionalTournament == null || professionalTournament == item.professionalTournament())
+                .toList();
+
+        long totalElements = allItems.size();
+        int fromIndex = Math.min(page * size, allItems.size());
+        int toIndex = Math.min(fromIndex + size, allItems.size());
+        List<TournamentCalendarItem> pageContent = allItems.subList(fromIndex, toIndex);
+
+        return new PageResult<>(pageContent, totalElements);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<TournamentCalendarItem> findPublishedTournaments(
             LocalDate from,
             LocalDate to,
