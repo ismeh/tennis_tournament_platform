@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring", uses = {MemberMapper.class, CategoryMapper.class})
+@Mapper(componentModel = "spring", uses = {MemberMapper.class})
 public interface TournamentEntityMapper {
     @Mapping(target = "name", source = "formalName")
     @Mapping(target = "playPeriod", expression = "java(toPeriod(entity.getPlayStartDate(), entity.getPlayEndDate()))")
@@ -167,6 +167,7 @@ public interface TournamentEntityMapper {
                 .drawType(entity.getDrawType() != null ? DrawType.valueOf(entity.getDrawType()) : null)
                 .drawName(entity.getLabel())
                 .label(entity.getLabel())
+                .groupIndex(entity.getGroupIndex())
                 .matches(toDomainMatches(entity.getMatches()))
                 .build();
     }
