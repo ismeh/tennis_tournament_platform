@@ -6,6 +6,7 @@ import com.tfm.tennis_platform.application.services.MatchService;
 import com.tfm.tennis_platform.application.services.InscriptionService;
 import com.tfm.tennis_platform.application.services.EventService;
 import com.tfm.tennis_platform.application.services.CourtService;
+import com.tfm.tennis_platform.application.services.ScheduleConfigService;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionCommand;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionResult;
 import com.tfm.tennis_platform.domain.models.inscription.ManualEventInscriptionCommand;
@@ -16,7 +17,10 @@ import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionPl
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionsView;
 import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Court;
+import com.tfm.tennis_platform.domain.models.ScheduleConfig;
+import com.tfm.tennis_platform.domain.models.TimeSlot;
 import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.TournamentSummary;
 import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.infrastructure.controller.dto.CourtRequest;
@@ -36,7 +40,12 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscripti
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionGenderCountResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionPlayerResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionsResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentGeneralInfoRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentStatusUpdateRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ParticipantPointsUpdateRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ScheduleConfigRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ScheduleConfigResponse;
+import com.tfm.tennis_platform.domain.models.inscription.ParticipantPointsUpdateCommand;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.TournamentWebMapper;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.MatchWebMapper;
 import com.tfm.tennis_platform.infrastructure.pdf.TournamentPdfExporter;
@@ -63,6 +72,7 @@ public class TournamentController {
     private final InscriptionService inscriptionService;
     private final CourtService courtService;
     private final TournamentPdfExporter tournamentPdfExporter;
+    private final ScheduleConfigService scheduleConfigService;
 
     @PostMapping
     public ResponseEntity<TournamentResponse> create(@RequestBody TournamentRequest request, Principal principal) {
@@ -118,6 +128,37 @@ public class TournamentController {
         return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
+    @PutMapping("/{id}/general-info")
+    public ResponseEntity<TournamentResponse> updateGeneralInfo(
+            @PathVariable UUID id,
+            @RequestBody TournamentGeneralInfoRequest request,
+            Principal principal
+    ) {
+        com.tfm.tennis_platform.domain.models.TournamentPeriod playPeriod =
+                new com.tfm.tennis_platform.domain.models.TournamentPeriod(
+                        request.playStartDate(), request.playEndDate());
+        com.tfm.tennis_platform.domain.models.TournamentPeriod inscriptionPeriod =
+                new com.tfm.tennis_platform.domain.models.TournamentPeriod(
+                        request.inscriptionStartDate(), request.inscriptionEndDate());
+
+        Tournament updatedTournament = tournamentService.updateGeneralInfo(
+                id,
+                request.formalName(),
+                playPeriod,
+                request.tournamentStartTime(),
+                inscriptionPeriod,
+                request.surfaceCategory(),
+                request.maxPlayers(),
+                request.location(),
+                request.locationLatitude(),
+                request.locationLongitude(),
+                request.locationPlaceId(),
+                request.locationFormattedAddress(),
+                principal.getName()
+        );
+        return ResponseEntity.ok(toTournamentResponse(updatedTournament));
+    }
+
     @GetMapping("/{tournamentId}/courts")
     public ResponseEntity<List<CourtResponse>> getCourts(@PathVariable UUID tournamentId) {
         return ResponseEntity.ok(courtService.findByTournamentId(tournamentId).stream()
@@ -154,6 +195,32 @@ public class TournamentController {
     ) {
         courtService.delete(tournamentId, courtId, principal.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{tournamentId}/schedule-config")
+    public ResponseEntity<ScheduleConfigResponse> getScheduleConfig(@PathVariable UUID tournamentId) {
+        ScheduleConfig config = scheduleConfigService.findByTournamentId(tournamentId);
+        if (config == null) {
+            return ResponseEntity.ok(new ScheduleConfigResponse(null, tournamentId, List.of(), 60));
+        }
+        return ResponseEntity.ok(toScheduleConfigResponse(config));
+    }
+
+    @PutMapping("/{tournamentId}/schedule-config")
+    public ResponseEntity<ScheduleConfigResponse> saveScheduleConfig(
+            @PathVariable UUID tournamentId,
+            @RequestBody ScheduleConfigRequest request,
+            Principal principal
+    ) {
+        List<TimeSlot> timeSlots = request.timeSlots() != null
+                ? request.timeSlots().stream()
+                    .map(ts -> new TimeSlot(ts.startTime(), ts.endTime()))
+                    .toList()
+                : List.of();
+
+        ScheduleConfig config = scheduleConfigService.save(
+                tournamentId, timeSlots, request.matchDurationMinutes(), principal.getName());
+        return ResponseEntity.ok(toScheduleConfigResponse(config));
     }
 
     @PostMapping("/{tournamentId}/events/{eventId}/inscriptions")
@@ -209,6 +276,20 @@ public class TournamentController {
     ) {
         TournamentInscriptionsView view = inscriptionService.findByTournament(tournamentId, eventId);
         return ResponseEntity.ok(toTournamentInscriptionsResponse(view));
+    }
+
+    @PatchMapping("/{tournamentId}/participants/points")
+    public ResponseEntity<Void> updateParticipantsPoints(
+            @PathVariable UUID tournamentId,
+            @RequestBody List<ParticipantPointsUpdateRequest> updates,
+            Principal principal
+    ) {
+        tournamentService.assertTournamentAdmin(tournamentId, principal.getName());
+        List<ParticipantPointsUpdateCommand> commands = updates.stream()
+                .map(u -> new ParticipantPointsUpdateCommand(u.participantId(), u.points(), u.seed()))
+                .toList();
+        inscriptionService.updateParticipantsPoints(tournamentId, commands, principal.getName());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{tournamentId}/events/{eventId}/generate-draws")
@@ -384,7 +465,23 @@ public class TournamentController {
                 player.tennisId(),
                 player.firstName(),
                 player.lastName(),
-                player.gender()
+                player.gender(),
+                player.points(),
+                player.seed()
+        );
+    }
+
+    private static ScheduleConfigResponse toScheduleConfigResponse(ScheduleConfig config) {
+        List<ScheduleConfigResponse.TimeSlotResponse> slots = config.getTimeSlots() != null
+                ? config.getTimeSlots().stream()
+                    .map(ts -> new ScheduleConfigResponse.TimeSlotResponse(ts.startTime(), ts.endTime()))
+                    .toList()
+                : List.of();
+        return new ScheduleConfigResponse(
+                config.getId(),
+                config.getTournamentId(),
+                slots,
+                config.getMatchDurationMinutes()
         );
     }
 }
