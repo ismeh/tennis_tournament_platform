@@ -140,6 +140,65 @@ cd frontend && npm run build
 cd frontend && npm run format
 ```
 
+### Testing
+
+The project includes multiple test types:
+
+#### Backend Tests
+
+**Unit Tests** (no external dependencies):
+- Service layer logic
+- Domain model validation
+- Utility functions
+
+**Integration Tests** (require H2 database, automatically configured):
+- Controller endpoints with MockMvc
+- Security configurations and JWT authentication
+- Database migrations with Flyway
+
+**API Contract Tests** (REST Docs):
+- Request/response documentation generation
+- API specification validation
+
+**Performance Tests** (Gatling):
+- Load testing scenarios for tournament operations
+- Concurrent user simulations
+
+Run all backend tests:
+```bash
+cd backend
+./mvnw test                    # All tests
+./mvnw test -Dtest="*IT"       # Integration tests only
+./mvnw gatling:test            # Performance tests (requires separate setup)
+```
+
+#### Frontend Tests
+
+**Unit Tests** (Jasmine/Karma):
+- Component logic and interactions
+- Service methods
+- Pipe transformations
+
+**Performance Tests** (Lighthouse):
+- Core Web Vitals measurement
+- Performance scoring and optimization
+- Accessibility auditing
+
+**E2E Tests** (planned):
+- User flow validation
+- Cross-component integration
+
+Run frontend tests:
+```bash
+cd frontend
+npm run test:ci                # Single run with coverage
+npm run test                   # Watch mode
+npm run build                  # Verify production build
+./run-lighthouse-tests.sh      # Performance testing
+```
+
+Current coverage: 69 tests (components, services, pipes, guards)
+
 ### Branch and PR Workflow
 
 1. Create a branch from `main`

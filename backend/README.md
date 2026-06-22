@@ -61,6 +61,100 @@ All active HTTP controllers should be namespaced under `/api`; see [`../docs/api
 ./mvnw spring-boot:run
 ```
 
+## Testing
+
+The backend includes comprehensive test coverage across multiple layers:
+
+### Test Types
+
+**Unit Tests** (`src/test/java/.../unit/`):
+- Pure Java tests with no external dependencies
+- Fast execution for domain logic, services, and utilities
+- Example: `TournamentServiceTest`, `DrawTest`, `SetScoreTest`
+
+**Integration Tests** (`src/test/java/.../integration/`):
+- Spring Boot tests with H2 in-memory database
+- MockMvc for HTTP endpoint testing
+- JWT security validation
+- Flyway migration verification
+
+**API Contract Tests** (`src/test/java/.../docs/`):
+- REST Docs documentation generation
+- Request/response schema validation
+- API specification maintenance
+
+**Performance Tests** (`src/gatling/java/`):
+- Gatling load testing simulations
+- Tournament workflow stress testing
+- Concurrent user scenario validation
+
+### Running Tests
+
+```bash
+# All tests (unit + integration + docs)
+./mvnw test
+
+# Specific test categories
+./mvnw test -Dtest="*Test"           # Unit tests only
+./mvnw test -Dtest="*IT"             # Integration tests only
+./mvnw test -Dtest="*DocumentationTest"  # API contract tests only
+
+# Single test class
+./mvnw test -Dtest="TournamentServiceTest"
+./mvnw test -Dtest="LoginControllerIT"
+
+# Single test method
+./mvnw test -Dtest="TournamentServiceTest#shouldCreateTournament"
+
+# With coverage
+./mvnw test jacoco:report
+```
+
+### Test Configuration
+
+**H2 Database** (`application-integration-test.yaml`):
+- In-memory database for fast test execution
+- Email confirmation disabled for easier testing
+- Pre-configured JWT secret for token generation
+
+**Test Data**:
+- Each test class uses unique identifiers (UUID-based emails)
+- Tests are isolated and don't depend on execution order
+- Shared Spring context across test classes for performance
+
+### Writing New Tests
+
+**For new controllers**:
+1. Extend `IntegrationTestBase.java`
+2. Use `@AutoConfigureMockMvc` for endpoint testing
+3. Generate unique test data with `UUID.randomUUID()`
+
+**For new services**:
+1. Create unit tests in `src/test/java/.../unit/`
+2. Mock dependencies with Mockito
+3. Focus on business logic validation
+
+**For API changes**:
+1. Update `ApiContractDocumentationTest.java`
+2. Add field descriptions for new response properties
+3. Run `./mvnw test -Dtest="*DocumentationTest"` to verify
+
+### Test Metrics
+
+Current coverage (116 total tests):
+- **79 Unit Tests**: Domain, services, utilities
+- **29 Integration Tests**: Controllers, security, migrations
+- **4 API Contract Tests**: REST documentation
+- **4 Performance Tests**: Gatling simulations (not counted in Maven)
+
+### Troubleshooting Tests
+
+**Common issues**:
+- **Port conflicts**: Integration tests use MockMvc (no actual HTTP server)
+- **Database state**: Tests use H2 in-memory; no cleanup needed
+- **JWT tokens**: Use test secret from `application-integration-test.yaml`
+- **Flyway migrations**: Run automatically before integration tests
+
 ## Observability
 
 The backend includes Actuator and Micrometer metrics for service execution monitoring.
