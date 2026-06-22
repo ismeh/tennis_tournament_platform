@@ -12,12 +12,17 @@ import {
   ManualEventInscriptionRequest,
   MatchScheduleRequest,
   MatchResponse,
+  ParticipantPointsUpdateRequest,
   PlayerMatchCalendarResponse,
+  ScheduleConfigRequest,
+  ScheduleConfigResponse,
   TournamentCalendarFilters,
+  TournamentCalendarPageResponse,
   TournamentCalendarResponse,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
   TournamentEventsConfigRequest,
+  TournamentGeneralInfoUpdateRequest,
   TournamentInscriptionsResponse,
   TournamentStatusUpdateRequest,
   TournamentResponse
@@ -33,8 +38,8 @@ export class TournamentService {
     return this.http.get<TournamentResponse[]>(this.apiUrl);
   }
 
-  getPublishedTournamentCalendar(filters: TournamentCalendarFilters = {}): Observable<TournamentCalendarResponse[]> {
-    return this.http.get<TournamentCalendarResponse[]>(this.calendarTournamentsUrl, {
+  getPublishedTournamentCalendar(filters: TournamentCalendarFilters = {}): Observable<TournamentCalendarPageResponse> {
+    return this.http.get<TournamentCalendarPageResponse>(this.calendarTournamentsUrl, {
       params: this.toCalendarParams(filters)
     });
   }
@@ -97,6 +102,10 @@ export class TournamentService {
     return this.http.patch<TournamentResponse>(`${this.apiUrl}/${tournamentId}/status`, payload);
   }
 
+  updateTournamentGeneralInfo(tournamentId: string, payload: TournamentGeneralInfoUpdateRequest): Observable<TournamentResponse> {
+    return this.http.put<TournamentResponse>(`${this.apiUrl}/${tournamentId}/general-info`, payload);
+  }
+
   requestInscription(tournamentId: string, eventId: string, payload: EventInscriptionRequest): Observable<EventInscriptionResponse> {
     return this.http.post<EventInscriptionResponse>(`${this.apiUrl}/${tournamentId}/events/${eventId}/inscriptions`, payload);
   }
@@ -140,6 +149,18 @@ export class TournamentService {
     }).pipe(
       map((response: HttpResponse<Blob>) => response.body as Blob)
     );
+  }
+
+  updateParticipantsPoints(tournamentId: string, updates: ParticipantPointsUpdateRequest[]): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${tournamentId}/participants/points`, updates);
+  }
+
+  getScheduleConfig(tournamentId: string): Observable<ScheduleConfigResponse> {
+    return this.http.get<ScheduleConfigResponse>(`${this.apiUrl}/${tournamentId}/schedule-config`);
+  }
+
+  saveScheduleConfig(tournamentId: string, payload: ScheduleConfigRequest): Observable<ScheduleConfigResponse> {
+    return this.http.put<ScheduleConfigResponse>(`${this.apiUrl}/${tournamentId}/schedule-config`, payload);
   }
 
   private get apiUrl(): string {
@@ -189,6 +210,12 @@ export class TournamentService {
     }
     if (filters.status) {
       params = params.set('status', filters.status);
+    }
+    if (filters.page !== undefined && filters.page !== null) {
+      params = params.set('page', String(filters.page));
+    }
+    if (filters.size !== undefined && filters.size !== null) {
+      params = params.set('size', String(filters.size));
     }
 
     return params;

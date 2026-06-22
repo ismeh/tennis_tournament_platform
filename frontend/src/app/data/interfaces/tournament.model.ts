@@ -11,6 +11,17 @@ export function getTournamentSurfaceCategoryLabel(surface: TournamentSurfaceCate
   return TOURNAMENT_SURFACE_CATEGORY_LABELS[surface] ?? surface;
 }
 
+export const SURFACE_BACKGROUND_IMAGES: Record<TournamentSurfaceCategory, string> = {
+  CLAY: 'surfaces/clay.jpg',
+  HARD: 'surfaces/hard.jpg',
+  GRASS: 'surfaces/grass.jpg',
+  CARPET: 'surfaces/carpet.jpg'
+};
+
+export function getSurfaceBackgroundImage(surface: TournamentSurfaceCategory): string {
+  return SURFACE_BACKGROUND_IMAGES[surface] ?? '';
+}
+
 export type TournamentStatus = 'DRAFT' | 'OPEN' | 'ACTIVE' | 'CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export interface TournamentCreateRequest {
@@ -28,6 +39,22 @@ export interface TournamentCreateRequest {
   locationPlaceId?: string | null;
   locationFormattedAddress?: string | null;
   courtCount: number;
+}
+
+export interface TournamentGeneralInfoUpdateRequest {
+  formalName: string;
+  playStartDate: string;
+  playEndDate: string;
+  tournamentStartTime: string;
+  inscriptionStartDate: string;
+  inscriptionEndDate: string;
+  surfaceCategory: TournamentSurfaceCategory;
+  maxPlayers: number;
+  location: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationPlaceId?: string | null;
+  locationFormattedAddress?: string | null;
 }
 
 export interface TournamentProviderSummary {
@@ -63,6 +90,16 @@ export interface TournamentCalendarFilters {
   name?: string | null;
   professionalTournament?: boolean | null;
   status?: TournamentStatus | null;
+  page?: number;
+  size?: number;
+}
+
+export interface TournamentCalendarPageResponse {
+  content: TournamentCalendarResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 export interface TournamentCalendarResponse {
@@ -133,6 +170,7 @@ export interface DrawResponse {
   stageId: string;
   drawType: string;
   label: string;
+  groupIndex?: number | null;
   matches?: MatchResponse[];
 }
 
@@ -268,23 +306,16 @@ export function isConsolationDisabled(stages: TournamentStageType[]): boolean {
     return true;
   }
   const lastStage = stages[stages.length - 1];
-  return lastStage === 'DOUBLE_ELIMINATION' || lastStage === 'ROUND_ROBIN';
+  return lastStage !== 'SINGLE_ELIMINATION';
 }
 
 export function getAvailableStageOptions(stages: TournamentStageType[], currentIndex?: number): TournamentStageType[] {
-  if (currentIndex === undefined) {
-    return VALID_STAGE_TYPES;
-  }
-
-  if (currentIndex === 0) {
+  if (currentIndex === undefined || currentIndex === 0) {
     return VALID_STAGE_TYPES.filter(t => t !== 'CONSOLATION');
   }
 
   const previous = stages[currentIndex - 1];
-  if (previous === 'SINGLE_ELIMINATION') {
-    return VALID_STAGE_TYPES;
-  }
-  return VALID_STAGE_TYPES.filter(t => t !== 'CONSOLATION');
+  return TRANSITION_MATRIX[previous] ?? [];
 }
 
 export interface TournamentEventCatalogItem {
@@ -393,8 +424,33 @@ export interface TournamentInscriptionPlayer {
   firstName: string;
   lastName: string;
   gender: string;
+  points?: number | null;
+  seed?: number | null;
 }
 
 export interface TournamentStatusUpdateRequest {
   status: TournamentStatus;
+}
+
+export interface ParticipantPointsUpdateRequest {
+  participantId: string;
+  points: number | null;
+  seed: number | null;
+}
+
+export interface ScheduleTimeSlot {
+  startTime: string;
+  endTime: string;
+}
+
+export interface ScheduleConfigResponse {
+  id: string | null;
+  tournamentId: string;
+  timeSlots: ScheduleTimeSlot[];
+  matchDurationMinutes: number;
+}
+
+export interface ScheduleConfigRequest {
+  timeSlots: ScheduleTimeSlot[];
+  matchDurationMinutes: number;
 }
