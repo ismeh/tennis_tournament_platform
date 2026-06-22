@@ -25,9 +25,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -288,6 +291,11 @@ public class EventService {
             return;
         }
 
+        linkMainStageLoserDestinations(event, matchesByDraw);
+        linkDoubleEliminationLoserDestinations(event, matchesByDraw);
+    }
+
+    private void linkMainStageLoserDestinations(Event event, Map<UUID, List<Match>> matchesByDraw) {
         List<Draw> mainDraws = event.getStages().stream()
                 .filter(stage -> StageType.MAIN.equals(stage.getStageType()))
                 .flatMap(stage -> stage.getDraws().stream())
@@ -327,6 +335,173 @@ public class EventService {
             }
 
             matchesByDraw.put(mainDraw.getId(), linkedSourceMatches);
+        }
+    }
+
+    private void linkDoubleEliminationLoserDestinations(Event event, Map<UUID, List<Match>> matchesByDraw) {
+        List<Draw> eliminationDraws = event.getStages().stream()
+                .filter(stage -> StageType.DOUBLE_ELIMINATION.equals(stage.getStageType()))
+                .flatMap(stage -> stage.getDraws().stream())
+                .filter(draw -> DrawType.ELIMINATION.equals(draw.getDrawType()))
+                .toList();
+
+        List<Draw> losersDraws = event.getStages().stream()
+                .filter(stage -> StageType.DOUBLE_ELIMINATION.equals(stage.getStageType()))
+                .flatMap(stage -> stage.getDraws().stream())
+                .filter(draw -> DrawType.DOUBLE_ELIMINATION.equals(draw.getDrawType()))
+                .toList();
+
+        for (Draw eliminationDraw : eliminationDraws) {
+            List<Match> winnersMatches = matchesByDraw.get(eliminationDraw.getId());
+            if (winnersMatches == null || winnersMatches.isEmpty()) {
+                continue;
+            }
+
+            Draw losersDraw = losersDraws.stream()
+                    .findFirst()
+                    .orElse(null);
+            if (losersDraw == null) {
+                continue;
+            }
+
+            List<Match> losersMatches = matchesByDraw.get(losersDraw.getId());
+            if (losersMatches == null || losersMatches.isEmpty()) {
+                continue;
+            }
+
+            linkWinnersLosersByRound(winnersMatches, losersMatches);
+
+            Match grandFinal = createGrandFinal(eliminationDraw, winnersMatches, losersMatches);
+            if (grandFinal != null) {
+                linkWinnersFinalToGrandFinal(winnersMatches, grandFinal);
+                linkLosersFinalToGrandFinal(losersMatches, grandFinal);
+                winnersMatches.add(grandFinal);
+            }
+        }
+    }
+
+    private Match createGrandFinal(Draw eliminationDraw, List<Match> winnersMatches, List<Match> losersMatches) {
+        int maxWinnersRound = winnersMatches.stream()
+                .filter(m -> m.getRoundNumber() != null)
+                .mapToInt(Match::getRoundNumber)
+                .max()
+                .orElse(0);
+
+        int maxLosersRound = losersMatches.stream()
+                .filter(m -> m.getRoundNumber() != null)
+                .mapToInt(Match::getRoundNumber)
+                .max()
+                .orElse(0);
+
+        if (maxWinnersRound == 0 || maxLosersRound == 0) {
+            return null;
+        }
+
+        return Match.builder()
+                .id(java.util.UUID.randomUUID())
+                .drawId(eliminationDraw.getId())
+                .roundNumber(maxWinnersRound + 1)
+                .bracketPosition(0)
+                .build();
+    }
+
+    private void linkWinnersFinalToGrandFinal(List<Match> winnersMatches, Match grandFinal) {
+        int maxRound = winnersMatches.stream()
+                .filter(m -> m.getRoundNumber() != null)
+                .mapToInt(Match::getRoundNumber)
+                .max()
+                .orElse(0);
+
+        List<Match> finalRoundMatches = winnersMatches.stream()
+                .filter(m -> m.getRoundNumber() != null && m.getRoundNumber() == maxRound
+                        && m.getBracketPosition() != null && m.getBracketPosition() == 0)
+                .toList();
+
+        List<Match> updated = new java.util.ArrayList<>(winnersMatches);
+        for (Match m : finalRoundMatches) {
+            int idx = updated.indexOf(m);
+            if (idx >= 0) {
+                updated.set(idx, m.toBuilder().nextMatch(grandFinal).build());
+            }
+        }
+        winnersMatches.clear();
+        winnersMatches.addAll(updated);
+    }
+
+    private void linkLosersFinalToGrandFinal(List<Match> losersMatches, Match grandFinal) {
+        int maxRound = losersMatches.stream()
+                .filter(m -> m.getRoundNumber() != null)
+                .mapToInt(Match::getRoundNumber)
+                .max()
+                .orElse(0);
+
+        List<Match> finalRoundMatches = losersMatches.stream()
+                .filter(m -> m.getRoundNumber() != null && m.getRoundNumber() == maxRound
+                        && m.getBracketPosition() != null && m.getBracketPosition() == 0)
+                .toList();
+
+        List<Match> updated = new java.util.ArrayList<>(losersMatches);
+        for (Match m : finalRoundMatches) {
+            int idx = updated.indexOf(m);
+            if (idx >= 0) {
+                updated.set(idx, m.toBuilder().nextMatch(grandFinal).build());
+            }
+        }
+        losersMatches.clear();
+        losersMatches.addAll(updated);
+    }
+
+    private void linkWinnersLosersByRound(List<Match> winnersMatches, List<Match> losersMatches) {
+        List<Match> sortedWinners = winnersMatches.stream()
+                .filter(m -> m.getRoundNumber() != null)
+                .sorted(java.util.Comparator.comparing(Match::getRoundNumber))
+                .toList();
+
+        int maxWinnersRound = sortedWinners.stream()
+                .mapToInt(m -> m.getRoundNumber())
+                .max()
+                .orElse(0);
+
+        for (int wr = 1; wr < maxWinnersRound; wr++) {
+            int finalWr = wr;
+            List<Match> roundLosers = sortedWinners.stream()
+                    .filter(m -> m.getRoundNumber() == finalWr
+                            && m.getFirstInscriptionId() != null
+                            && m.getSecondInscriptionId() != null)
+                    .toList();
+
+            if (roundLosers.isEmpty()) {
+                continue;
+            }
+
+            int losersBracketRound = 2 * wr - 1;
+            int finalLosersBracketRound = losersBracketRound;
+            List<Match> targetRoundMatches = losersMatches.stream()
+                    .filter(m -> m.getRoundNumber() != null && m.getRoundNumber() == finalLosersBracketRound)
+                    .sorted(java.util.Comparator.comparing(Match::getBracketPosition))
+                    .toList();
+
+            if (targetRoundMatches.isEmpty()) {
+                continue;
+            }
+
+            List<Match> updatedWinners = new java.util.ArrayList<>(winnersMatches);
+            int limit = Math.min(roundLosers.size(), targetRoundMatches.size() * 2);
+
+            for (int i = 0; i < limit; i++) {
+                Match sourceMatch = roundLosers.get(i);
+                Match targetMatch = targetRoundMatches.get(i / 2);
+                int originalIndex = updatedWinners.indexOf(sourceMatch);
+
+                if (originalIndex >= 0) {
+                    updatedWinners.set(originalIndex, sourceMatch.toBuilder()
+                            .loserNextMatch(targetMatch)
+                            .build());
+                }
+            }
+
+            winnersMatches.clear();
+            winnersMatches.addAll(updatedWinners);
         }
     }
 
@@ -401,19 +576,43 @@ public class EventService {
             return matches;
         }
 
+        int timeSlot = 0;
         List<Match> result = new ArrayList<>();
         for (List<Match> roundMatches : matchesByRound.values()) {
-            for (Match match : roundMatches) {
-                int index = scheduleIndex.getAndIncrement();
-                int courtIndex = index % courts.size();
-                int courtSlot = index / courts.size();
-                Court court = courts.get(courtIndex);
-                result.add(match.toBuilder()
-                        .scheduledAt(firstMatchStart.plusHours(courtSlot))
-                        .scheduleTimeType(courtSlot == 0 ? ScheduleTimeType.EXACT : ScheduleTimeType.NOT_BEFORE)
-                        .courtId(court.getId())
-                        .court(court.getName())
-                        .build());
+            List<Match> remaining = new ArrayList<>(roundMatches);
+            while (!remaining.isEmpty()) {
+                Set<UUID> scheduledPlayers = new HashSet<>();
+                List<Match> currentSlot = new ArrayList<>();
+                List<Match> nextRemaining = new ArrayList<>();
+                for (Match match : remaining) {
+                    UUID first = match.getFirstInscriptionId();
+                    UUID second = match.getSecondInscriptionId();
+                    boolean firstBusy = first != null && scheduledPlayers.contains(first);
+                    boolean secondBusy = second != null && scheduledPlayers.contains(second);
+                    if (!firstBusy && !secondBusy) {
+                        currentSlot.add(match);
+                        if (first != null) scheduledPlayers.add(first);
+                        if (second != null) scheduledPlayers.add(second);
+                    } else {
+                        nextRemaining.add(match);
+                    }
+                }
+                if (currentSlot.isEmpty()) {
+                    break;
+                }
+                int courtSlot = timeSlot;
+                for (int i = 0; i < currentSlot.size(); i++) {
+                    Match match = currentSlot.get(i);
+                    Court court = courts.get(i % courts.size());
+                    result.add(match.toBuilder()
+                            .scheduledAt(firstMatchStart.plusHours(courtSlot))
+                            .scheduleTimeType(courtSlot == 0 ? ScheduleTimeType.EXACT : ScheduleTimeType.NOT_BEFORE)
+                            .courtId(court.getId())
+                            .court(court.getName())
+                            .build());
+                }
+                timeSlot++;
+                remaining = nextRemaining;
             }
         }
 

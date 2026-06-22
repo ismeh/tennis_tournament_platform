@@ -11,7 +11,6 @@ import java.util.UUID;
 public class Match {
     private final UUID id;
     private final Tournament tournament;
-    private final Category category;
     private final UUID drawId;
     private final Inscription firstInscription;
     private final Inscription secondInscription;
@@ -28,10 +27,6 @@ public class Match {
 
     public UUID getTournamentId() {
         return tournament != null ? tournament.getId() : null;
-    }
-
-    public UUID getCategoryId() {
-        return category != null ? category.getId() : null;
     }
 
     public UUID getFirstInscriptionId() {

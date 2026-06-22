@@ -7,6 +7,13 @@ import { MatchDetailModalComponent } from './match-detail-modal.component';
 
 type DrawViewMode = 'tree' | 'list';
 
+interface DrawDisplayItem {
+  key: string;
+  label: string;
+  isDoubleElimination: boolean;
+  draws: DrawResponse[];
+}
+
 @Component({
   selector: 'app-draws',
   standalone: true,
@@ -14,34 +21,43 @@ type DrawViewMode = 'tree' | 'list';
   template: `
     <div class="space-y-4">
       <h4 class="font-semibold text-neutral-900">Cuadros</h4>
-      
+
       @if (draws().length === 0) {
         <p class="text-sm text-neutral-600">Sin cuadros</p>
       } @else {
         <div class="space-y-3">
-          @for (draw of draws(); track draw.id) {
+          @for (item of displayItems(); track item.key) {
             <div class="rounded-md border border-neutral-200 bg-white p-4">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p class="font-medium text-neutral-900">{{ draw.label }}</p>
-                  <p class="text-xs text-neutral-500">Formato: {{ getDrawTypeLabel(draw.drawType) }}</p>
-                  <p class="text-xs text-neutral-500">{{ (draw.matches || []).length }} partidos</p>
+                  <p class="font-medium text-neutral-900">{{ item.label }}</p>
+                  @if (item.isDoubleElimination) {
+                    <p class="text-xs text-neutral-500">Formato: Doble eliminacion</p>
+                    <p class="text-xs text-neutral-500">{{ getTotalMatchCount(item.draws) }} partidos</p>
+                  } @else {
+                    @let draw = item.draws[0];
+                    <p class="text-xs text-neutral-500">Formato: {{ getDrawTypeLabel(draw.drawType) }}</p>
+                    @if (draw.groupIndex != null) {
+                      <p class="text-xs text-neutral-500">Grupo {{ getGroupName(draw.groupIndex) }}</p>
+                    }
+                    <p class="text-xs text-neutral-500">{{ (draw.matches || []).length }} partidos</p>
+                  }
                 </div>
                 <button
                   type="button"
-                  (click)="toggleDrawView(draw.id)"
+                  (click)="toggleDrawView(item.key)"
                   class="inline-flex items-center justify-center rounded-lg border border-primary-200 px-3 py-2 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
-                  [attr.aria-label]="getDrawViewToggleLabel(draw.id)"
+                  [attr.aria-label]="getDrawViewToggleLabel(item.key)"
                 >
-                  {{ getDrawViewToggleLabel(draw.id) }}
+                  {{ getDrawViewToggleLabel(item.key) }}
                 </button>
               </div>
 
-              @if ((draw.matches || []).length > 0) {
+              @if (getTotalMatchCount(item.draws) > 0) {
                 <div class="mt-3 border-t border-neutral-200 pt-3">
-                  @if (getDrawViewMode(draw.id) === 'tree') {
+                  @if (getDrawViewMode(item.key) === 'tree') {
                     <app-bracket
-                      [drawsInput]="[draw]"
+                      [drawsInput]="item.draws"
                       [participantNamesInput]="participantNamesInput"
                       [participantOrderInput]="participantOrderInput"
                       [courtsInput]="courtsInput"
@@ -56,7 +72,7 @@ type DrawViewMode = 'tree' | 'list';
                     ></app-bracket>
                   } @else {
                     <app-matches
-                      [matchesInput]="draw.matches || []"
+                      [matchesInput]="getAllMatches(item.draws)"
                       [participantNamesInput]="participantNamesInput"
                       [participantOrderInput]="participantOrderInput"
                       (matchSelected)="onMatchSelected($event)"
@@ -65,7 +81,7 @@ type DrawViewMode = 'tree' | 'list';
                 </div>
               }
 
-              @if ((draw.matches || []).length === 0) {
+              @if (getTotalMatchCount(item.draws) === 0) {
                 <div class="mt-3 border-t border-neutral-200 pt-3 text-sm text-neutral-600">
                   Sin partidos
                 </div>
@@ -76,9 +92,8 @@ type DrawViewMode = 'tree' | 'list';
       }
     </div>
 
-    <!-- Match Detail Modal -->
-    <app-match-detail-modal 
-      #matchModal 
+    <app-match-detail-modal
+      #matchModal
       [matchInput]="selectedMatch()"
       [participantNamesInput]="participantNamesInput"
       [courtsInput]="courtsInput"
@@ -103,6 +118,8 @@ export class DrawsComponent {
   private _draws = signal<DrawResponse[]>([]);
   draws = computed(() => this._draws());
 
+  displayItems = computed(() => this.buildDisplayItems(this._draws()));
+
   @ViewChild('matchModal') matchModal!: MatchDetailModalComponent;
 
   @Output() matchSelected = new EventEmitter<string>();
@@ -117,6 +134,27 @@ export class DrawsComponent {
   drawViewModes = signal<Record<string, DrawViewMode>>({});
   selectedMatch = signal<MatchResponse | null>(null);
 
+  private buildDisplayItems(draws: DrawResponse[]): DrawDisplayItem[] {
+    const eliminationDraw = draws.find(d => d.drawType === 'ELIMINATION');
+    const losersDraw = draws.find(d => d.drawType === 'DOUBLE_ELIMINATION');
+
+    if (eliminationDraw && losersDraw) {
+      return [{
+        key: `de-${eliminationDraw.id}`,
+        label: 'Doble Eliminacion',
+        isDoubleElimination: true,
+        draws: [eliminationDraw, losersDraw]
+      }];
+    }
+
+    return draws.map(draw => ({
+      key: draw.id,
+      label: draw.label,
+      isDoubleElimination: false,
+      draws: [draw]
+    }));
+  }
+
   toggleDrawView(drawId: string) {
     this.drawViewModes.update(viewModes => ({
       ...viewModes,
@@ -125,21 +163,50 @@ export class DrawsComponent {
   }
 
   getDrawViewMode(drawId: string): DrawViewMode {
-    return this.drawViewModes()[drawId] ?? 'tree';
+    const stored = this.drawViewModes()[drawId];
+    if (stored) {
+      return stored;
+    }
+    const item = this.displayItems().find(i => i.key === drawId);
+    if (item && item.isDoubleElimination) {
+      return 'tree';
+    }
+    const draw = this._draws().find(d => d.id === drawId);
+    if (draw && this.isRoundRobinDraw(draw)) {
+      return 'list';
+    }
+    return 'tree';
+  }
+
+  isRoundRobinDraw(draw: DrawResponse): boolean {
+    return draw.drawType === 'ROUND_ROBIN';
   }
 
   getDrawViewToggleLabel(drawId: string): string {
-    return this.getDrawViewMode(drawId) === 'tree' ? 'Ver listado' : 'Ver árbol';
+    return this.getDrawViewMode(drawId) === 'tree' ? 'Ver listado' : 'Ver arbol';
   }
 
   getDrawTypeLabel(drawType: string): string {
     const labels: Record<string, string> = {
       ELIMINATION: 'Eliminatoria',
+      CONSOLATION: 'Consolacion',
       ROUND_ROBIN: 'Liga',
-      DOUBLE_ELIMINATION: 'Doble eliminación'
+      DOUBLE_ELIMINATION: 'Doble eliminacion'
     };
 
     return labels[drawType] ?? drawType;
+  }
+
+  getGroupName(groupIndex: number): string {
+    return String.fromCharCode(65 + groupIndex);
+  }
+
+  getTotalMatchCount(draws: DrawResponse[]): number {
+    return draws.reduce((sum, d) => sum + (d.matches?.length ?? 0), 0);
+  }
+
+  getAllMatches(draws: DrawResponse[]): MatchResponse[] {
+    return draws.flatMap(d => d.matches ?? []);
   }
 
   onMatchSelected(match: MatchResponse) {

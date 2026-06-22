@@ -96,8 +96,10 @@ describe('TournamentService', () => {
       surface: 'CLAY',
       location: 'Central'
     }).subscribe(response => {
-      expect(response.length).toBe(1);
-      expect(response[0].formalName).toBe('Open de Verano');
+      expect(response.content.length).toBe(1);
+      expect(response.content[0].formalName).toBe('Open de Verano');
+      expect(response.totalElements).toBe(1);
+      expect(response.totalPages).toBe(1);
     });
 
     const request = httpMock.expectOne(
@@ -105,19 +107,25 @@ describe('TournamentService', () => {
     );
     expect(request.request.method).toBe('GET');
 
-    request.flush([
-      {
-        id: 'tournament-id',
-        formalName: 'Open de Verano',
-        playStartDate: '2026-06-10',
-        playEndDate: '2026-06-15',
-        tournamentStartTime: '09:00',
-        location: 'Club Central',
-        surfaceCategory: 'CLAY',
-        maxPlayers: 32,
-        status: 'OPEN'
-      }
-    ]);
+    request.flush({
+      content: [
+        {
+          id: 'tournament-id',
+          formalName: 'Open de Verano',
+          playStartDate: '2026-06-10',
+          playEndDate: '2026-06-15',
+          tournamentStartTime: '09:00',
+          location: 'Club Central',
+          surfaceCategory: 'CLAY',
+          maxPlayers: 32,
+          status: 'OPEN'
+        }
+      ],
+      page: 0,
+      size: 10,
+      totalElements: 1,
+      totalPages: 1
+    });
   });
 
   it('should get authenticated player match calendar using date filters only', () => {

@@ -29,7 +29,7 @@ public interface JpaMatchRepository extends JpaRepository<MatchEntity, UUID> {
             left join fetch winner.participant winnerParticipant
             left join fetch m.courtResource court
             where t.id = :tournamentId
-            order by s.order asc, d.id asc, m.roundNumber asc, m.bracketPosition asc, m.id asc
+            order by m.scheduledAt asc nulls last, s.order asc, d.id asc, m.roundNumber asc, m.bracketPosition asc, m.id asc
             """)
     List<MatchEntity> findByTournamentId(UUID tournamentId);
 

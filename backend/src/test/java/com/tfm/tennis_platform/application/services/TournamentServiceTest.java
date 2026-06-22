@@ -10,6 +10,7 @@ import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
+import com.tfm.tennis_platform.domain.port.out.ScheduleConfigRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,9 @@ class TournamentServiceTest {
 
     @Mock
     private CourtRepository courtRepository;
+
+    @Mock
+    private ScheduleConfigRepository scheduleConfigRepository;
 
     @InjectMocks
     private TournamentService tournamentService;

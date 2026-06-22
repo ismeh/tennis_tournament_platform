@@ -13,5 +13,6 @@ public interface JpaParticipantRepository extends JpaRepository<ParticipantEntit
     List<ParticipantEntity> findByTournamentId(UUID tournamentId);
     
     Optional<ParticipantEntity> findByTournamentIdAndIndividualPersonId(UUID tournamentId, UUID personId);
-    
+
+    List<ParticipantEntity> findByTournamentIdAndIdIn(UUID tournamentId, List<UUID> ids);
 }

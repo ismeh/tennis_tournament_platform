@@ -137,6 +137,7 @@ public interface TournamentWebMapper {
                     draw.getStageId(),
                     draw.getDrawType(),
                     draw.getLabel(),
+                    draw.getGroupIndex(),
                     toMatchResponses(draw.getMatches())
                 ))
                 .toList();

@@ -115,9 +115,174 @@ npm run test
 # CI-style tests
 npm run test:ci
 
+# Performance testing
+npm run lighthouse              # Run all Lighthouse tests
+npm run lighthouse:collect     # Collect Lighthouse data
+npm run lighthouse:assert      # Assert performance thresholds
+./run-lighthouse-tests.sh      # Full performance test suite
+
 # Formatting
 npm run format
 ```
+
+## Testing
+
+The frontend uses Jasmine and Karma for unit testing, with Angular's testing utilities for component and service validation.
+
+### Test Types
+
+**Unit Tests** (`*.spec.ts` files):
+- Component logic and event handling
+- Service method behavior
+- Pipe transformations
+- Route guard logic
+
+**Component Tests**:
+- Template binding validation
+- Input/output property testing
+- Lifecycle hook behavior
+- Dependency injection verification
+
+**Performance Tests** (Lighthouse):
+- Core Web Vitals (FCP, LCP, CLS, TBT)
+- Performance scoring
+- Accessibility auditing
+- SEO optimization checks
+
+### Running Tests
+
+```bash
+# Single run with coverage (CI mode)
+npm run test:ci
+
+# Watch mode for development
+npm run test
+
+# Run specific test file
+ng test --include='**/header.component.spec.ts'
+
+# Run with code coverage
+ng test --code-coverage
+
+# Headless browser (CI environments)
+CHROME_BIN=$(which chromium-browser) npm run test:ci
+```
+
+### Performance Testing with Lighthouse
+
+Lighthouse audits measure performance, accessibility, best practices, and SEO metrics.
+
+```bash
+# Build frontend and run Lighthouse
+./run-lighthouse-tests.sh
+
+# Or run manually:
+npm run build
+npm run serve:ssr:tfm_front &
+# Wait for server to start
+npx lhci autorun
+```
+
+**Lighthouse Metrics Tracked**:
+- Performance score (target: >70)
+- First Contentful Paint (FCP): <3s
+- Largest Contentful Paint (LCP): <4s
+- Total Blocking Time (TBT): <500ms
+- Cumulative Layout Shift (CLS): <0.1
+- Accessibility score (target: >80)
+- Best Practices score (target: >80)
+- SEO score (target: >80)
+
+**Configuration**: See `lighthouserc.json` for test URLs and thresholds.
+
+**Reports**: Generated in `lighthouse-reports/` directory.
+
+### Writing New Tests
+
+**For components**:
+```typescript
+describe('ComponentNameComponent', () => {
+  let component: ComponentNameComponent;
+  let fixture: ComponentFixture<ComponentNameComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ComponentNameComponent],
+      // Add providers, mock services
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ComponentNameComponent);
+    component = fixture.componentInstance;
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should handle input change', () => {
+    component.inputProperty = 'test';
+    fixture.detectChanges();
+    expect(component.output).toEqual('expected');
+  });
+});
+```
+
+**For services**:
+```typescript
+describe('ServiceNameService', () => {
+  let service: ServiceNameService;
+  let httpClient: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [ServiceNameService],
+      imports: [HttpClientTestingModule]
+    });
+
+    service = TestBed.inject(ServiceNameService);
+    httpClient = TestBed.inject(HttpTestingController);
+  });
+
+  it('should make HTTP call', () => {
+    service.getData().subscribe(data => {
+      expect(data).toEqual(expectedData);
+    });
+
+    const req = httpClient.expectOne('/api/data');
+    req.flush(expectedData);
+  });
+});
+```
+
+### Test Configuration
+
+**Karma Config** (`karma.conf.js`):
+- Chrome/Chromium browser launcher
+- Jasmine framework
+- Angular CLI builder
+- Coverage reporters (lcov, text)
+
+**Angular Test Config** (`angular.json`):
+- Test builder: `@angular-devkit/build-angular:karma`
+- TypeScript compilation for tests
+- Source maps for debugging
+
+### Current Coverage
+
+The frontend includes 69 tests covering:
+- Core authentication flows
+- Shared components (header, footer)
+- Data services
+- Route guards
+- Utility functions and pipes
+
+### Troubleshooting Tests
+
+**Common issues**:
+- **Browser not found**: Set `CHROME_BIN` environment variable
+- **Memory issues**: Use `--no-watch` flag or increase Node memory
+- **Flaky tests**: Ensure proper async handling with `async/await`
+- **Import errors**: Verify all dependencies are installed with `npm ci`
 
 ## Main Structure
 

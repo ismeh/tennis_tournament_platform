@@ -17,14 +17,16 @@ public class DoubleEliminationDrawGenerator implements DrawGenerationStrategy {
             .stageId(stage.getId())
             .drawType(DrawType.ELIMINATION)
             .drawName("Winners Bracket - " + inscriptions.size() + " Players")
+            .label("Ganadores")
             .build();
 
-        Draw consolationDraw = Draw.builder()
+        Draw losersDraw = Draw.builder()
             .stageId(stage.getId())
-            .drawType(DrawType.CONSOLATION)
+            .drawType(DrawType.DOUBLE_ELIMINATION)
             .drawName("Losers Bracket")
+            .label("Perdedores")
             .build();
 
-        return List.of(mainDraw, consolationDraw);
+        return List.of(mainDraw, losersDraw);
     }
 }

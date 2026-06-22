@@ -4,6 +4,8 @@ import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.Court;
+import com.tfm.tennis_platform.domain.models.ScheduleConfig;
+import com.tfm.tennis_platform.domain.models.TimeSlot;
 import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.TournamentSummary;
@@ -11,12 +13,14 @@ import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
+import com.tfm.tennis_platform.domain.port.out.ScheduleConfigRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +32,7 @@ public class TournamentService {
     private final TournamentRepository tournamentRepository;
     private final MemberRepository memberRepository;
     private final CourtRepository courtRepository;
+    private final ScheduleConfigRepository scheduleConfigRepository;
 
     @Transactional
     public Tournament create(Tournament tournament, String creatorEmail, Integer courtCount) {
@@ -64,6 +69,7 @@ public class TournamentService {
 
         Tournament savedTournament = tournamentRepository.save(tournamentToSave);
         createInitialCourts(savedTournament.getId(), courtCount);
+        createDefaultScheduleConfig(savedTournament.getId());
         return savedTournament;
     }
 
@@ -108,6 +114,62 @@ public class TournamentService {
 
         Tournament updatedTournament = currentTournament.toBuilder()
                 .state(newStatus)
+                .build();
+
+        return tournamentRepository.save(updatedTournament);
+    }
+
+    @Transactional
+    public Tournament updateGeneralInfo(UUID tournamentId, String name, TournamentPeriod playPeriod,
+                                         java.time.LocalTime startTime, TournamentPeriod inscriptionPeriod,
+                                         com.tfm.tennis_platform.domain.models.enums.Surface surface,
+                                         Integer maxPlayers, String location, Double locationLatitude,
+                                         Double locationLongitude, String locationPlaceId,
+                                         String locationFormattedAddress, String requesterEmail) {
+        Tournament currentTournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+        assertTournamentAdmin(currentTournament, requesterEmail);
+
+        TournamentStatus currentStatus = currentTournament.getState();
+        if (currentStatus != TournamentStatus.DRAFT && currentStatus != TournamentStatus.OPEN) {
+            throw new InvalidArgumentException(
+                    "Solo se puede editar la información general de un torneo en borrador o con inscripciones abiertas.");
+        }
+
+        if (name == null || name.trim().isEmpty()) {
+            throw new InvalidArgumentException("El nombre del torneo es obligatorio.");
+        }
+        if (playPeriod == null) {
+            throw new InvalidArgumentException("Las fechas de juego son obligatorias.");
+        }
+        if (inscriptionPeriod == null) {
+            throw new InvalidArgumentException("Las fechas de inscripción son obligatorias.");
+        }
+        if (surface == null) {
+            throw new InvalidArgumentException("La superficie del torneo es obligatoria.");
+        }
+        if (maxPlayers == null || maxPlayers <= 0) {
+            throw new InvalidArgumentException("El número máximo de jugadores debe ser mayor que cero.");
+        }
+        if (location == null || location.trim().isEmpty()) {
+            throw new InvalidArgumentException("La ubicación del torneo es obligatoria.");
+        }
+        if (startTime == null) {
+            throw new InvalidArgumentException("La hora de inicio del torneo es obligatoria.");
+        }
+
+        Tournament updatedTournament = currentTournament.toBuilder()
+                .name(name.trim())
+                .playPeriod(playPeriod)
+                .startTime(startTime)
+                .inscriptionPeriod(inscriptionPeriod)
+                .surface(surface)
+                .maxPlayers(maxPlayers)
+                .location(location.trim())
+                .locationLatitude(locationLatitude)
+                .locationLongitude(locationLongitude)
+                .locationPlaceId(locationPlaceId)
+                .locationFormattedAddress(locationFormattedAddress)
                 .build();
 
         return tournamentRepository.save(updatedTournament);
@@ -158,5 +220,18 @@ public class TournamentService {
                     .active(true)
                     .build());
         }
+    }
+
+    private void createDefaultScheduleConfig(UUID tournamentId) {
+        ScheduleConfig config = ScheduleConfig.builder()
+                .id(UUID.randomUUID())
+                .tournamentId(tournamentId)
+                .matchDurationMinutes(60)
+                .timeSlots(List.of(
+                        new TimeSlot(LocalTime.of(8, 0), LocalTime.of(13, 0)),
+                        new TimeSlot(LocalTime.of(16, 0), LocalTime.of(20, 0))
+                ))
+                .build();
+        scheduleConfigRepository.save(config);
     }
 }

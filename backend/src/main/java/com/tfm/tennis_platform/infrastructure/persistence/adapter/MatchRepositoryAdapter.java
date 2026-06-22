@@ -52,19 +52,25 @@ public class MatchRepositoryAdapter implements MatchRepository {
     @Transactional
     public List<Match> saveAll(List<Match> matches) {
         if (matches == null || matches.isEmpty()) return List.of();
-        // Two-pass mapping: first create entities without nextMatch, then wire nextMatch to reuse same instances
-        List<com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity> entities = matches.stream()
-            .map(mapper::toEntityWithoutNextMatch)
-            .toList();
 
-        // build id -> entity map for wiring nextMatch
-        java.util.Map<java.util.UUID, com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity> entityById =
-                entities.stream().collect(java.util.stream.Collectors.toMap(e -> e.getId(), e -> e));
+        java.util.Map<UUID, com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity> entityById =
+                new java.util.LinkedHashMap<>();
 
-        // wire nextMatch references using the same entity instances
-        for (int i = 0; i < matches.size(); i++) {
-            Match domain = matches.get(i);
-            com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity entity = entities.get(i);
+        for (Match domain : matches) {
+            com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity entity = null;
+            if (domain.getId() != null) {
+                entity = matchRepository.findById(domain.getId()).orElse(null);
+            }
+            if (entity == null) {
+                entity = mapper.toEntity(domain);
+            } else {
+                copyState(entity, mapper.toEntity(domain));
+            }
+            entityById.put(entity.getId(), entity);
+        }
+
+        for (Match domain : matches) {
+            com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity entity = entityById.get(domain.getId());
             if (domain.getNextMatch() != null && domain.getNextMatch().getId() != null) {
                 com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity next = entityById.get(domain.getNextMatch().getId());
                 if (next != null) {
@@ -83,7 +89,9 @@ public class MatchRepositoryAdapter implements MatchRepository {
             }
         }
 
-        // Log ids for diagnostics
+        List<com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity> entities =
+                new java.util.ArrayList<>(entityById.values());
+
         log.debug("Saving {} matches: {}", entities.size(), entities.stream().map(e -> e.getId()).toList());
 
         int attempts = 0;

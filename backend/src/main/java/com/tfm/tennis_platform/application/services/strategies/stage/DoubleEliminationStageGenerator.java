@@ -13,7 +13,7 @@ public class DoubleEliminationStageGenerator implements StageGenerationStrategy 
         return List.of(
             Stage.builder()
                 .stageNumber(1)
-                .stageType(StageType.MAIN)
+                .stageType(StageType.DOUBLE_ELIMINATION)
                 .build()
         );
     }

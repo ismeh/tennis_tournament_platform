@@ -49,6 +49,10 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                           }
                         </div>
                       </div>
+                    } @else if (isByeSlot(match()?.firstInscriptionId, match()?.secondInscriptionId)) {
+                      <div class="rounded border border-dashed border-slate-300 bg-slate-50 px-3 py-2">
+                        <p class="text-sm font-bold italic text-slate-500">Bye</p>
+                      </div>
                     } @else {
                       <div class="rounded bg-neutral-50 px-3 py-2">
                         <p class="text-sm italic text-neutral-500">Por determinar</p>
@@ -65,6 +69,10 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                             </span>
                           }
                         </div>
+                      </div>
+                    } @else if (isByeSlot(match()?.secondInscriptionId, match()?.firstInscriptionId)) {
+                      <div class="rounded border border-dashed border-slate-300 bg-slate-50 px-3 py-2">
+                        <p class="text-sm font-bold italic text-slate-500">Bye</p>
                       </div>
                     } @else {
                       <div class="rounded bg-neutral-50 px-3 py-2">
@@ -332,6 +340,14 @@ export class MatchDetailModalComponent {
 
   activeCourts(): CourtResponse[] {
     return this.courtsInput.filter(court => court.active);
+  }
+
+  isByeSlot(
+    inscriptionId: string | null | undefined,
+    opponentInscriptionId: string | null | undefined
+  ): boolean {
+    const m = this.match();
+    return !inscriptionId && !!opponentInscriptionId && (m?.roundNumber ?? 1) === 1;
   }
 
   getParticipantName(inscriptionId: string | null | undefined): string {

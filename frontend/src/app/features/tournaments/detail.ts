@@ -4,12 +4,13 @@ import {
   OnDestroy,
   OnInit,
   AfterViewInit,
+  HostListener,
   computed,
   inject,
   signal,
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { PersonService } from '../../data/services/person.service';
@@ -19,6 +20,7 @@ import {
   CourtResponse,
   TournamentInscriptionCategoryCount,
   TournamentInscriptionEvent,
+  TournamentInscriptionPlayer,
   TournamentInscriptionsResponse,
   TournamentEventCatalogItem,
   TournamentEventGender,
@@ -35,6 +37,8 @@ import {
   TournamentProviderSummary,
   TournamentStatus,
   TournamentResponse,
+  TournamentGeneralInfoUpdateRequest,
+  TournamentSurfaceCategory,
   getTournamentEventGenderLabel,
   getTournamentStageTypeLabel,
   getTournamentSurfaceCategoryLabel,
@@ -42,12 +46,15 @@ import {
   validateStageSequence,
   isConsolationDisabled,
   getAvailableStageOptions,
-  isValidStageType
+  isValidStageType,
+  ScheduleConfigResponse,
+  ScheduleTimeSlot
 } from '../../data/interfaces/tournament.model';
 import { MemberService } from '../../data/services/member.service';
 import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
 import { TournamentService } from '../../data/services/tournament.service';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
+import { LocationInputComponent } from '../../components/location-input';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { StagesComponent } from './components/stages.component';
 
@@ -92,7 +99,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-tournament-detail-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe, FormsModule, StagesComponent],
+  imports: [CommonModule, RouterLink, DatePipe, FormsModule, ReactiveFormsModule, StagesComponent, LocationInputComponent],
   template: `
     <section class="relative overflow-hidden bg-gradient-to-b from-neutral-50 via-white to-white py-10 sm:py-14">
       <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -109,7 +116,21 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
             <p class="text-xs font-semibold uppercase tracking-[0.22em] text-primary-600">Torneo</p>
             <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h1 class="text-3xl font-black text-neutral-900 sm:text-4xl">{{ tournament()!.formalName }}</h1>
+                <div class="flex items-center gap-3">
+                  <h1 class="text-3xl font-black text-neutral-900 sm:text-4xl">{{ tournament()!.formalName }}</h1>
+                  @if (canEditGeneralInfo() && !isEditingGeneralInfo()) {
+                    <button
+                      type="button"
+                      (click)="startEditGeneralInfo()"
+                      class="inline-flex items-center justify-center rounded-full p-2 text-neutral-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
+                      title="Editar información general del torneo"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                      </svg>
+                    </button>
+                  }
+                </div>
                 <p class="mt-2 text-neutral-600">
                   📍 {{ tournament()!.location }}
                   @if (tournament()!.locationFormattedAddress) {
@@ -128,9 +149,44 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   }
                 </p>
               </div>
-              <span class="inline-flex w-fit rounded-full border px-4 py-2 text-sm font-semibold {{ getStatusColorClasses(tournament()!.status) }}">
-                Estado: {{ getStatusLabel(tournament()!.status) }}
-              </span>
+              <div class="relative">
+                <span
+                  (click)="toggleHeaderStatusDropdown(); $event.stopPropagation()"
+                  [class]="(isCreator() && allowedStatusTransitions().length > 0)
+                    ? 'inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-80 ' + getStatusColorClasses(tournament()!.status)
+                    : 'inline-flex w-fit rounded-full border px-4 py-2 text-sm font-semibold ' + getStatusColorClasses(tournament()!.status)"
+                >
+                  Estado: {{ getStatusLabel(tournament()!.status) }}
+                  @if (isCreator() && allowedStatusTransitions().length > 0) {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  }
+                </span>
+                @if (showHeaderStatusDropdown()) {
+                  <div
+                    class="absolute left-0 z-30 mt-2 w-56 rounded-xl border border-neutral-200 bg-white py-1 shadow-lg"
+                    (keydown)="onHeaderStatusDropdownKeydown($event)"
+                    (click)="$event.stopPropagation()"
+                  >
+                    <p class="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-widest text-neutral-400">Cambiar a</p>
+                    @for (status of allowedStatusTransitions(); track status) {
+                      <button
+                        type="button"
+                        (click)="updateHeaderStatus(status)"
+                        [disabled]="isUpdatingStatus()"
+                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span class="inline-block h-2.5 w-2.5 rounded-full {{ getStatusColorClasses(status) }}"></span>
+                        {{ getStatusLabel(status) }}
+                      </button>
+                    }
+                    @if (allowedStatusTransitions().length === 0) {
+                      <p class="px-3 py-2 text-xs text-neutral-500">No hay cambios disponibles.</p>
+                    }
+                  </div>
+                }
+              </div>
               @if (isProfessionalTournament()) {
                 <span class="inline-flex w-fit rounded-full border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-bold uppercase tracking-widest text-white">
                   PRO
@@ -198,38 +254,144 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
 
           @if (activeSection() === 'overview') {
             <section class="mt-6 rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-              <h2 class="text-xl font-bold text-neutral-900">Información del torneo</h2>
-              <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                <div class="rounded-2xl border border-neutral-200 p-4">
-                  <p class="text-xs uppercase tracking-widest text-neutral-500">Superficie</p>
-                  <p class="mt-1 font-semibold text-neutral-900">{{ getSurfaceLabel(tournament()!.surfaceCategory) }}</p>
-                </div>
-                <div class="rounded-2xl border border-neutral-200 p-4">
-                  <p class="text-xs uppercase tracking-widest text-neutral-500">Capacidad</p>
-                  <p class="mt-1 font-semibold text-neutral-900">{{ tournament()!.maxPlayers }} jugadores</p>
-                </div>
-                <div class="rounded-2xl border border-neutral-200 p-4">
-                  <p class="text-xs uppercase tracking-widest text-neutral-500">Fechas de juego</p>
-                  <p class="mt-1 font-semibold text-neutral-900">
-                    {{ tournament()!.playStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.playEndDate | date: 'dd/MM/yyyy' }}
-                  </p>
-                </div>
-                <div class="rounded-2xl border border-neutral-200 p-4">
-                  <p class="text-xs uppercase tracking-widest text-neutral-500">Periodo de inscripción</p>
-                  <p class="mt-1 font-semibold text-neutral-900">
-                    {{ tournament()!.inscriptionStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.inscriptionEndDate | date: 'dd/MM/yyyy' }}
-                  </p>
-                </div>
+              <div class="flex items-center justify-between">
+                <h2 class="text-xl font-bold text-neutral-900">Información del torneo</h2>
+                @if (canEditGeneralInfo() && !isEditingGeneralInfo()) {
+                  <button
+                    type="button"
+                    (click)="startEditGeneralInfo()"
+                    class="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                    </svg>
+                    Editar
+                  </button>
+                }
               </div>
 
-              @if (tournament()!.locationLatitude != null && tournament()!.locationLongitude != null) {
-                <div class="mt-6">
-                  <p class="mb-2 text-xs uppercase tracking-widest text-neutral-500">Ubicación</p>
-                  <div
-                    id="tournament-map"
-                    class="h-64 w-full rounded-2xl border border-neutral-200 overflow-hidden"
-                  ></div>
+              @if (isEditingGeneralInfo()) {
+                <form class="mt-5 space-y-5" [formGroup]="generalInfoForm" (ngSubmit)="saveGeneralInfo()">
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Nombre formal</span>
+                      <input
+                        type="text"
+                        formControlName="formalName"
+                        class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
+                      />
+                    </label>
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Superficie</span>
+                      <select
+                        formControlName="surfaceCategory"
+                        class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
+                      >
+                        @for (surface of surfaceOptions; track surface) {
+                          <option [value]="surface">{{ getSurfaceLabel(surface) }}</option>
+                        }
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Inicio del torneo</span>
+                      <input type="date" formControlName="playStartDate" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
+                    </label>
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Hora de inicio</span>
+                      <input type="time" formControlName="tournamentStartTime" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
+                    </label>
+                  </div>
+
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Fin del torneo</span>
+                      <input type="date" formControlName="playEndDate" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
+                    </label>
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Plazas</span>
+                      <input type="number" formControlName="maxPlayers" min="2" step="1" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
+                    </label>
+                  </div>
+
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Inicio de inscripciones</span>
+                      <input type="date" formControlName="inscriptionStartDate" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
+                    </label>
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Cierre de inscripciones</span>
+                      <input type="date" formControlName="inscriptionEndDate" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
+                    </label>
+                  </div>
+
+                  <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-neutral-700">Ubicación</span>
+                    <app-location-input
+                      formControlName="location"
+                      placeholder="Club de Tenis Principal"
+                      (locationSelected)="onEditLocationSelected($event)"
+                    ></app-location-input>
+                  </label>
+
+                  @if (generalInfoError()) {
+                    <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {{ generalInfoError() }}
+                    </div>
+                  }
+
+                  <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      (click)="cancelEditGeneralInfo()"
+                      class="rounded-2xl border border-neutral-300 px-5 py-3 font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      class="rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-3 font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                      [disabled]="generalInfoForm.invalid || isSavingGeneralInfo()"
+                    >
+                      {{ isSavingGeneralInfo() ? 'Guardando...' : 'Guardar cambios' }}
+                    </button>
+                  </div>
+                </form>
+              } @else {
+                <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                  <div class="rounded-2xl border border-neutral-200 p-4">
+                    <p class="text-xs uppercase tracking-widest text-neutral-500">Superficie</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ getSurfaceLabel(tournament()!.surfaceCategory) }}</p>
+                  </div>
+                  <div class="rounded-2xl border border-neutral-200 p-4">
+                    <p class="text-xs uppercase tracking-widest text-neutral-500">Plazas</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ tournament()!.maxPlayers }} jugadores</p>
+                  </div>
+                  <div class="rounded-2xl border border-neutral-200 p-4">
+                    <p class="text-xs uppercase tracking-widest text-neutral-500">Fechas de juego</p>
+                    <p class="mt-1 font-semibold text-neutral-900">
+                      {{ tournament()!.playStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.playEndDate | date: 'dd/MM/yyyy' }}
+                    </p>
+                  </div>
+                  <div class="rounded-2xl border border-neutral-200 p-4">
+                    <p class="text-xs uppercase tracking-widest text-neutral-500">Periodo de inscripción</p>
+                    <p class="mt-1 font-semibold text-neutral-900">
+                      {{ tournament()!.inscriptionStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.inscriptionEndDate | date: 'dd/MM/yyyy' }}
+                    </p>
+                  </div>
                 </div>
+
+                @if (tournament()!.locationLatitude != null && tournament()!.locationLongitude != null) {
+                  <div class="mt-6">
+                    <p class="mb-2 text-xs uppercase tracking-widest text-neutral-500">Ubicación</p>
+                    <div
+                      id="tournament-map"
+                      class="h-64 w-full rounded-2xl border border-neutral-200 overflow-hidden"
+                    ></div>
+                  </div>
+                }
               }
             </section>
           }
@@ -297,7 +459,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   }
 
                   <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_1.15fr]">
-                    <label class="block">
+                    <div class="block">
                       <span class="mb-1 block text-sm font-medium text-neutral-700">Categorías disponibles</span>
                       <div class="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-neutral-300 bg-white p-3">
                         @for (event of eventCatalog(); track event.id) {
@@ -312,7 +474,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                           </label>
                         }
                       </div>
-                    </label>
+                    </div>
 
                     <div class="rounded-2xl border border-dashed border-neutral-300 bg-white p-4">
                       @if (selectedEvents().length === 0) {
@@ -432,6 +594,147 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   </div>
                 </div>
                 </div>
+
+                <div class="mt-8 border-t border-neutral-200 pt-8">
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Horarios del torneo</p>
+                      <h3 class="mt-2 text-xl font-bold text-neutral-900">Configura los horarios de juego</h3>
+                      <p class="mt-2 text-sm text-neutral-600">Define las franjas horarias en las que se pueden planificar partidos y la duración esperada de cada partido.</p>
+                    </div>
+                  </div>
+
+                  <div class="mt-4 rounded-3xl border border-neutral-200 bg-neutral-50 p-5 sm:p-6">
+                    <div class="rounded-2xl border border-neutral-200 bg-white p-4">
+                      <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Duración de los partidos</p>
+                      <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <label class="block min-w-56">
+                          <span class="mb-1 block text-sm font-medium text-neutral-700">Duración esperada (minutos)</span>
+                          <input
+                            type="number"
+                            min="15"
+                            max="480"
+                            step="15"
+                            class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                            [ngModel]="scheduleConfigDraft().matchDurationMinutes"
+                            (ngModelChange)="updateScheduleDuration($event)"
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="mt-6 rounded-2xl border border-neutral-200 bg-white p-4">
+                      <div class="flex items-center justify-between">
+                        <div>
+                          <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Franjas horarias</p>
+                          <p class="mt-1 text-sm text-neutral-600">Define los tramos horarios en los que se permiten planificar partidos.</p>
+                        </div>
+                        <button
+                          type="button"
+                          class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700"
+                          (click)="addScheduleTimeSlot()"
+                        >
+                          Añadir franja
+                        </button>
+                      </div>
+
+                      @if (scheduleOverlapWarning()) {
+                        <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                          <div class="flex items-start gap-2">
+                            <span class="mt-0.5 text-amber-600">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                              </svg>
+                            </span>
+                            <div class="flex-1">
+                              <p class="text-sm font-medium text-amber-800">{{ scheduleOverlapWarning() }}</p>
+                              <div class="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  class="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-200"
+                                  (click)="mergeOverlappingSlots()"
+                                >
+                                  Unir franjas solapadas
+                                </button>
+                                <button
+                                  type="button"
+                                  class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-300 transition hover:bg-amber-50"
+                                  (click)="clearOverlapWarning()"
+                                >
+                                  Editar manualmente
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      }
+
+                      <div class="mt-3 space-y-3">
+                        @for (slot of scheduleConfigDraft().timeSlots; track $index; let slotIndex = $index) {
+                          <div class="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:flex-row sm:items-center">
+                            <div class="flex flex-1 items-center gap-2">
+                              <label class="block">
+                                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Inicio</span>
+                                <input
+                                  type="time"
+                                  class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                  [ngModel]="slot.startTime"
+                                  (ngModelChange)="updateScheduleTimeSlot(slotIndex, 'startTime', $event)"
+                                />
+                              </label>
+                              <span class="mt-5 text-neutral-400">-</span>
+                              <label class="block">
+                                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Fin</span>
+                                <input
+                                  type="time"
+                                  class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                  [ngModel]="slot.endTime"
+                                  (ngModelChange)="updateScheduleTimeSlot(slotIndex, 'endTime', $event)"
+                                />
+                              </label>
+                            </div>
+                            <button
+                              type="button"
+                              class="self-end rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 sm:self-center"
+                              (click)="removeScheduleTimeSlot(slotIndex)"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        }
+                        @if (scheduleConfigDraft().timeSlots.length === 0) {
+                          <p class="rounded-xl border border-dashed border-neutral-300 bg-white p-3 text-center text-sm text-neutral-500">
+                            No hay franjas horarias definidas. Añade al menos una franja para permitir la planificación de partidos.
+                          </p>
+                        }
+                      </div>
+                    </div>
+
+                    @if (scheduleConfigSuccess()) {
+                      <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                        {{ scheduleConfigSuccess() }}
+                      </div>
+                    }
+
+                    @if (scheduleConfigError()) {
+                      <div class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {{ scheduleConfigError() }}
+                      </div>
+                    }
+
+                    <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                      <button
+                        type="button"
+                        (click)="saveScheduleConfig()"
+                        class="rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-3 font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                        [disabled]="isSavingScheduleConfig()"
+                      >
+                        {{ isSavingScheduleConfig() ? 'Guardando horarios...' : 'Guardar horarios' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
               } @else {
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
                   Solo el creador puede acceder a las opciones de configuración del torneo.
@@ -465,7 +768,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                           {{ isManualPlayerPanelExpanded() ? 'Ocultar' : 'Mostrar' }}
                         </button>
                       </div>
-                      <h3 class="mt-2 text-xl font-bold text-neutral-900">Añadir jugador a una prueba</h3>
+                      <h3 class="mt-2 text-xl font-bold text-neutral-900">Añadir jugador al torneo</h3>
                       <p class="mt-2 text-sm text-neutral-600">Puedes añadir un jugador existente, crear un jugador manual o seleccionar un profesional cargado.</p>
                     </div>
 
@@ -918,25 +1221,45 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         No hay jugadores inscritos para el filtro seleccionado.
                       </div>
                     } @else {
-                      <div class="mt-6 overflow-hidden rounded-3xl border border-neutral-200">
-                        <div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                          <span>Nombre y apellidos</span>
-                          <span>Prueba / categoría</span>
+                      @if (isCreator() && hasPointsChanges()) {
+                        <div class="mt-4 flex items-center gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5">
+                          <span class="text-sm text-primary-700">Hay cambios sin guardar</span>
+                          <button type="button" (click)="saveAllPoints()" [disabled]="isSavingPoints()" class="rounded-lg bg-primary-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">Guardar</button>
+                          <button type="button" (click)="resetPointsChanges()" class="rounded-lg border border-neutral-300 bg-white px-4 py-1.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">Descartar</button>
+                        </div>
+                      }
+
+                      <div class="mt-4 overflow-hidden rounded-2xl border border-neutral-200">
+                        <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.5fr)] gap-3 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500">
+                          <span>Nombre</span>
+                          <span>Prueba</span>
+                          <span class="text-right">Puntos</span>
                         </div>
 
-                        <div class="divide-y divide-neutral-200 bg-white">
+                        <div class="divide-y divide-neutral-100 bg-white">
                           @for (player of tournamentInscriptionPlayers(); track player.inscriptionId + player.firstName + player.lastName) {
-                            <div class="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 px-5 py-4 text-sm text-neutral-700">
-                              <div>
-                                <p class="font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
-                                <p class="mt-1 text-xs text-neutral-500">
-                                  {{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}
-                                </p>
+                            <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.5fr)] items-center gap-3 px-4 py-2 text-sm">
+                              <div class="min-w-0">
+                                <p class="truncate font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
+                                <p class="truncate text-xs text-neutral-500">{{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}</p>
                               </div>
-                              <div>
-                                <p class="font-medium text-neutral-900">{{ player.eventName }}</p>
-                                <p class="mt-1 text-xs text-neutral-500">{{ player.category }}</p>
+                              <div class="min-w-0">
+                                <p class="truncate text-xs text-neutral-700">{{ player.eventName }}</p>
+                                <p class="truncate text-xs text-neutral-400">{{ player.category }}</p>
                               </div>
+                              @if (isCreator()) {
+                                <div class="flex items-center justify-end">
+                                  <input type="number" min="0" class="w-20 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-right text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" [ngModel]="getEditedPoints(player)" (ngModelChange)="setEditedPoints(player, $event)" />
+                                </div>
+                              } @else {
+                                <div class="text-right">
+                                  @if (player.points != null) {
+                                    <span class="font-semibold text-neutral-900">{{ player.points }}</span>
+                                  } @else {
+                                    <span class="text-neutral-400">-</span>
+                                  }
+                                </div>
+                              }
                             </div>
                           }
                         </div>
@@ -1193,6 +1516,12 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     </div>
                   </div>
 
+                  @if (actionError()) {
+                    <div class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {{ actionError() }}
+                    </div>
+                  }
+
                   @if (filteredTournamentMatchScheduleRows().length === 0) {
                     <div class="mt-4 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
                       No hay partidos que coincidan con los filtros seleccionados.
@@ -1395,11 +1724,18 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   private readonly personService = inject(PersonService);
   private readonly proPlayerService = inject(ProPlayerService);
   private readonly referenceDataService = inject(ReferenceDataService);
+  private readonly fb = inject(FormBuilder);
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.showHeaderStatusDropdown.set(false);
+  }
 
   private mapInstance?: any;
 
   readonly eventGenderOptions: TournamentEventGender[] = ['MALE', 'FEMALE', 'MIXED'];
   readonly stageOptions: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
+  readonly surfaceOptions: TournamentSurfaceCategory[] = ['CLAY', 'HARD', 'GRASS', 'CARPET'];
   readonly tournament = signal<TournamentResponse | null>(null);
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -1418,6 +1754,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly eventCatalogError = signal<string | null>(null);
   readonly selectedStatus = signal<TournamentStatus | null>(null);
   readonly isUpdatingStatus = signal(false);
+  readonly showHeaderStatusDropdown = signal(false);
   readonly isProfileComplete = signal(false);
   readonly selectedInscriptionCategoryId = signal<number | null>(null);
   readonly selectedInscriptionGender = signal<TournamentEventGender | null>(null);
@@ -1490,8 +1827,20 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly matchScheduleDateFilter = signal('');
   readonly matchScheduleCourtFilter = signal('');
   readonly matchScheduleProfessionalFilter = signal('');
-  readonly matchScheduleSortField = signal<MatchScheduleSortField>('event');
+  readonly matchScheduleSortField = signal<MatchScheduleSortField>('scheduledAt');
   readonly matchScheduleSortDirection = signal<MatchScheduleSortDirection>('asc');
+
+  readonly scheduleConfigDraft = signal<{ timeSlots: Array<{ startTime: string; endTime: string }>; matchDurationMinutes: number }>({
+    timeSlots: [],
+    matchDurationMinutes: 60
+  });
+  readonly isSavingScheduleConfig = signal(false);
+  readonly scheduleConfigSuccess = signal<string | null>(null);
+  readonly scheduleConfigError = signal<string | null>(null);
+  readonly scheduleOverlapWarning = signal<string | null>(null);
+
+  readonly editedPointsMap = signal<Record<string, number | null>>({});
+  readonly isSavingPoints = signal(false);
   readonly manualPlayerSourceOptions: Array<{ value: ManualParticipantSource; label: string; description: string }> = [
     {
       value: 'EXISTING_PERSON',
@@ -1524,6 +1873,34 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     }
 
     return providerOrganisationId === memberId;
+  });
+
+  readonly canEditGeneralInfo = computed(() => {
+    const tournament = this.tournament();
+    if (!tournament || !this.isCreator()) {
+      return false;
+    }
+    return tournament.status === 'DRAFT' || tournament.status === 'OPEN';
+  });
+
+  readonly isEditingGeneralInfo = signal(false);
+  readonly isSavingGeneralInfo = signal(false);
+  readonly generalInfoError = signal<string | null>(null);
+
+  readonly generalInfoForm = this.fb.group({
+    formalName: ['', [Validators.required, Validators.minLength(3)]],
+    playStartDate: ['', Validators.required],
+    playEndDate: ['', Validators.required],
+    tournamentStartTime: ['09:00', Validators.required],
+    inscriptionStartDate: ['', Validators.required],
+    inscriptionEndDate: ['', Validators.required],
+    surfaceCategory: ['CLAY' as TournamentSurfaceCategory, Validators.required],
+    maxPlayers: [32, [Validators.required, Validators.min(2)]],
+    location: ['', [Validators.required, Validators.minLength(3)]],
+    locationLatitude: [null as number | null],
+    locationLongitude: [null as number | null],
+    locationPlaceId: [null as string | null],
+    locationFormattedAddress: [null as string | null]
   });
 
   readonly canRequestInscription = computed(() => {
@@ -1770,6 +2147,94 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     if (section === 'inscriptions' && !this.tournamentInscriptions() && !this.isLoadingTournamentInscriptions()) {
       this.loadTournamentInscriptions();
     }
+  }
+
+  startEditGeneralInfo(): void {
+    const tournament = this.tournament();
+    if (!tournament) {
+      return;
+    }
+
+    this.generalInfoForm.patchValue({
+      formalName: tournament.formalName,
+      playStartDate: tournament.playStartDate,
+      playEndDate: tournament.playEndDate,
+      tournamentStartTime: tournament.tournamentStartTime ?? '09:00',
+      inscriptionStartDate: tournament.inscriptionStartDate,
+      inscriptionEndDate: tournament.inscriptionEndDate,
+      surfaceCategory: tournament.surfaceCategory,
+      maxPlayers: tournament.maxPlayers,
+      location: tournament.location,
+      locationLatitude: tournament.locationLatitude ?? null,
+      locationLongitude: tournament.locationLongitude ?? null,
+      locationPlaceId: tournament.locationPlaceId ?? null,
+      locationFormattedAddress: tournament.locationFormattedAddress ?? null
+    });
+
+    this.generalInfoError.set(null);
+    this.isEditingGeneralInfo.set(true);
+  }
+
+  cancelEditGeneralInfo(): void {
+    this.isEditingGeneralInfo.set(false);
+    this.generalInfoError.set(null);
+    this.generalInfoForm.reset();
+  }
+
+  onEditLocationSelected(location: { name: string; latitude?: number | null; longitude?: number | null; placeId?: string | null; formattedAddress?: string | null }): void {
+    this.generalInfoForm.patchValue({
+      location: location.name,
+      locationLatitude: location.latitude ?? null,
+      locationLongitude: location.longitude ?? null,
+      locationPlaceId: location.placeId ?? null,
+      locationFormattedAddress: location.formattedAddress ?? null
+    });
+  }
+
+  saveGeneralInfo(): void {
+    if (!this.isCreator() || this.generalInfoForm.invalid || this.isSavingGeneralInfo()) {
+      return;
+    }
+
+    const currentTournament = this.tournament();
+    if (!currentTournament) {
+      return;
+    }
+
+    const formValue = this.generalInfoForm.getRawValue();
+
+    const payload: TournamentGeneralInfoUpdateRequest = {
+      formalName: formValue.formalName!,
+      playStartDate: formValue.playStartDate!,
+      playEndDate: formValue.playEndDate!,
+      tournamentStartTime: formValue.tournamentStartTime!,
+      inscriptionStartDate: formValue.inscriptionStartDate!,
+      inscriptionEndDate: formValue.inscriptionEndDate!,
+      surfaceCategory: formValue.surfaceCategory!,
+      maxPlayers: formValue.maxPlayers!,
+      location: formValue.location!,
+      locationLatitude: formValue.locationLatitude,
+      locationLongitude: formValue.locationLongitude,
+      locationPlaceId: formValue.locationPlaceId,
+      locationFormattedAddress: formValue.locationFormattedAddress
+    };
+
+    this.isSavingGeneralInfo.set(true);
+    this.generalInfoError.set(null);
+
+    this.tournamentService.updateTournamentGeneralInfo(currentTournament.id, payload).subscribe({
+      next: (updatedTournament) => {
+        this.tournament.set(updatedTournament);
+        this.isEditingGeneralInfo.set(false);
+        this.isSavingGeneralInfo.set(false);
+        this.actionMessage.set('Información general del torneo actualizada correctamente.');
+        setTimeout(() => this.tryInitMap(), 0);
+      },
+      error: (error) => {
+        this.generalInfoError.set(getApiErrorMessage(error, 'No se pudo actualizar la información del torneo.'));
+        this.isSavingGeneralInfo.set(false);
+      }
+    });
   }
 
   exportTournamentPdf(): void {
@@ -2036,6 +2501,58 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     }
 
     return this.allowedStatusTransitions().includes(selectedStatus);
+  }
+
+  toggleHeaderStatusDropdown(): void {
+    if (!this.isCreator() || this.allowedStatusTransitions().length === 0) {
+      return;
+    }
+    this.showHeaderStatusDropdown.update(open => !open);
+  }
+
+  closeHeaderStatusDropdown(): void {
+    this.showHeaderStatusDropdown.set(false);
+  }
+
+  onHeaderStatusDropdownKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.closeHeaderStatusDropdown();
+    }
+  }
+
+  updateHeaderStatus(nextStatus: TournamentStatus): void {
+    if (!this.isCreator()) {
+      this.actionError.set('Solo el administrador del torneo puede cambiar el estado.');
+      return;
+    }
+
+    const currentTournament = this.tournament();
+    if (!currentTournament || !nextStatus) {
+      return;
+    }
+
+    if (!this.allowedStatusTransitions().includes(nextStatus)) {
+      this.actionError.set('No se puede realizar la transición de estado seleccionada.');
+      return;
+    }
+
+    this.isUpdatingStatus.set(true);
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+    this.showHeaderStatusDropdown.set(false);
+
+    this.tournamentService.updateTournamentStatus(currentTournament.id, { status: nextStatus }).subscribe({
+      next: updatedTournament => {
+        this.tournament.set(updatedTournament);
+        this.selectedStatus.set(this.allowedStatusTransitions()[0] ?? null);
+        this.actionMessage.set('Estado del torneo actualizado correctamente.');
+        this.isUpdatingStatus.set(false);
+      },
+      error: (error) => {
+        this.actionError.set(getApiErrorMessage(error, 'No se pudo actualizar el estado del torneo.'));
+        this.isUpdatingStatus.set(false);
+      }
+    });
   }
 
   updateTournamentStatus(): void {
@@ -2425,6 +2942,68 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.isRegisteredPlayersPanelExpanded.update(expanded => !expanded);
   }
 
+  getEditedPoints(player: TournamentInscriptionPlayer): number | null {
+    const map = this.editedPointsMap();
+    if (player.inscriptionId in map) {
+      return map[player.inscriptionId];
+    }
+    return player.points ?? null;
+  }
+
+  setEditedPoints(player: TournamentInscriptionPlayer, value: number | null): void {
+    this.editedPointsMap.update(map => ({ ...map, [player.inscriptionId]: value }));
+  }
+
+  hasPointsChanges(): boolean {
+    const map = this.editedPointsMap();
+    const players = this.tournamentInscriptionPlayers();
+    return players.some(p => {
+      const edited = map[p.inscriptionId];
+      const original = p.points ?? null;
+      return edited !== undefined && edited !== original;
+    });
+  }
+
+  saveAllPoints(): void {
+    const tournamentId = this.tournament()?.id;
+    if (!tournamentId) return;
+
+    const map = this.editedPointsMap();
+    const players = this.tournamentInscriptionPlayers();
+    const updates = players
+      .filter(p => {
+        const edited = map[p.inscriptionId];
+        const original = p.points ?? null;
+        return edited !== undefined && edited !== original;
+      })
+      .map(p => ({
+        participantId: p.inscriptionId,
+        points: map[p.inscriptionId] ?? null,
+        seed: null
+      }));
+
+    if (updates.length === 0) return;
+
+    this.isSavingPoints.set(true);
+    this.tournamentService.updateParticipantsPoints(tournamentId, updates).subscribe({
+      next: () => {
+        this.tournamentService.getTournamentInscriptions(tournamentId).subscribe({
+          next: (inscriptions) => {
+            this.tournamentInscriptions.set(inscriptions);
+            this.editedPointsMap.set({});
+            this.isSavingPoints.set(false);
+          },
+          error: () => this.isSavingPoints.set(false)
+        });
+      },
+      error: () => this.isSavingPoints.set(false)
+    });
+  }
+
+  resetPointsChanges(): void {
+    this.editedPointsMap.set({});
+  }
+
   toggleEventsDrawsPanel(): void {
     this.isEventsDrawsPanelExpanded.update(expanded => !expanded);
   }
@@ -2551,6 +3130,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         this.selectedStatus.set(this.getDefaultStatusSelection(tournament.status));
         this.loadTournamentInscriptions();
         this.loadCourts(tournament.id);
+        this.loadScheduleConfig(tournamentId);
         this.isLoading.set(false);
         if (!preserveActiveSection) {
           this.activeSection.set(this.isCreator() ? 'setup' : 'overview');
@@ -2634,6 +3214,161 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         this.isLoadingCourts.set(false);
       }
     });
+  }
+
+  private loadScheduleConfig(tournamentId: string): void {
+    this.scheduleConfigSuccess.set(null);
+    this.scheduleConfigError.set(null);
+    this.scheduleOverlapWarning.set(null);
+
+    this.tournamentService.getScheduleConfig(tournamentId).subscribe({
+      next: config => {
+        const slots = config.timeSlots.length > 0
+          ? config.timeSlots.map(slot => ({ startTime: slot.startTime, endTime: slot.endTime }))
+          : [
+              { startTime: '08:00', endTime: '13:00' },
+              { startTime: '16:00', endTime: '20:00' }
+            ];
+        this.scheduleConfigDraft.set({
+          timeSlots: slots,
+          matchDurationMinutes: config.matchDurationMinutes || 60
+        });
+      },
+      error: () => {
+        this.scheduleConfigDraft.set({
+          timeSlots: [
+            { startTime: '08:00', endTime: '13:00' },
+            { startTime: '16:00', endTime: '20:00' }
+          ],
+          matchDurationMinutes: 60
+        });
+      }
+    });
+  }
+
+  addScheduleTimeSlot(): void {
+    const current = this.scheduleConfigDraft();
+    const lastSlot = current.timeSlots[current.timeSlots.length - 1];
+    const newStartTime = lastSlot ? lastSlot.endTime : '08:00';
+    const newEndTime = this.addHoursToTime(newStartTime, 1);
+
+    this.scheduleConfigDraft.set({
+      ...current,
+      timeSlots: [...current.timeSlots, { startTime: newStartTime, endTime: newEndTime }]
+    });
+    this.checkOverlap();
+  }
+
+  removeScheduleTimeSlot(index: number): void {
+    const current = this.scheduleConfigDraft();
+    this.scheduleConfigDraft.set({
+      ...current,
+      timeSlots: current.timeSlots.filter((_, i) => i !== index)
+    });
+    this.scheduleOverlapWarning.set(null);
+  }
+
+  updateScheduleTimeSlot(index: number, field: 'startTime' | 'endTime', value: string): void {
+    const current = this.scheduleConfigDraft();
+    const updated = current.timeSlots.map((slot, i) =>
+      i === index ? { ...slot, [field]: value } : slot
+    );
+    this.scheduleConfigDraft.set({ ...current, timeSlots: updated });
+    this.checkOverlap();
+  }
+
+  updateScheduleDuration(minutes: number): void {
+    const current = this.scheduleConfigDraft();
+    this.scheduleConfigDraft.set({ ...current, matchDurationMinutes: minutes });
+  }
+
+  saveScheduleConfig(): void {
+    const tournament = this.tournament();
+    if (!tournament) return;
+
+    const draft = this.scheduleConfigDraft();
+    if (draft.timeSlots.length === 0) {
+      this.scheduleConfigError.set('Debe añadir al menos una franja horaria.');
+      return;
+    }
+
+    const sorted = [...draft.timeSlots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i].endTime > sorted[i + 1].startTime) {
+        this.scheduleOverlapWarning.set(
+          `Las franjas ${sorted[i].startTime}-${sorted[i].endTime} y ${sorted[i + 1].startTime}-${sorted[i + 1].endTime} se solapan.`
+        );
+        return;
+      }
+    }
+
+    this.isSavingScheduleConfig.set(true);
+    this.scheduleConfigError.set(null);
+    this.scheduleConfigSuccess.set(null);
+
+    this.tournamentService.saveScheduleConfig(tournament.id, {
+      timeSlots: sorted.map(slot => ({ startTime: slot.startTime, endTime: slot.endTime })),
+      matchDurationMinutes: draft.matchDurationMinutes
+    }).subscribe({
+      next: () => {
+        this.scheduleConfigSuccess.set('Horarios guardados correctamente.');
+        this.isSavingScheduleConfig.set(false);
+        this.scheduleOverlapWarning.set(null);
+      },
+      error: (error) => {
+        this.scheduleConfigError.set(getApiErrorMessage(error, 'No se pudieron guardar los horarios.'));
+        this.isSavingScheduleConfig.set(false);
+      }
+    });
+  }
+
+  mergeOverlappingSlots(): void {
+    const current = this.scheduleConfigDraft();
+    const sorted = [...current.timeSlots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const merged: Array<{ startTime: string; endTime: string }> = [];
+
+    for (const slot of sorted) {
+      if (merged.length === 0) {
+        merged.push({ ...slot });
+      } else {
+        const last = merged[merged.length - 1];
+        if (slot.startTime <= last.endTime) {
+          last.endTime = last.endTime > slot.endTime ? last.endTime : slot.endTime;
+        } else {
+          merged.push({ ...slot });
+        }
+      }
+    }
+
+    this.scheduleConfigDraft.set({ ...current, timeSlots: merged });
+    this.scheduleOverlapWarning.set(null);
+  }
+
+  clearOverlapWarning(): void {
+    this.scheduleOverlapWarning.set(null);
+  }
+
+  private checkOverlap(): void {
+    const current = this.scheduleConfigDraft();
+    const sorted = [...current.timeSlots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i].endTime > sorted[i + 1].startTime) {
+        this.scheduleOverlapWarning.set(
+          `Las franjas ${sorted[i].startTime}-${sorted[i].endTime} y ${sorted[i + 1].startTime}-${sorted[i + 1].endTime} se solapan. Puedes unirlas automáticamente o editarlas manualmente.`
+        );
+        return;
+      }
+    }
+    this.scheduleOverlapWarning.set(null);
+  }
+
+  private addHoursToTime(timeStr: string, hours: number): string {
+    const [h, m] = timeStr.split(':').map(Number);
+    const totalMinutes = h * 60 + m + hours * 60;
+    const newH = Math.floor(totalMinutes / 60) % 24;
+    const newM = totalMinutes % 60;
+    return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
   }
 
   private loadEventCatalog(): void {

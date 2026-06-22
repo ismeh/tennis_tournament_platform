@@ -33,6 +33,9 @@ public class DrawEntity {
     @Column(name = "label")
     private String label;
 
+    @Column(name = "group_index")
+    private Integer groupIndex;
+
     @OneToMany(mappedBy = "draw", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("roundNumber ASC, bracketPosition ASC, id ASC")
     @Builder.Default
