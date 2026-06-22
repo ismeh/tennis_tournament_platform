@@ -27,6 +27,7 @@ public class DrawDomainMapper {
                 .drawType(entity.getDrawType() != null ? DrawType.valueOf(entity.getDrawType()) : null)
                 .drawName(entity.getLabel())
                 .label(entity.getLabel())
+                .groupIndex(entity.getGroupIndex())
                 .matches(matchDomainMapper.toDomainList(entity.getMatches()))
                 .build();
     }
@@ -41,6 +42,7 @@ public class DrawDomainMapper {
                 .stage(mapStage(domain.getStageId()))
                 .drawType(domain.getDrawType() != null ? domain.getDrawType().name() : null)
                 .label(domain.getLabel() != null ? domain.getLabel() : domain.getDrawName())
+                .groupIndex(domain.getGroupIndex())
                 .build();
     }
 

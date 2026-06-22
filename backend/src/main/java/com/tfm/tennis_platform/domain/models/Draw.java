@@ -20,6 +20,7 @@ public class Draw {
     private DrawType drawType;
     private String drawName;
     private String label;
+    private Integer groupIndex;
     @Builder.Default
     private List<Match> matches = new ArrayList<>();
 

@@ -10,5 +10,6 @@ public record DrawResponse(
     UUID stageId,
     DrawType drawType,
     String label,
+    Integer groupIndex,
     List<MatchResponse> matches
 ) {}
