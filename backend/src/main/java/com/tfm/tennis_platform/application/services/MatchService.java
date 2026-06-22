@@ -2,6 +2,8 @@ package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.models.Match;
+import com.tfm.tennis_platform.domain.models.ScheduleConfig;
+import com.tfm.tennis_platform.domain.models.TimeSlot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -14,9 +16,11 @@ import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
+import com.tfm.tennis_platform.domain.port.out.ScheduleConfigRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentUpdatePublisher;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
@@ -31,10 +35,12 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final TournamentRepository tournamentRepository;
     private final CourtRepository courtRepository;
+    private final ScheduleConfigRepository scheduleConfigRepository;
     private final TournamentUpdatePublisher tournamentUpdatePublisher;
     private final TransactionTemplate transactionTemplate;
     private final TournamentService tournamentService;
     private static final int MAX_CONCURRENT_MODIFICATION_ATTEMPTS = 3;
+    private static final Duration DEFAULT_MATCH_INTERVAL = Duration.ofHours(1);
 
     public Match update(Match match) {
         return matchRepository.save(match);
@@ -171,15 +177,24 @@ public class MatchService {
                 .map(Match::getId)
                 .collect(java.util.stream.Collectors.toSet());
 
-        boolean courtBusy = tournamentMatches.stream()
-                .filter(match -> !cascadeMatchIds.contains(match.getId()))
-                .anyMatch(match -> isSameCourtSlot(match, courtId, scheduledAt));
+        if (!cascade) {
+            boolean courtBusy = tournamentMatches.stream()
+                    .filter(match -> !cascadeMatchIds.contains(match.getId()))
+                    .anyMatch(match -> isSameCourtSlot(match, courtId, scheduledAt));
 
-        if (courtBusy) {
-            throw new InvalidArgumentException("La pista ya está ocupada en esa hora.");
-        }
+            if (courtBusy) {
+                throw new InvalidArgumentException("La pista ya está ocupada en esa hora.");
+            }
 
-        if (!cascade || currentMatch.getScheduledAt() == null) {
+            boolean playerConflict = tournamentMatches.stream()
+                    .filter(match -> !cascadeMatchIds.contains(match.getId()))
+                    .filter(match -> match.getScheduledAt() != null && match.getScheduledAt().equals(scheduledAt))
+                    .anyMatch(match -> sharesPlayer(match, currentMatch));
+
+            if (playerConflict) {
+                throw new InvalidArgumentException("Un jugador ya tiene otro partido programado en esa hora.");
+            }
+
             Match updatedMatch = currentMatch.toBuilder()
                     .scheduledAt(scheduledAt)
                     .scheduleTimeType(resolvedType)
@@ -190,12 +205,69 @@ public class MatchService {
             return matchRepository.save(updatedMatch);
         }
 
-        Duration shift = Duration.between(currentMatch.getScheduledAt(), scheduledAt);
-        List<Match> updatedMatches = matchesToCascade.stream()
-                .map(match -> updateCascadeMatch(match, currentMatch, court, scheduledAt, resolvedType, shift))
+        List<Court> activeCourts = courtRepository.findByTournamentId(tournamentId).stream()
+                .filter(Court::isActive)
                 .toList();
+
+        ScheduleConfig scheduleConfig = scheduleConfigRepository.findByTournamentId(tournamentId).orElse(null);
+        Duration matchInterval = scheduleConfig != null && scheduleConfig.getMatchDurationMinutes() > 0
+                ? Duration.ofMinutes(scheduleConfig.getMatchDurationMinutes())
+                : DEFAULT_MATCH_INTERVAL;
+        List<TimeSlot> timeSlots = scheduleConfig != null ? scheduleConfig.getTimeSlots() : List.of();
+
+        Duration shift = currentMatch.getScheduledAt() != null
+                ? Duration.between(currentMatch.getScheduledAt(), scheduledAt)
+                : null;
+
+        List<Match> remaining = matchesToCascade.stream()
+                .filter(m -> !m.getId().equals(currentMatch.getId()))
+                .toList();
+
+        List<Match> nonCascadeMatches = tournamentMatches.stream()
+                .filter(m -> !cascadeMatchIds.contains(m.getId()))
+                .toList();
+
+        Match updatedCurrent = currentMatch.toBuilder()
+                .scheduledAt(scheduledAt)
+                .scheduleTimeType(resolvedType)
+                .courtId(court.getId())
+                .court(court.getName())
+                .build();
+
+        List<Match> updatedOtherMatches = new java.util.ArrayList<>();
+        int unscheduledIndex = 0;
+        for (Match m : remaining) {
+            updatedOtherMatches.add(updateCascadeMatch(m, currentMatch, court, scheduledAt, resolvedType, shift, unscheduledIndex, matchInterval, timeSlots, activeCourts.size()));
+            if (m.getScheduledAt() == null && !m.getId().equals(currentMatch.getId())) {
+                unscheduledIndex++;
+            }
+        }
+
+        List<Match> allCascade = new java.util.ArrayList<>();
+        allCascade.add(updatedCurrent);
+        allCascade.addAll(updatedOtherMatches);
+
+        assignCascadeCourts(allCascade, tournamentMatches, cascadeMatchIds, activeCourts);
+
+        java.util.List<Match> resolvedCascade = new java.util.ArrayList<>();
+        for (int i = 0; i < allCascade.size(); i++) {
+            Match m = allCascade.get(i);
+            if (m.getScheduledAt() != null && m.getCourtId() != null) {
+                LocalDateTime availableSlot = findNextAvailableSlot(m.getScheduledAt(), m.getCourtId(),
+                        m, nonCascadeMatches, resolvedCascade, timeSlots, matchInterval);
+                allCascade.set(i, m.toBuilder().scheduledAt(availableSlot).build());
+            }
+            resolvedCascade.add(allCascade.get(i));
+        }
+
+        updatedCurrent = allCascade.get(0);
+        updatedOtherMatches = new java.util.ArrayList<>(allCascade.subList(1, allCascade.size()));
+
+        List<Match> updatedMatches = new java.util.ArrayList<>();
+        updatedMatches.add(updatedCurrent);
+        updatedMatches.addAll(updatedOtherMatches);
+
         validateCascadeDates(updatedMatches, tournament.getPlayPeriod().startDate(), tournament.getPlayPeriod().endDate());
-        validateCascadeCourtAvailability(tournamentMatches, updatedMatches, cascadeMatchIds);
 
         return matchRepository.saveAll(updatedMatches).stream()
                 .filter(match -> matchId.equals(match.getId()))
@@ -204,22 +276,41 @@ public class MatchService {
     }
 
     private List<Match> resolveCascadeMatches(List<Match> tournamentMatches, Match currentMatch) {
-        if (currentMatch.getScheduledAt() == null) {
-            return List.of(currentMatch);
+        if (currentMatch.getScheduledAt() != null) {
+            return tournamentMatches.stream()
+                    .filter(match -> match.getScheduledAt() != null)
+                    .filter(match -> !match.getScheduledAt().isBefore(currentMatch.getScheduledAt()))
+                    .sorted(Comparator
+                            .comparing(Match::getScheduledAt)
+                            .thenComparing(match -> match.getRoundNumber() != null ? match.getRoundNumber() : Integer.MAX_VALUE)
+                            .thenComparing(match -> match.getBracketPosition() != null ? match.getBracketPosition() : Integer.MAX_VALUE)
+                            .thenComparing(Match::getId))
+                    .toList();
         }
 
-        return tournamentMatches.stream()
+        Comparator<Match> bracketOrder = Comparator
+                .<Match, Integer>comparing(match -> match.getRoundNumber() != null ? match.getRoundNumber() : Integer.MAX_VALUE)
+                .thenComparing(match -> match.getBracketPosition() != null ? match.getBracketPosition() : Integer.MAX_VALUE)
+                .thenComparing(Match::getId);
+
+        List<Match> unscheduled = tournamentMatches.stream()
+                .filter(match -> match.getScheduledAt() == null)
+                .sorted(bracketOrder)
+                .toList();
+
+        List<Match> scheduledAfter = tournamentMatches.stream()
                 .filter(match -> match.getScheduledAt() != null)
-                .filter(match -> !match.getScheduledAt().isBefore(currentMatch.getScheduledAt()))
                 .sorted(Comparator
                         .comparing(Match::getScheduledAt)
-                        .thenComparing(match -> match.getRoundNumber() != null ? match.getRoundNumber() : Integer.MAX_VALUE)
-                        .thenComparing(match -> match.getBracketPosition() != null ? match.getBracketPosition() : Integer.MAX_VALUE)
-                        .thenComparing(Match::getId))
+                        .thenComparing(bracketOrder))
                 .toList();
+
+        List<Match> result = new java.util.ArrayList<>(unscheduled);
+        result.addAll(scheduledAfter);
+        return result;
     }
 
-    private Match updateCascadeMatch(Match match, Match currentMatch, Court court, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType, Duration shift) {
+    private Match updateCascadeMatch(Match match, Match currentMatch, Court court, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType, Duration shift, int unscheduledIndex, Duration matchInterval, List<TimeSlot> timeSlots, int courtCount) {
         if (match.getId().equals(currentMatch.getId())) {
             return match.toBuilder()
                     .scheduledAt(scheduledAt)
@@ -229,19 +320,156 @@ public class MatchService {
                     .build();
         }
 
+        if (match.getScheduledAt() != null && shift != null) {
+            LocalDateTime shifted = match.getScheduledAt().plus(shift);
+            return match.toBuilder()
+                    .scheduledAt(snapToTimeSlots(shifted, timeSlots))
+                    .build();
+        }
+
+        int batchIndex = courtCount > 0 ? unscheduledIndex / courtCount : unscheduledIndex;
+        LocalDateTime baseTime = scheduledAt.plus(matchInterval.multipliedBy(batchIndex + 1));
+        LocalDateTime snapped = snapToTimeSlots(baseTime, timeSlots);
         return match.toBuilder()
-                .scheduledAt(match.getScheduledAt().plus(shift))
+                .scheduledAt(snapped)
+                .scheduleTimeType(scheduleTimeType)
                 .build();
     }
 
+    private LocalDateTime findNextAvailableSlot(LocalDateTime from, UUID courtId, Match candidate,
+                                                List<Match> nonCascadeMatches, List<Match> scheduledCascadeMatches,
+                                                List<TimeSlot> timeSlots, Duration matchInterval) {
+        LocalDateTime cursor = snapToTimeSlots(from, timeSlots);
+        int maxAttempts = 200;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            final LocalDateTime slot = cursor;
+            boolean courtFree = courtId == null || nonCascadeMatches.stream()
+                    .noneMatch(m -> isSameCourtSlot(m, courtId, slot));
+            if (courtFree && courtId != null) {
+                courtFree = scheduledCascadeMatches.stream()
+                        .noneMatch(m -> isSameCourtSlot(m, courtId, slot));
+            }
+
+            boolean playersFree = true;
+            if (courtFree) {
+                playersFree = nonCascadeMatches.stream()
+                        .filter(m -> m.getScheduledAt() != null && m.getScheduledAt().equals(slot))
+                        .noneMatch(m -> sharesPlayer(m, candidate));
+                if (playersFree) {
+                    playersFree = scheduledCascadeMatches.stream()
+                            .filter(m -> m.getScheduledAt() != null && m.getScheduledAt().equals(slot))
+                            .noneMatch(m -> sharesPlayer(m, candidate));
+                }
+            }
+
+            if (courtFree && playersFree) {
+                return cursor;
+            }
+
+            cursor = snapToTimeSlots(cursor.plus(matchInterval), timeSlots);
+        }
+
+        return cursor;
+    }
+
+    private LocalDateTime snapToTimeSlots(LocalDateTime dateTime, List<TimeSlot> timeSlots) {
+        if (timeSlots.isEmpty()) {
+            return dateTime;
+        }
+
+        LocalTime time = dateTime.toLocalTime();
+        for (TimeSlot slot : timeSlots) {
+            if (!time.isBefore(slot.startTime()) && time.isBefore(slot.endTime())) {
+                return dateTime;
+            }
+        }
+
+        for (TimeSlot slot : timeSlots) {
+            if (slot.startTime().isAfter(time)) {
+                return LocalDateTime.of(dateTime.toLocalDate(), slot.startTime());
+            }
+        }
+
+        return dateTime.plusDays(1).with(timeSlots.get(0).startTime());
+    }
+
+    private void assignCascadeCourts(List<Match> cascadeMatches, List<Match> tournamentMatches, Set<UUID> cascadeMatchIds, List<Court> activeCourts) {
+        if (activeCourts.isEmpty()) {
+            return;
+        }
+
+        List<Match> nonCascadeMatches = tournamentMatches.stream()
+                .filter(m -> !cascadeMatchIds.contains(m.getId()))
+                .toList();
+
+        for (int i = 0; i < cascadeMatches.size(); i++) {
+            Match candidate = cascadeMatches.get(i);
+            if (candidate.getScheduledAt() == null) {
+                continue;
+            }
+
+            for (Court c : activeCourts) {
+                boolean occupied = nonCascadeMatches.stream()
+                        .anyMatch(m -> isSameCourtSlot(m, c.getId(), candidate.getScheduledAt()));
+
+                if (!occupied) {
+                    occupied = cascadeMatches.stream()
+                            .filter(other -> !other.getId().equals(candidate.getId()))
+                            .anyMatch(other -> isSameCourtSlot(other, c.getId(), candidate.getScheduledAt()));
+                }
+
+                if (!occupied) {
+                    cascadeMatches.set(i, candidate.toBuilder()
+                            .courtId(c.getId())
+                            .court(c.getName())
+                            .build());
+                    break;
+                }
+            }
+        }
+    }
+
     private void validateCascadeCourtAvailability(List<Match> tournamentMatches, List<Match> updatedMatches, Set<UUID> cascadeMatchIds) {
+        List<Match> nonCascadeMatches = tournamentMatches.stream()
+                .filter(match -> !cascadeMatchIds.contains(match.getId()))
+                .toList();
+
         for (Match updatedMatch : updatedMatches) {
-            boolean courtBusy = tournamentMatches.stream()
-                    .filter(match -> !cascadeMatchIds.contains(match.getId()))
+            boolean courtBusy = nonCascadeMatches.stream()
                     .anyMatch(match -> isSameCourtSlot(match, updatedMatch.getCourtId(), updatedMatch.getScheduledAt()));
+
+            if (!courtBusy) {
+                courtBusy = updatedMatches.stream()
+                        .filter(other -> !other.getId().equals(updatedMatch.getId()))
+                        .anyMatch(other -> isSameCourtSlot(other, updatedMatch.getCourtId(), updatedMatch.getScheduledAt()));
+            }
 
             if (courtBusy) {
                 throw new InvalidArgumentException("La replanificación en cascada ocupa una pista que ya tiene otro partido asignado.");
+            }
+        }
+    }
+
+    private void validateCascadePlayerAvailability(List<Match> tournamentMatches, List<Match> updatedMatches, Set<UUID> cascadeMatchIds) {
+        List<Match> nonCascadeMatches = tournamentMatches.stream()
+                .filter(match -> !cascadeMatchIds.contains(match.getId()))
+                .toList();
+
+        for (Match updatedMatch : updatedMatches) {
+            boolean playerConflict = nonCascadeMatches.stream()
+                    .filter(match -> match.getScheduledAt() != null && match.getScheduledAt().equals(updatedMatch.getScheduledAt()))
+                    .anyMatch(match -> sharesPlayer(match, updatedMatch));
+
+            if (!playerConflict) {
+                playerConflict = updatedMatches.stream()
+                        .filter(other -> !other.getId().equals(updatedMatch.getId()))
+                        .filter(other -> other.getScheduledAt() != null && other.getScheduledAt().equals(updatedMatch.getScheduledAt()))
+                        .anyMatch(other -> sharesPlayer(other, updatedMatch));
+            }
+
+            if (playerConflict) {
+                throw new InvalidArgumentException("La replanificación en cascada causa un conflicto de horario para un jugador.");
             }
         }
     }
@@ -418,5 +646,25 @@ public class MatchService {
 
     private boolean isSameCourtSlot(Match match, UUID courtId, LocalDateTime scheduledAt) {
         return courtId != null && scheduledAt != null && courtId.equals(match.getCourtId()) && scheduledAt.equals(match.getScheduledAt());
+    }
+
+    private boolean sharesPlayer(Match match1, Match match2) {
+        if (match1.getFirstInscriptionId() == null && match1.getSecondInscriptionId() == null) {
+            return false;
+        }
+        if (match2.getFirstInscriptionId() == null && match2.getSecondInscriptionId() == null) {
+            return false;
+        }
+
+        boolean sameFirst = match1.getFirstInscriptionId() != null
+                && match1.getFirstInscriptionId().equals(match2.getFirstInscriptionId());
+        boolean sameSecond = match1.getSecondInscriptionId() != null
+                && match1.getSecondInscriptionId().equals(match2.getSecondInscriptionId());
+        boolean crossFirst = match1.getFirstInscriptionId() != null
+                && match1.getFirstInscriptionId().equals(match2.getSecondInscriptionId());
+        boolean crossSecond = match1.getSecondInscriptionId() != null
+                && match1.getSecondInscriptionId().equals(match2.getFirstInscriptionId());
+
+        return sameFirst || sameSecond || crossFirst || crossSecond;
     }
 }
