@@ -4,5 +4,7 @@ public enum StageType {
     QUALIFYING,
     MAIN,
     CONSOLATION,
-    PLAYOFF
+    PLAYOFF,
+    ROUND_ROBIN,
+    DOUBLE_ELIMINATION
 }

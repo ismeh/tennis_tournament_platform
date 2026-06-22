@@ -47,6 +47,8 @@ public class DrawGenerationService {
             case QUALIFYING -> singleEliminationDrawGenerator;
             case CONSOLATION -> consolationDrawGenerator;
             case PLAYOFF -> doubleEliminationDrawGenerator;
+            case ROUND_ROBIN -> roundRobinDrawGenerator;
+            case DOUBLE_ELIMINATION -> doubleEliminationDrawGenerator;
         };
     }
 }

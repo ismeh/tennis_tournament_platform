@@ -13,7 +13,7 @@ public class RoundRobinStageGenerator implements StageGenerationStrategy {
         return List.of(
             Stage.builder()
                 .stageNumber(1)
-                .stageType(StageType.MAIN)
+                .stageType(StageType.ROUND_ROBIN)
                 .build()
         );
     }
