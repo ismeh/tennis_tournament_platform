@@ -2,8 +2,6 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TYPE user_gender AS ENUM ('H', 'M');
-CREATE TYPE category_genre AS ENUM ('H', 'M', 'X');
-CREATE TYPE category_mode AS ENUM ('SINGLE', 'DOUBLES');
 CREATE TYPE tournament_state AS ENUM ('SOON', 'INSCRIPTION', 'PLAYING', 'FINISHED');
 
 -- PERSONS (base entity, aligned with international tennis IDs)
@@ -30,13 +28,6 @@ CREATE TABLE users (
     person_id     UUID REFERENCES persons(id) ON DELETE SET NULL  -- vínculo opcional
 );
 
-CREATE TABLE categories (
-    id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name    VARCHAR(255),
-    genre   VARCHAR(1),
-    mode    VARCHAR(20)
-);
-
 -- TOURNAMENTS
 CREATE TABLE tournaments (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -59,12 +50,6 @@ CREATE TABLE tournaments (
     venue                   VARCHAR(200),
     country                 CHAR(3),  --TO DELETE
     category                VARCHAR(50)     --TO DELETE            -- ITF / ATP / WTA / NATIONAL
-);
-
-CREATE TABLE tournament_categories (
-    tournament_id   UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
-    category_id     UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    PRIMARY KEY (tournament_id, category_id)
 );
 
 -- PARTICIPANTS (persons or pairs/teams registered in a tournament)
@@ -176,13 +161,4 @@ CREATE TABLE matches (
     version                 BIGINT NOT NULL DEFAULT 0
 );
 
--- RANKINGS (historical ranking snapshots per player)
-CREATE TABLE rankings (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    person_id       UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
-    ranking_date    DATE NOT NULL,
-    ranking_type    VARCHAR(50),               -- ITF / ATP / WTA / NATIONAL
-    rank_position   INTEGER,
-    ranking_points  NUMERIC(10,2),
-    UNIQUE (person_id, ranking_date, ranking_type)
-);
+
