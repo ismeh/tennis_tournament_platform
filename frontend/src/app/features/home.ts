@@ -411,7 +411,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   progress = 0;
   isPaused = false;
   private tickId: ReturnType<typeof setInterval> | null = null;
-  private readonly DURATION = 3500;
+  private readonly DURATION = 4500;
   private readonly TICK = 30;
 
   ngOnInit(): void {
