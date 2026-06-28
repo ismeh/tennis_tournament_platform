@@ -36,6 +36,7 @@ import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.ScheduleConfigRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
+import com.tfm.tennis_platform.domain.port.out.TournamentUmpireRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -79,6 +80,9 @@ class TournamentGenerationFlowTest {
     @Mock
     private ScheduleConfigRepository scheduleConfigRepository;
 
+    @Mock
+    private TournamentUmpireRepository tournamentUmpireRepository;
+
     private TournamentService tournamentService;
     private EventService eventService;
 
@@ -101,7 +105,7 @@ class TournamentGenerationFlowTest {
 
         lenient().when(matchRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        tournamentService = new TournamentService(tournamentRepository, memberRepository, courtRepository, scheduleConfigRepository);
+        tournamentService = new TournamentService(tournamentRepository, memberRepository, courtRepository, scheduleConfigRepository, tournamentUmpireRepository);
         eventService = new EventService(
                 tournamentRepository,
                 inscriptionRepository,
@@ -154,6 +158,12 @@ class TournamentGenerationFlowTest {
         Event event = tournamentWithEvents.getEvents().get(0);
         assertNotNull(event.getId());
         assertFalse(event.getStages().isEmpty());
+
+        // Transition tournament to CLOSED state so draws can be generated
+        Tournament closedTournament = storedTournament.get().toBuilder()
+                .state(com.tfm.tennis_platform.domain.models.enums.TournamentStatus.CLOSED)
+                .build();
+        storedTournament.set(closedTournament);
 
         when(inscriptionRepository.findByEventId(event.getId())).thenReturn(List.of(
                 createInscription(event.getId()),
@@ -222,6 +232,12 @@ class TournamentGenerationFlowTest {
                 "organizer@example.com"
         );
         Event event = tournamentWithEvents.getEvents().get(0);
+
+        // Transition tournament to CLOSED state so draws can be generated
+        Tournament closedTournament = storedTournament.get().toBuilder()
+                .state(com.tfm.tennis_platform.domain.models.enums.TournamentStatus.CLOSED)
+                .build();
+        storedTournament.set(closedTournament);
 
         when(inscriptionRepository.findByEventId(event.getId())).thenReturn(List.of(
                 createInscription(event.getId()),
