@@ -34,11 +34,12 @@ class SecurityIT extends IntegrationTestBase {
 
     @Test
     void auth_endpoints_accessible_without_token() throws Exception {
-        Map<String, String> body = new HashMap<>();
+        Map<String, Object> body = new HashMap<>();
         body.put("email", "security" + UUID.randomUUID() + "@test.com");
         body.put("password", "Password123!");
         body.put("name", "Security User");
         body.put("role", "PLAYER");
+        body.put("privacyPolicyAccepted", true);
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
