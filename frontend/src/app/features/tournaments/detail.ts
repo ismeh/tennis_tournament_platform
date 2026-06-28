@@ -33,6 +33,7 @@ import {
   DrawResponse,
   MatchResponse,
   MatchScheduleTimeType,
+  MatchStatus,
   StageResponse,
   TournamentProviderSummary,
   TournamentStatus,
@@ -48,7 +49,9 @@ import {
   getAvailableStageOptions,
   isValidStageType,
   ScheduleConfigResponse,
-  ScheduleTimeSlot
+  ScheduleTimeSlot,
+  TournamentUmpireResponse,
+  TournamentUmpireSearchResponse
 } from '../../data/interfaces/tournament.model';
 import { MemberService } from '../../data/services/member.service';
 import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
@@ -152,12 +155,12 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
               <div class="relative">
                 <span
                   (click)="toggleHeaderStatusDropdown(); $event.stopPropagation()"
-                  [class]="(isCreator() && allowedStatusTransitions().length > 0)
+                  [class]="(isTournamentAdmin() && allowedStatusTransitions().length > 0)
                     ? 'inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-80 ' + getStatusColorClasses(tournament()!.status)
                     : 'inline-flex w-fit rounded-full border px-4 py-2 text-sm font-semibold ' + getStatusColorClasses(tournament()!.status)"
                 >
                   Estado: {{ getStatusLabel(tournament()!.status) }}
-                  @if (isCreator() && allowedStatusTransitions().length > 0) {
+                  @if (isTournamentAdmin() && allowedStatusTransitions().length > 0) {
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                     </svg>
@@ -223,7 +226,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   Información general
                 </button>
 
-                @if (isCreator()) {
+                @if (isTournamentAdmin()) {
                   <button
                     type="button"
                     (click)="setActiveSection('setup')"
@@ -398,43 +401,11 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
 
           @if (activeSection() === 'setup') {
             <section class="mt-6 rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-              @if (isCreator()) {
+              @if (isTournamentAdmin()) {
                 <h2 class="text-xl font-bold text-neutral-900">Configuración del torneo</h2>
                 <p class="mt-2 text-neutral-600">Prepara las pruebas, pistas e inscripciones antes de poner el torneo en marcha.</p>
 
                 <div class="mt-6 rounded-3xl border border-neutral-200 bg-neutral-50 p-5 sm:p-6">
-                  <div class="rounded-2xl border border-neutral-200 bg-white p-4">
-                    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Estado del torneo</p>
-                    <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                      <label class="block min-w-56">
-                        <span class="mb-1 block text-sm font-medium text-neutral-700">Nuevo estado</span>
-                        <select
-                          class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
-                          [disabled]="isUpdatingStatus() || allowedStatusTransitions().length === 0"
-                          [value]="selectedStatus() ?? ''"
-                          (change)="onSelectedStatusChange($any($event.target).value)"
-                        >
-                          @for (status of allowedStatusTransitions(); track status) {
-                            <option [value]="status">{{ getStatusLabel(status) }}</option>
-                          }
-                        </select>
-                      </label>
-
-                      <button
-                        type="button"
-                        (click)="updateTournamentStatus()"
-                        class="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-800 ring-1 ring-neutral-300 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        [disabled]="!canUpdateStatus()"
-                      >
-                        {{ isUpdatingStatus() ? 'Actualizando estado...' : 'Actualizar estado' }}
-                      </button>
-                    </div>
-                    @if (allowedStatusTransitions().length === 0) {
-                    <p class="mt-2 text-xs text-neutral-500">No hay cambios de estado disponibles para el estado actual.</p>
-                    }
-                  </div>
-
-                  <div class="mt-8 border-t border-neutral-200 pt-8">
                   <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Pruebas del torneo</p>
@@ -593,7 +564,6 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     </button>
                   </div>
                 </div>
-                </div>
 
                 <div class="mt-8 border-t border-neutral-200 pt-8">
                   <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -747,14 +717,14 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
             <section class="mt-6 rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
               <h2 class="text-xl font-bold text-neutral-900">Inscripciones</h2>
               <p class="mt-2 text-neutral-600">
-                @if (isCreator()) {
+                @if (isTournamentAdmin()) {
                   Administra las inscripciones de tu torneo.
                 } @else {
                   Solicita tu inscripción si el torneo está abierto.
                 }
               </p>
 
-              @if (isCreator()) {
+              @if (isTournamentAdmin()) {
                 <div class="mt-5 rounded-3xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm sm:p-6" (keydown.enter)="submitManualPlayer()">
                   <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -1083,11 +1053,12 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   }
                 </div>
               } @else {
-                <div class="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                  Estado actual del torneo: <span class="font-semibold text-neutral-900">{{ getStatusLabel(tournament()!.status) }}</span>
-                </div>
-
-                @if (!isProfileComplete()) {
+                @if (!isLoggedIn()) {
+                  <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    Registrate y completa tu perfil para poder inscribirte.
+                    <a routerLink="/register" class="ml-2 font-semibold underline">Ir a registrarme</a>
+                  </div>
+                } @else if (!isProfileComplete()) {
                   <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                     Debes completar tu perfil para inscribirte.
                     <a routerLink="/perfil" class="ml-2 font-semibold underline">Ir a completar perfil</a>
@@ -1221,7 +1192,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         No hay jugadores inscritos para el filtro seleccionado.
                       </div>
                     } @else {
-                      @if (isCreator() && hasPointsChanges()) {
+                      @if (isTournamentAdmin() && hasPointsChanges()) {
                         <div class="mt-4 flex items-center gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5">
                           <span class="text-sm text-primary-700">Hay cambios sin guardar</span>
                           <button type="button" (click)="saveAllPoints()" [disabled]="isSavingPoints()" class="rounded-lg bg-primary-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">Guardar</button>
@@ -1247,7 +1218,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 <p class="truncate text-xs text-neutral-700">{{ player.eventName }}</p>
                                 <p class="truncate text-xs text-neutral-400">{{ player.category }}</p>
                               </div>
-                              @if (isCreator()) {
+                              @if (isTournamentAdmin()) {
                                 <div class="flex items-center justify-end">
                                   <input type="number" min="0" class="w-20 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-right text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" [ngModel]="getEditedPoints(player)" (ngModelChange)="setEditedPoints(player, $event)" />
                                 </div>
@@ -1268,6 +1239,126 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   }
                 }
               </div>
+
+              @if (isTournamentAdmin()) {
+                <div class="mt-8 border-t border-neutral-200 pt-8">
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Árbitros</p>
+                      <h3 class="mt-2 text-xl font-bold text-neutral-900">Habilitar árbitros</h3>
+                      <p class="mt-2 text-sm text-neutral-600">Asigna árbitros al torneo para que puedan registrar resultados de partidos.</p>
+                    </div>
+                  </div>
+
+                  <div class="mt-4 rounded-3xl border border-neutral-200 bg-neutral-50 p-5 sm:p-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <label class="block flex-1">
+                        <span class="mb-1 block text-sm font-medium text-neutral-700">Buscar árbitro</span>
+                        <input
+                          type="search"
+                          class="w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                          [ngModel]="umpireSearchQuery()"
+                          (ngModelChange)="onUmpireSearchQueryChange($event)"
+                          name="umpireSearchQuery"
+                          placeholder="Nombre, apellido o email exacto"
+                          autocomplete="off"
+                        />
+                        <p class="mt-2 text-xs text-neutral-500">Escribe al menos 2 caracteres para buscar, o el email exacto del árbitro.</p>
+                      </label>
+                    </div>
+
+                    @if (isSearchingUmpires()) {
+                      <div class="mt-4 rounded-2xl border border-dashed border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-700">
+                        Buscando árbitros...
+                      </div>
+                    }
+
+                    @if (umpireSearchResults().length > 0) {
+                      <div class="mt-4">
+                        <p class="text-sm font-medium text-neutral-700">{{ umpireSearchResults().length }} resultado(s) encontrado(s)</p>
+                        <div class="mt-3 grid gap-3">
+                          @for (umpire of umpireSearchResults(); track umpire.id) {
+                            <div class="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                              <div>
+                                <p class="font-semibold text-neutral-900">{{ umpire.firstName }} {{ umpire.lastName }}</p>
+                                <p class="mt-1 text-xs text-neutral-500">{{ umpire.email }}</p>
+                              </div>
+                              <button
+                                type="button"
+                                class="rounded-full bg-primary-500 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-600 disabled:opacity-50"
+                                [disabled]="isAddingUmpire()"
+                                (click)="addUmpire(umpire)"
+                              >
+                                {{ isAddingUmpire() ? 'Añadiendo...' : 'Habilitar' }}
+                              </button>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    } @else if (!isSearchingUmpires() && umpireSearchQuery().trim().length >= 2 && !umpireSearchError()) {
+                      <div class="mt-4 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+                        No se han encontrado árbitros con ese criterio. Prueba con otro nombre, apellido o email exacto.
+                      </div>
+                    }
+
+                    @if (umpireSearchError()) {
+                      <div class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {{ umpireSearchError() }}
+                      </div>
+                    }
+                  </div>
+
+                  <div class="mt-6">
+                    <div class="flex items-center justify-between">
+                      <p class="text-sm font-semibold text-neutral-700">Árbitros asignados</p>
+                      <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-neutral-600">
+                        {{ tournamentUmpires().length }} asignado(s)
+                      </span>
+                    </div>
+
+                    @if (isLoadingTournamentUmpires()) {
+                      <div class="mt-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                        Cargando árbitros...
+                      </div>
+                    } @else if (tournamentUmpires().length === 0) {
+                      <div class="mt-3 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+                        No hay árbitros asignados a este torneo.
+                      </div>
+                    } @else {
+                      <div class="mt-3 grid gap-3">
+                        @for (umpire of tournamentUmpires(); track umpire.id) {
+                          <div class="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3">
+                            <div>
+                              <p class="font-semibold text-neutral-900">{{ getUmpireDisplayName(umpire) }}</p>
+                              <p class="mt-1 text-xs text-neutral-500">Asignado el {{ umpire.assignedAt | date:'dd/MM/yyyy HH:mm' }}</p>
+                            </div>
+                            <button
+                              type="button"
+                              class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-100"
+                              [disabled]="isRemovingUmpireId() === umpire.umpireId"
+                              (click)="removeUmpire(umpire)"
+                            >
+                              {{ isRemovingUmpireId() === umpire.umpireId ? 'Eliminando...' : 'Eliminar' }}
+                            </button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  @if (umpireSuccessMessage()) {
+                    <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      {{ umpireSuccessMessage() }}
+                    </div>
+                  }
+
+                  @if (umpireErrorMessage()) {
+                    <div class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {{ umpireErrorMessage() }}
+                    </div>
+                  }
+                </div>
+              }
             </section>
           }
 
@@ -1324,7 +1415,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     }
                   </div>
 
-                  @if (isCreator() && isCourtsPanelExpanded()) {
+                  @if (isTournamentAdmin() && isCourtsPanelExpanded()) {
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
                       <label class="block min-w-60">
                         <span class="mb-1 block text-sm font-medium text-neutral-700">Nueva pista</span>
@@ -1362,7 +1453,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   </div>
                 }
 
-                @if (isCreator() && isCourtsPanelExpanded() && selectedCourt()) {
+                @if (isTournamentAdmin() && isCourtsPanelExpanded() && selectedCourt()) {
                   <div class="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
                     <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
                       <label class="block flex-1">
@@ -1407,7 +1498,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                 }
               </div>
 
-              @if (isCreator()) {
+              @if (isTournamentAdmin()) {
               <div class="mt-5 rounded-2xl border border-neutral-200 bg-white p-4">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
@@ -1682,7 +1773,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             [participantNamesInput]="participantNamesByInscriptionId()"
                             [participantOrderInput]="participantOrderByInscriptionId()"
                             [courtsInput]="courts()"
-                            [canManageInput]="isCreator()"
+                            [canManageInput]="canManageMatches()"
                             [tournamentNameInput]="tournament()!.formalName"
                             [categoryNameInput]="getCategoryLabel(event.categoryId) + ' - ' + getGenderLabelForString(event.gender)"
                             [generatingDrawsForStageIdInput]="generatingDrawsStageId()"
@@ -1752,10 +1843,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly eventsSuccessMessage = signal<string | null>(null);
   readonly eventsErrorMessage = signal<string | null>(null);
   readonly eventCatalogError = signal<string | null>(null);
-  readonly selectedStatus = signal<TournamentStatus | null>(null);
   readonly isUpdatingStatus = signal(false);
   readonly showHeaderStatusDropdown = signal(false);
   readonly isProfileComplete = signal(false);
+  readonly isLoggedIn = computed(() => this.authService.currentRole !== null);
   readonly selectedInscriptionCategoryId = signal<number | null>(null);
   readonly selectedInscriptionGender = signal<TournamentEventGender | null>(null);
   readonly tournamentInscriptions = signal<TournamentInscriptionsResponse | null>(null);
@@ -1859,6 +1950,18 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     }
   ];
   private readonly manualPlayerSearchResultLimit = 10;
+
+  readonly umpireSearchQuery = signal<string>('');
+  readonly umpireSearchResults = signal<TournamentUmpireSearchResponse[]>([]);
+  readonly isSearchingUmpires = signal(false);
+  readonly umpireSearchError = signal<string | null>(null);
+  readonly isAddingUmpire = signal(false);
+  readonly isRemovingUmpireId = signal<string | null>(null);
+  readonly tournamentUmpires = signal<TournamentUmpireResponse[]>([]);
+  readonly isLoadingTournamentUmpires = signal(false);
+  readonly umpireSuccessMessage = signal<string | null>(null);
+  readonly umpireErrorMessage = signal<string | null>(null);
+  private umpireSearchDebounceHandle: ReturnType<typeof setTimeout> | null = null;
   private manualPlayerSearchDebounceHandle: ReturnType<typeof setTimeout> | null = null;
   private manualPlayerSearchRequestId = 0;
   private liveUpdatesSubscription: Subscription | null = null;
@@ -1877,11 +1980,20 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
   readonly canEditGeneralInfo = computed(() => {
     const tournament = this.tournament();
-    if (!tournament || !this.isCreator()) {
+    if (!tournament || !this.isTournamentAdmin()) {
       return false;
     }
     return tournament.status === 'DRAFT' || tournament.status === 'OPEN';
   });
+
+  readonly isAssignedUmpire = computed(() => {
+    const memberId = this.currentMemberId();
+    if (!memberId) return false;
+    return this.tournamentUmpires().some(u => u.umpireId === memberId);
+  });
+
+  readonly isTournamentAdmin = computed(() => this.isCreator() || this.isAssignedUmpire());
+  readonly canManageMatches = computed(() => this.isTournamentAdmin());
 
   readonly isEditingGeneralInfo = signal(false);
   readonly isSavingGeneralInfo = signal(false);
@@ -2192,7 +2304,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   saveGeneralInfo(): void {
-    if (!this.isCreator() || this.generalInfoForm.invalid || this.isSavingGeneralInfo()) {
+    if (!this.isTournamentAdmin() || this.generalInfoForm.invalid || this.isSavingGeneralInfo()) {
       return;
     }
 
@@ -2203,21 +2315,52 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
     const formValue = this.generalInfoForm.getRawValue();
 
-    const payload: TournamentGeneralInfoUpdateRequest = {
-      formalName: formValue.formalName!,
-      playStartDate: formValue.playStartDate!,
-      playEndDate: formValue.playEndDate!,
-      tournamentStartTime: formValue.tournamentStartTime!,
-      inscriptionStartDate: formValue.inscriptionStartDate!,
-      inscriptionEndDate: formValue.inscriptionEndDate!,
-      surfaceCategory: formValue.surfaceCategory!,
-      maxPlayers: formValue.maxPlayers!,
-      location: formValue.location!,
-      locationLatitude: formValue.locationLatitude,
-      locationLongitude: formValue.locationLongitude,
-      locationPlaceId: formValue.locationPlaceId,
-      locationFormattedAddress: formValue.locationFormattedAddress
-    };
+    const payload: TournamentGeneralInfoUpdateRequest = {};
+
+    if (formValue.formalName !== currentTournament.formalName) {
+      payload.formalName = formValue.formalName!;
+    }
+    if (formValue.playStartDate !== currentTournament.playStartDate) {
+      payload.playStartDate = formValue.playStartDate!;
+    }
+    if (formValue.playEndDate !== currentTournament.playEndDate) {
+      payload.playEndDate = formValue.playEndDate!;
+    }
+    if (formValue.tournamentStartTime !== (currentTournament.tournamentStartTime ?? '09:00')) {
+      payload.tournamentStartTime = formValue.tournamentStartTime!;
+    }
+    if (formValue.inscriptionStartDate !== currentTournament.inscriptionStartDate) {
+      payload.inscriptionStartDate = formValue.inscriptionStartDate!;
+    }
+    if (formValue.inscriptionEndDate !== currentTournament.inscriptionEndDate) {
+      payload.inscriptionEndDate = formValue.inscriptionEndDate!;
+    }
+    if (formValue.surfaceCategory !== currentTournament.surfaceCategory) {
+      payload.surfaceCategory = formValue.surfaceCategory!;
+    }
+    if (formValue.maxPlayers !== currentTournament.maxPlayers) {
+      payload.maxPlayers = formValue.maxPlayers!;
+    }
+    if (formValue.location !== currentTournament.location) {
+      payload.location = formValue.location!;
+    }
+    if (formValue.locationLatitude !== (currentTournament.locationLatitude ?? null)) {
+      payload.locationLatitude = formValue.locationLatitude;
+    }
+    if (formValue.locationLongitude !== (currentTournament.locationLongitude ?? null)) {
+      payload.locationLongitude = formValue.locationLongitude;
+    }
+    if (formValue.locationPlaceId !== (currentTournament.locationPlaceId ?? null)) {
+      payload.locationPlaceId = formValue.locationPlaceId;
+    }
+    if (formValue.locationFormattedAddress !== (currentTournament.locationFormattedAddress ?? null)) {
+      payload.locationFormattedAddress = formValue.locationFormattedAddress;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      this.isEditingGeneralInfo.set(false);
+      return;
+    }
 
     this.isSavingGeneralInfo.set(true);
     this.generalInfoError.set(null);
@@ -2240,6 +2383,11 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   exportTournamentPdf(): void {
     const currentTournament = this.tournament();
     if (!currentTournament || this.isExportingTournamentPdf()) {
+      return;
+    }
+
+    if (!this.isLoggedIn()) {
+      this.actionError.set('Debe registrarse para imprimir el pdf del torneo.');
       return;
     }
 
@@ -2489,22 +2637,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     return this.eventCatalog().find(event => event.id === categoryId)?.category ?? String(categoryId);
   }
 
-  onSelectedStatusChange(nextStatus: string): void {
-    this.selectedStatus.set(nextStatus as TournamentStatus);
-  }
-
-  canUpdateStatus(): boolean {
-    const tournament = this.tournament();
-    const selectedStatus = this.selectedStatus();
-    if (!this.isCreator() || !tournament || !selectedStatus || this.isUpdatingStatus()) {
-      return false;
-    }
-
-    return this.allowedStatusTransitions().includes(selectedStatus);
-  }
-
   toggleHeaderStatusDropdown(): void {
-    if (!this.isCreator() || this.allowedStatusTransitions().length === 0) {
+    if (!this.isTournamentAdmin() || this.allowedStatusTransitions().length === 0) {
       return;
     }
     this.showHeaderStatusDropdown.update(open => !open);
@@ -2521,7 +2655,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   updateHeaderStatus(nextStatus: TournamentStatus): void {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       this.actionError.set('Solo el administrador del torneo puede cambiar el estado.');
       return;
     }
@@ -2544,43 +2678,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.tournamentService.updateTournamentStatus(currentTournament.id, { status: nextStatus }).subscribe({
       next: updatedTournament => {
         this.tournament.set(updatedTournament);
-        this.selectedStatus.set(this.allowedStatusTransitions()[0] ?? null);
-        this.actionMessage.set('Estado del torneo actualizado correctamente.');
-        this.isUpdatingStatus.set(false);
-      },
-      error: (error) => {
-        this.actionError.set(getApiErrorMessage(error, 'No se pudo actualizar el estado del torneo.'));
-        this.isUpdatingStatus.set(false);
-      }
-    });
-  }
-
-  updateTournamentStatus(): void {
-    if (!this.isCreator()) {
-      this.actionError.set('Solo el administrador del torneo puede cambiar el estado.');
-      return;
-    }
-
-    const currentTournament = this.tournament();
-    const nextStatus = this.selectedStatus();
-
-    if (!currentTournament || !nextStatus) {
-      return;
-    }
-
-    if (!this.allowedStatusTransitions().includes(nextStatus)) {
-      this.actionError.set('No se puede realizar la transición de estado seleccionada.');
-      return;
-    }
-
-    this.isUpdatingStatus.set(true);
-    this.actionError.set(null);
-    this.actionMessage.set(null);
-
-    this.tournamentService.updateTournamentStatus(currentTournament.id, { status: nextStatus }).subscribe({
-      next: updatedTournament => {
-        this.tournament.set(updatedTournament);
-        this.selectedStatus.set(this.allowedStatusTransitions()[0] ?? null);
         this.actionMessage.set('Estado del torneo actualizado correctamente.');
         this.isUpdatingStatus.set(false);
       },
@@ -2592,7 +2689,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   saveTournamentEvents(): void {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       this.eventsErrorMessage.set('Solo el administrador del torneo puede guardar pruebas.');
       return;
     }
@@ -2824,7 +2921,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   submitManualPlayer(): void {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       this.manualPlayerError.set('Solo el administrador del torneo puede añadir jugadores manualmente.');
       return;
     }
@@ -2896,7 +2993,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   createCourt(): void {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       this.courtError.set('Solo el administrador del torneo puede crear pistas.');
       return;
     }
@@ -2942,6 +3039,113 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.isRegisteredPlayersPanelExpanded.update(expanded => !expanded);
   }
 
+  onUmpireSearchQueryChange(query: string): void {
+    this.umpireSearchQuery.set(query);
+    this.umpireSearchError.set(null);
+    this.umpireSuccessMessage.set(null);
+
+    if (this.umpireSearchDebounceHandle) {
+      clearTimeout(this.umpireSearchDebounceHandle);
+    }
+
+    if (query.trim().length < 2) {
+      this.umpireSearchResults.set([]);
+      return;
+    }
+
+    this.umpireSearchDebounceHandle = setTimeout(() => {
+      this.searchUmpires(query);
+    }, 300);
+  }
+
+  private searchUmpires(query: string): void {
+    this.isSearchingUmpires.set(true);
+    this.umpireSearchError.set(null);
+
+    this.tournamentService.searchUmpires(query).subscribe({
+      next: results => {
+        const assignedIds = new Set(this.tournamentUmpires().map(u => u.umpireId));
+        this.umpireSearchResults.set(results.filter(r => !assignedIds.has(r.id)));
+        this.isSearchingUmpires.set(false);
+      },
+      error: error => {
+        this.umpireSearchError.set(getApiErrorMessage(error, 'No se pudieron buscar árbitros.'));
+        this.isSearchingUmpires.set(false);
+      }
+    });
+  }
+
+  addUmpire(umpire: TournamentUmpireSearchResponse): void {
+    const tournamentId = this.tournament()?.id;
+    if (!tournamentId) return;
+
+    this.isAddingUmpire.set(true);
+    this.umpireErrorMessage.set(null);
+    this.umpireSuccessMessage.set(null);
+
+    this.tournamentService.addTournamentUmpire(tournamentId, { id: umpire.id }).subscribe({
+      next: () => {
+        this.umpireSuccessMessage.set(`Árbitro ${umpire.firstName || ''} ${umpire.lastName || ''} habilitado correctamente.`);
+        this.isAddingUmpire.set(false);
+        this.umpireSearchQuery.set('');
+        this.umpireSearchResults.set([]);
+        this.loadTournamentUmpires();
+      },
+      error: error => {
+        this.umpireErrorMessage.set(getApiErrorMessage(error, 'No se pudo habilitar el árbitro.'));
+        this.isAddingUmpire.set(false);
+      }
+    });
+  }
+
+  removeUmpire(umpire: TournamentUmpireResponse): void {
+    const tournamentId = this.tournament()?.id;
+    if (!tournamentId) return;
+
+    if (!window.confirm('¿Eliminar este árbitro del torneo?')) return;
+
+    this.isRemovingUmpireId.set(umpire.umpireId);
+    this.umpireErrorMessage.set(null);
+    this.umpireSuccessMessage.set(null);
+
+    this.tournamentService.removeTournamentUmpire(tournamentId, umpire.umpireId).subscribe({
+      next: () => {
+        this.umpireSuccessMessage.set('Árbitro eliminado correctamente.');
+        this.isRemovingUmpireId.set(null);
+        this.loadTournamentUmpires();
+      },
+      error: error => {
+        this.umpireErrorMessage.set(getApiErrorMessage(error, 'No se pudo eliminar el árbitro.'));
+        this.isRemovingUmpireId.set(null);
+      }
+    });
+  }
+
+  getUmpireDisplayName(umpire: TournamentUmpireResponse): string {
+    const parts = [umpire.umpireFirstName, umpire.umpireLastName].filter(Boolean);
+    if (parts.length > 0) {
+      return parts.join(' ');
+    }
+    return umpire.umpireEmail || umpire.umpireId;
+  }
+
+  private loadTournamentUmpires(): void {
+    const tournamentId = this.tournament()?.id;
+    if (!tournamentId) return;
+
+    this.isLoadingTournamentUmpires.set(true);
+    this.tournamentService.getTournamentUmpires(tournamentId).subscribe({
+      next: umpires => {
+        this.tournamentUmpires.set(umpires);
+        this.isLoadingTournamentUmpires.set(false);
+      },
+      error: () => {
+        this.tournamentUmpires.set([]);
+        this.isLoadingTournamentUmpires.set(false);
+      }
+    });
+  }
+
   getEditedPoints(player: TournamentInscriptionPlayer): number | null {
     const map = this.editedPointsMap();
     if (player.inscriptionId in map) {
@@ -2977,7 +3181,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         return edited !== undefined && edited !== original;
       })
       .map(p => ({
-        participantId: p.inscriptionId,
+        participantId: p.participantId,
         points: map[p.inscriptionId] ?? null,
         seed: null
       }));
@@ -3047,7 +3251,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   updateSelectedCourt(): void {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       this.courtError.set('Solo el administrador del torneo puede editar pistas.');
       return;
     }
@@ -3083,7 +3287,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   deleteSelectedCourt(): void {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       this.courtError.set('Solo el administrador del torneo puede eliminar pistas.');
       return;
     }
@@ -3127,13 +3331,13 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
         this.initializeInscriptionSelection();
         this.syncManualPlayerEventSelection(tournament.events ?? []);
-        this.selectedStatus.set(this.getDefaultStatusSelection(tournament.status));
         this.loadTournamentInscriptions();
         this.loadCourts(tournament.id);
         this.loadScheduleConfig(tournamentId);
+        this.loadTournamentUmpires();
         this.isLoading.set(false);
         if (!preserveActiveSection) {
-          this.activeSection.set(this.isCreator() ? 'setup' : 'overview');
+          this.activeSection.set(this.isTournamentAdmin() ? 'setup' : 'overview');
         }
         setTimeout(() => this.tryInitMap(), 0);
       },
@@ -3173,7 +3377,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
         this.initializeInscriptionSelection();
         this.syncManualPlayerEventSelection(tournament.events ?? []);
-        this.selectedStatus.set(this.getDefaultStatusSelection(tournament.status));
         this.actionMessage.set('Cuadro actualizado');
       },
       error: error => {
@@ -3469,19 +3672,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.selectedEvents.set(selections);
   }
 
-  private getDefaultStatusSelection(currentStatus: TournamentStatus): TournamentStatus | null {
-    const transitionsByStatus: Record<TournamentStatus, TournamentStatus[]> = {
-      DRAFT: ['OPEN', 'CANCELLED'],
-      OPEN: ['CLOSED', 'CANCELLED'],
-      ACTIVE: ['CLOSED', 'CANCELLED'],
-      CLOSED: ['IN_PROGRESS', 'CANCELLED'],
-      IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
-      COMPLETED: [],
-      CANCELLED: []
-    };
-
-    return transitionsByStatus[currentStatus]?.[0] ?? null;
-  }
 
   private getProviderOrganisationId(providerOrganisation: string | TournamentProviderSummary | null | undefined): string | null {
     if (!providerOrganisation) {
@@ -3629,7 +3819,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   onGenerateDraws(event: { tournamentId: string; stageId: string }, eventId: string): void {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       this.actionError.set('Solo el administrador del torneo puede generar cuadros.');
       return;
     }
@@ -3689,8 +3879,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     console.log('Match selected:', matchId);
   }
 
-  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string }): void {
-    if (!this.isCreator()) {
+  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }): void {
+    if (!this.isTournamentAdmin()) {
       this.actionError.set('Solo el administrador del torneo puede registrar resultados.');
       return;
     }
@@ -3722,7 +3912,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.actionMessage.set('Guardando resultado...');
     this.tournamentService.submitMatchResult(currentTournament.id, event.matchId, {
       winnerId: event.winnerId || undefined,
-      scoreString: event.result
+      scoreString: event.result,
+      status: event.status
     }).subscribe({
       next: (updatedMatch) => {
         const updatedTournament = this.patchMatchResultInTournament(this.tournament() ?? currentTournament, event.matchId, updatedMatch);
@@ -3750,7 +3941,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     scheduleTimeType: MatchScheduleTimeType;
     cascade?: boolean;
   }): void {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       this.actionError.set('Solo el administrador del torneo puede programar partidos.');
       return;
     }
@@ -3821,7 +4012,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   canSaveMatchSchedule(match: MatchResponse): boolean {
-    if (!this.isCreator()) {
+    if (!this.isTournamentAdmin()) {
       return false;
     }
 
@@ -3990,7 +4181,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
   private createOptimisticMatchResult(
     tournament: TournamentResponse,
-    event: { matchId: string; winnerId: string | null; result: string }
+    event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }
   ): MatchResponse | null {
     const match = this.findMatchInTournament(tournament, event.matchId);
     if (!match) {
@@ -4000,7 +4191,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     return {
       ...match,
       winnerId: event.winnerId !== null ? event.winnerId : match.winnerId,
-      result: event.result || match.result
+      result: event.result || match.result,
+      status: event.status
     };
   }
 
