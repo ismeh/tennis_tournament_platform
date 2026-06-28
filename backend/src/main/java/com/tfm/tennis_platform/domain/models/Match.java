@@ -2,6 +2,7 @@ package com.tfm.tennis_platform.domain.models;
 
 import lombok.Builder;
 import lombok.Getter;
+import com.tfm.tennis_platform.domain.models.enums.MatchStatus;
 import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -24,6 +25,7 @@ public class Match {
     private final UUID courtId;
     private final String court;
     private final String result;
+    private final MatchStatus status;
 
     public UUID getTournamentId() {
         return tournament != null ? tournament.getId() : null;

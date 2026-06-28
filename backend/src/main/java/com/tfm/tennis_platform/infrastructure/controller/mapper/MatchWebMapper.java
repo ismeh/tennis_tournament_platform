@@ -12,6 +12,7 @@ public interface MatchWebMapper {
     @Mapping(target = "secondInscriptionId", source = "secondInscription.id")
     @Mapping(target = "winnerId", source = "winner.id")
     @Mapping(target = "scheduleTimeType", source = "scheduleTimeType")
+    @Mapping(target = "status", expression = "java(domain.getStatus() != null ? domain.getStatus().name() : null)")
     MatchResponse toResponse(Match domain);
 
     @Mapping(target = "drawId", ignore = true)
@@ -20,5 +21,6 @@ public interface MatchWebMapper {
     @Mapping(target = "winner.id", source = "winnerId")
     @Mapping(target = "nextMatch", ignore = true)
     @Mapping(target = "loserNextMatch", ignore = true)
+    @Mapping(target = "status", expression = "java(request.status() != null ? com.tfm.tennis_platform.domain.models.enums.MatchStatus.valueOf(request.status()) : null)")
     Match toDomain(MatchResponse request);
 }
