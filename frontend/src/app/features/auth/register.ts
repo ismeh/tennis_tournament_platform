@@ -21,7 +21,7 @@ const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`
 				<form class="mt-6 space-y-4" [formGroup]="form" (ngSubmit)="submit()">
 					<div>
 						<label class="mb-1 block text-sm font-medium text-neutral-700">Tipo de cuenta</label>
-						<div class="grid grid-cols-2 gap-3">
+						<div class="grid grid-cols-3 gap-3">
 							<button type="button"
 								class="rounded-lg border-2 px-4 py-3 text-center transition-all"
 								[class.border-primary-500]="form.get('role')?.value === 'PLAYER'"
@@ -42,6 +42,16 @@ const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`
 								<span class="block text-sm font-medium">Organizador</span>
 								<span class="block text-xs text-neutral-500">Crear y gestionar torneos</span>
 							</button>
+							<button type="button"
+								class="rounded-lg border-2 px-4 py-3 text-center transition-all"
+								[class.border-primary-500]="form.get('role')?.value === 'UMPIRE'"
+								[class.border-neutral-200]="form.get('role')?.value !== 'UMPIRE'"
+								[class.bg-primary-50]="form.get('role')?.value === 'UMPIRE'"
+								(click)="form.patchValue({ role: 'UMPIRE' })">
+								<span class="block text-lg mb-1">⚖️</span>
+								<span class="block text-sm font-medium">Anotador</span>
+								<span class="block text-xs text-neutral-500">Registrar resultados</span>
+							</button>
 						</div>
 					</div>
 
@@ -52,7 +62,7 @@ const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`
 							type="email"
 							formControlName="email"
 							class="w-full rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:border-primary-500"
-							placeholder="tu@email.com"
+							placeholder="tu&#64;email.com"
 						/>
 					</div>
 
@@ -65,6 +75,21 @@ const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`
 							class="w-full rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:border-primary-500"
 							placeholder="Mínimo 6 caracteres"
 						/>
+					</div>
+
+					<div class="flex items-start gap-3">
+						<input
+							id="privacyAccepted"
+							type="checkbox"
+							formControlName="privacyPolicyAccepted"
+							class="mt-1 h-4 w-4 rounded border-neutral-300 text-primary-500 focus:ring-primary-500"
+						/>
+						<label for="privacyAccepted" class="text-sm text-neutral-600">
+							Acepto la
+							<a routerLink="/politica-privacidad" target="_blank" class="font-medium text-primary-600 hover:text-primary-700">política de privacidad</a>
+							y los
+							<a routerLink="/terminos-condiciones" target="_blank" class="font-medium text-primary-600 hover:text-primary-700">términos y condiciones</a>.
+						</label>
 					</div>
 
 					@if (errorMessage()) {
@@ -103,7 +128,8 @@ export class RegisterComponent {
 	readonly form = this.fb.nonNullable.group({
 		role: ['PLAYER' as UserRole, Validators.required],
 		email: ['', [Validators.required, Validators.pattern(EMAIL_PATTERN)]],
-		password: ['', [Validators.required, Validators.minLength(6)]]
+		password: ['', [Validators.required, Validators.minLength(6)]],
+		privacyPolicyAccepted: [false, [Validators.requiredTrue]]
 	});
 
 	submit(): void {
@@ -116,7 +142,12 @@ export class RegisterComponent {
 		this.successMessage.set(null);
 
 		const raw = this.form.getRawValue();
-		this.authService.register({ email: raw.email, password: raw.password, role: raw.role }).subscribe({
+		this.authService.register({
+			email: raw.email,
+			password: raw.password,
+			role: raw.role,
+			privacyPolicyAccepted: raw.privacyPolicyAccepted
+		}).subscribe({
 			next: (response) => {
 				this.isSubmitting.set(false);
 				this.successMessage.set(response.message);
