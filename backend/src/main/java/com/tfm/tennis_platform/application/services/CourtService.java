@@ -4,6 +4,8 @@ import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
 import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.exceptions.ResourceNotFoundException;
 import com.tfm.tennis_platform.domain.models.Court;
+import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class CourtService {
 
     public Court create(UUID tournamentId, String name, String requesterEmail) {
         ensureTournamentAdmin(tournamentId, requesterEmail);
+        validateTournamentCanModifyCourts(tournamentId);
         String normalizedName = normalizeName(name);
 
         if (courtRepository.existsByTournamentIdAndName(tournamentId, normalizedName)) {
@@ -45,6 +48,7 @@ public class CourtService {
 
     public Court update(UUID tournamentId, UUID courtId, String name, String requesterEmail) {
         ensureTournamentAdmin(tournamentId, requesterEmail);
+        validateTournamentCanModifyCourts(tournamentId);
         if (courtId == null) {
             throw new InvalidArgumentException("La pista es obligatoria.");
         }
@@ -65,6 +69,7 @@ public class CourtService {
 
     public void delete(UUID tournamentId, UUID courtId, String requesterEmail) {
         ensureTournamentAdmin(tournamentId, requesterEmail);
+        validateTournamentCanModifyCourts(tournamentId);
         if (courtId == null) {
             throw new InvalidArgumentException("La pista es obligatoria.");
         }
@@ -94,5 +99,16 @@ public class CourtService {
         }
 
         return name.trim();
+    }
+
+    private void validateTournamentCanModifyCourts(UUID tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+        TournamentStatus state = tournament.getState();
+        if (state == TournamentStatus.CLOSED || state == TournamentStatus.IN_PROGRESS
+                || state == TournamentStatus.COMPLETED || state == TournamentStatus.CANCELLED) {
+            throw new InvalidArgumentException(
+                    "No se pueden modificar pistas una vez el torneo está cerrado o en curso. Estado actual: " + state);
+        }
     }
 }
