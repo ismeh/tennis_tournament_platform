@@ -2,8 +2,12 @@ package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.exceptions.UnauthorizedException;
+import com.tfm.tennis_platform.domain.models.ConsentRecord;
+import com.tfm.tennis_platform.domain.models.LegalDocumentVersion;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.Person;
+import com.tfm.tennis_platform.domain.models.enums.ConsentAction;
+import com.tfm.tennis_platform.domain.models.enums.DocumentType;
 import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.PersonRepository;
@@ -28,6 +32,8 @@ public class AccountService {
     private final PersonRepository personRepository;
     private final TournamentRepository tournamentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final LegalDocumentService legalDocumentService;
+    private final ConsentService consentService;
 
     @Transactional
     public void deleteAccount(String email, String password) {
@@ -71,7 +77,9 @@ public class AccountService {
                 member.getTier().name(),
                 member.getRegisteredAt(),
                 member.isPrivacyPolicyAccepted(),
-                member.getPrivacyPolicyVersion()
+                member.getPrivacyPolicyVersion(),
+                member.isTermsConditionsAccepted(),
+                member.getTermsConditionsVersion()
         );
 
         AccountExportResponse.PersonInfo personInfo = null;
@@ -89,10 +97,16 @@ public class AccountService {
             }
         }
 
+        List<ConsentRecord> consentHistory = consentService.getConsentHistory(member.getId());
+
         return new AccountExportResponse(
                 accountInfo,
                 personInfo,
-                List.of(),
+                consentHistory.stream().map(cr -> new AccountExportResponse.ConsentInfo(
+                        cr.getDocumentType().name(),
+                        cr.getAction().name(),
+                        cr.getCreatedAt()
+                )).toList(),
                 List.of()
         );
     }
@@ -113,6 +127,42 @@ public class AccountService {
                 version
         );
 
+        LegalDocumentVersion docVersion = legalDocumentService.getVersion(DocumentType.PRIVACY_POLICY, version);
+        consentService.recordConsent(member.getId(), DocumentType.PRIVACY_POLICY,
+                accepted ? ConsentAction.GRANTED : ConsentAction.REVOKED,
+                docVersion.getId());
+
         log.info("Privacy consent updated for member {}: accepted={}, version={}", member.getId(), accepted, version);
+    }
+
+    @Transactional
+    public void updateTermsConsent(String email, boolean accepted, String version) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("No se encontró la cuenta."));
+
+        if (version == null || version.isBlank()) {
+            throw new InvalidArgumentException("La versión de los términos y condiciones es obligatoria.");
+        }
+
+        memberRepository.updateTermsConsent(
+                member.getId(),
+                accepted,
+                accepted ? LocalDateTime.now() : null,
+                version
+        );
+
+        LegalDocumentVersion docVersion = legalDocumentService.getVersion(DocumentType.TERMS_CONDITIONS, version);
+        consentService.recordConsent(member.getId(), DocumentType.TERMS_CONDITIONS,
+                accepted ? ConsentAction.GRANTED : ConsentAction.REVOKED,
+                docVersion.getId());
+
+        log.info("Terms consent updated for member {}: accepted={}, version={}", member.getId(), accepted, version);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ConsentRecord> getConsentHistory(String email) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("No se encontró la cuenta."));
+        return consentService.getConsentHistory(member.getId());
     }
 }

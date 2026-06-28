@@ -7,7 +7,7 @@ import java.util.List;
 public record AccountExportResponse(
         AccountInfo account,
         PersonInfo person,
-        List<TournamentSummary> createdTournaments,
+        List<ConsentInfo> consentHistory,
         List<ParticipantSummary> participations
 ) {
     public record AccountInfo(
@@ -16,7 +16,9 @@ public record AccountExportResponse(
             String tier,
             LocalDateTime registeredAt,
             boolean privacyPolicyAccepted,
-            String privacyPolicyVersion
+            String privacyPolicyVersion,
+            boolean termsConditionsAccepted,
+            String termsConditionsVersion
     ) {
     }
 
@@ -27,6 +29,13 @@ public record AccountExportResponse(
             LocalDate birthDate,
             String gender,
             String tennisId
+    ) {
+    }
+
+    public record ConsentInfo(
+            String documentType,
+            String action,
+            LocalDateTime createdAt
     ) {
     }
 
