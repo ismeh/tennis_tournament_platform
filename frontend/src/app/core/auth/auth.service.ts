@@ -21,6 +21,8 @@ export interface AccountExportData {
     registeredAt: string;
     privacyPolicyAccepted: boolean;
     privacyPolicyVersion: string;
+    termsConditionsAccepted: boolean;
+    termsConditionsVersion: string;
   };
   person: {
     firstName: string;
@@ -30,8 +32,26 @@ export interface AccountExportData {
     gender: string;
     tennisId: string;
   } | null;
-  createdTournaments: { name: string; startDate: string; endDate: string; status: string }[];
+  consentHistory: ConsentHistoryEntry[];
   participations: { tournamentName: string; eventName: string; entryStatus: string }[];
+}
+
+export interface ConsentHistoryEntry {
+  documentType: string;
+  action: string;
+  createdAt: string;
+}
+
+export interface LegalDocument {
+  documentType: string;
+  version: string;
+  contentHash: string;
+  contentSnapshot: string;
+  createdAt: string;
+}
+
+export interface ConsentHistoryResponse {
+  history: ConsentHistoryEntry[];
 }
 
 export interface AccountDeletionResponse {
@@ -241,6 +261,21 @@ export class AuthService {
     });
   }
 
+  updateTermsConsent(accepted: boolean, version: string): Observable<void> {
+    return this.http.put<void>(`${this.authUrl}/account/consent/terms`, {
+      accepted,
+      termsConditionsVersion: version
+    });
+  }
+
+  getConsentHistory(): Observable<ConsentHistoryResponse> {
+    return this.http.get<ConsentHistoryResponse>(`${this.authUrl}/account/consent/history`);
+  }
+
+  getLegalDocument(type: string): Observable<LegalDocument> {
+    return this.http.get<LegalDocument>(`${AppSettings.API_URL}/legal/${type}/current`);
+  }
+
   private setSession(token: string, refreshToken?: string, fallbackName?: string): void {
     const extractedName = this.extractDisplayNameFromToken(token);
     const resolvedName = extractedName ?? this.normalizeName(fallbackName ?? null);
@@ -431,7 +466,7 @@ export class AuthService {
       return null;
     }
     const stored = localStorage.getItem(this.USER_ROLE_KEY);
-    if (stored === 'PLAYER' || stored === 'ORGANIZER') {
+    if (stored === 'PLAYER' || stored === 'ORGANIZER' || stored === 'UMPIRE') {
       return stored;
     }
     return null;
