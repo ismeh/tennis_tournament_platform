@@ -163,7 +163,8 @@ public interface TournamentWebMapper {
                     match.getResult(),
                     match.isProfessionalMatch(),
                     match.getFirstWinPoints(),
-                    match.getSecondWinPoints()
+                    match.getSecondWinPoints(),
+                    match.getStatus() != null ? match.getStatus().name() : null
                 ))
                 .toList();
     }

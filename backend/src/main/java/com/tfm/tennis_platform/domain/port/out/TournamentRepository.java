@@ -13,4 +13,5 @@ public interface TournamentRepository {
     Optional<Tournament> findById(UUID id);
     boolean isProfessionalTournament(UUID id);
     void transferTournaments(UUID oldOwnerId, UUID newOwnerId);
+    List<TournamentSummary> findSummariesByUmpireId(UUID umpireId);
 }

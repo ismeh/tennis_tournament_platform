@@ -128,18 +128,20 @@ public class TournamentController {
         return ResponseEntity.ok(toTournamentResponse(updatedTournament));
     }
 
-    @PutMapping("/{id}/general-info")
+    @PatchMapping("/{id}/general-info")
     public ResponseEntity<TournamentResponse> updateGeneralInfo(
             @PathVariable UUID id,
             @RequestBody TournamentGeneralInfoRequest request,
             Principal principal
     ) {
-        com.tfm.tennis_platform.domain.models.TournamentPeriod playPeriod =
-                new com.tfm.tennis_platform.domain.models.TournamentPeriod(
-                        request.playStartDate(), request.playEndDate());
-        com.tfm.tennis_platform.domain.models.TournamentPeriod inscriptionPeriod =
-                new com.tfm.tennis_platform.domain.models.TournamentPeriod(
-                        request.inscriptionStartDate(), request.inscriptionEndDate());
+        com.tfm.tennis_platform.domain.models.TournamentPeriod playPeriod = request.hasPlayPeriod()
+                ? new com.tfm.tennis_platform.domain.models.TournamentPeriod(
+                        request.playStartDate(), request.playEndDate())
+                : null;
+        com.tfm.tennis_platform.domain.models.TournamentPeriod inscriptionPeriod = request.hasInscriptionPeriod()
+                ? new com.tfm.tennis_platform.domain.models.TournamentPeriod(
+                        request.inscriptionStartDate(), request.inscriptionEndDate())
+                : null;
 
         Tournament updatedTournament = tournamentService.updateGeneralInfo(
                 id,
@@ -310,7 +312,7 @@ public class TournamentController {
                 Principal principal
         ) {
         return ResponseEntity.ok(matchWebMapper.toResponse(
-            matchService.recordResult(tournamentId, matchId, request.winnerId(), request.scoreString(), principal.getName())
+            matchService.recordResult(tournamentId, matchId, request.winnerId(), request.scoreString(), request.status(), principal.getName())
         ));
         }
 
@@ -455,6 +457,7 @@ public class TournamentController {
     private static TournamentInscriptionPlayerResponse toPlayerResponse(TournamentInscriptionPlayerView player) {
         return new TournamentInscriptionPlayerResponse(
                 player.inscriptionId(),
+                player.participantId(),
                 player.eventId(),
                 player.categoryId(),
                 player.category(),
