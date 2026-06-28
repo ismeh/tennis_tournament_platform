@@ -84,3 +84,28 @@ SET MODE PostgreSQL;
     -- 8. Insert an empty match structure for the MVP
     INSERT INTO matches (draw_id, round_number, bracket_position, scheduled_at, court, result) VALUES
         ( (SELECT id FROM draws WHERE label = 'Main Draw'), 1, 0, NULL, NULL, NULL);
+
+    -- 9. Insert legal document versions
+    INSERT INTO legal_document_versions (document_type, version, content_snapshot) VALUES
+    ('PRIVACY_POLICY', 'v1.0', '
+    <section class="bg-white">
+      <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6 md:py-16 lg:px-8">
+        <h1 class="text-3xl font-bold text-neutral-900 md:text-4xl">Política de Privacidad</h1>
+        <p class="mt-2 text-sm text-neutral-500">Última actualización: Junio 2026</p>
+        <div class="mt-8 space-y-8 leading-relaxed text-neutral-700">
+          <p>Esta es la Política de Privacidad de PuntoMatch.</p>
+        </div>
+      </div>
+    </section>
+    '),
+    ('TERMS_CONDITIONS', 'v1.0', '
+    <section class="bg-white">
+      <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6 md:py-16 lg:px-8">
+        <h1 class="text-3xl font-bold text-neutral-900 md:text-4xl">Términos y Condiciones</h1>
+        <p class="mt-2 text-sm text-neutral-500">Última actualización: Junio 2026</p>
+        <div class="mt-8 space-y-8 leading-relaxed text-neutral-700">
+          <p>Estos son los Términos y Condiciones de PuntoMatch.</p>
+        </div>
+      </div>
+    </section>
+    ');
