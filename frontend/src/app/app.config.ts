@@ -1,6 +1,7 @@
 import {
   APP_INITIALIZER,
   ApplicationConfig,
+  ErrorHandler,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection
 } from '@angular/core';
@@ -11,6 +12,7 @@ import { provideClientHydration, withEventReplay } from '@angular/platform-brows
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { apiErrorInterceptor } from './core/errors/api-error.interceptor';
+import { GlobalErrorHandler } from './core/errors/global-error-handler';
 import { requestLoggingInterceptor } from './core/logging/request-logging.interceptor';
 import { RequestLoggerService } from './core/logging/request-logger.service';
 import { environment } from '../environments/environment';
@@ -20,6 +22,10 @@ import { AppConfigService } from './core/config/app-config.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    {
+      provide: ErrorHandler,
+      useClass: GlobalErrorHandler
+    },
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
     provideClientHydration(withEventReplay()),
