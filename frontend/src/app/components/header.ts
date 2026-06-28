@@ -56,6 +56,13 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                 >
                   Crear torneo
                 </a>
+              } @else if ((role$ | async) === 'UMPIRE') {
+                <a
+                  routerLink="/torneos"
+                  class="inline-flex whitespace-nowrap rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 sm:px-4"
+                >
+                  Gestionar resultados
+                </a>
               } @else {
                 <a
                   routerLink="/torneos"
@@ -126,7 +133,7 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                 routerLink="/register"
                 class="inline-flex whitespace-nowrap rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 sm:px-4"
               >
-                Crear torneo
+                Comienza
               </a>
             }
           </div>
@@ -210,6 +217,14 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                 >
                   Crear torneo
                 </a>
+              } @else if ((role$ | async) === 'UMPIRE') {
+                <a
+                  routerLink="/torneos"
+                  (click)="closeMobileMenu()"
+                  class="block w-full text-center rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-600 mb-2"
+                >
+                  Gestionar resultados
+                </a>
               } @else {
                 <a
                   routerLink="/torneos"
@@ -284,7 +299,7 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                   (click)="closeMobileMenu()"
                   class="block w-full text-center rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-600"
                 >
-                  Crear torneo
+                  Comienza
                 </a>
               </div>
             }
