@@ -24,6 +24,18 @@ export function getSurfaceBackgroundImage(surface: TournamentSurfaceCategory): s
 
 export type TournamentStatus = 'DRAFT' | 'OPEN' | 'ACTIVE' | 'CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
+export type MatchStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'WALKOVER' | 'RETIRED' | 'CANCELLED' | 'SUSPENDED';
+
+export const MATCH_STATUS_LABELS: Record<MatchStatus, string> = {
+  PENDING: 'Pendiente',
+  IN_PROGRESS: 'En curso',
+  COMPLETED: 'Jugado',
+  WALKOVER: 'Walkover',
+  RETIRED: 'Retirada',
+  CANCELLED: 'Cancelado',
+  SUSPENDED: 'Suspendido'
+};
+
 export interface TournamentCreateRequest {
   formalName: string;
   playStartDate: string;
@@ -42,15 +54,15 @@ export interface TournamentCreateRequest {
 }
 
 export interface TournamentGeneralInfoUpdateRequest {
-  formalName: string;
-  playStartDate: string;
-  playEndDate: string;
-  tournamentStartTime: string;
-  inscriptionStartDate: string;
-  inscriptionEndDate: string;
-  surfaceCategory: TournamentSurfaceCategory;
-  maxPlayers: number;
-  location: string;
+  formalName?: string;
+  playStartDate?: string;
+  playEndDate?: string;
+  tournamentStartTime?: string;
+  inscriptionStartDate?: string;
+  inscriptionEndDate?: string;
+  surfaceCategory?: TournamentSurfaceCategory;
+  maxPlayers?: number;
+  location?: string;
   locationLatitude?: number | null;
   locationLongitude?: number | null;
   locationPlaceId?: string | null;
@@ -189,6 +201,7 @@ export interface MatchResponse {
   professionalMatch?: boolean | null;
   firstWinPoints?: number | null;
   secondWinPoints?: number | null;
+  status?: MatchStatus | null;
 }
 
 export type MatchScheduleTimeType = 'EXACT' | 'NOT_BEFORE';
@@ -413,6 +426,7 @@ export interface TournamentInscriptionGenderCount {
 
 export interface TournamentInscriptionPlayer {
   inscriptionId: string;
+  participantId: string;
   eventId: string;
   categoryId: number;
   category: string;
@@ -453,4 +467,25 @@ export interface ScheduleConfigResponse {
 export interface ScheduleConfigRequest {
   timeSlots: ScheduleTimeSlot[];
   matchDurationMinutes: number;
+}
+
+export interface TournamentUmpireResponse {
+  id: string;
+  tournamentId: string;
+  umpireId: string;
+  umpireEmail: string | null;
+  umpireFirstName: string | null;
+  umpireLastName: string | null;
+  assignedAt: string;
+}
+
+export interface TournamentUmpireSearchResponse {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+export interface TournamentUmpireRequest {
+  id: string;
 }

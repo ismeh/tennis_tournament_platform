@@ -325,6 +325,7 @@ describe('TournamentService', () => {
       inscriptions: [
         {
           inscriptionId: 'inscription-1',
+          participantId: 'participant-1',
           eventId: 'event-1',
           categoryId: 1,
           category: 'Absoluto',
