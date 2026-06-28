@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService, AccountExportData } from '../../core/auth/auth.service';
+import { AuthService, AccountExportData, ConsentHistoryEntry } from '../../core/auth/auth.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
@@ -28,15 +28,15 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
             <h3 class="text-sm font-medium text-neutral-700">Datos de la cuenta</h3>
             <dl class="mt-2 grid grid-cols-2 gap-2 text-sm">
               <dt class="text-neutral-500">Email:</dt>
-              <dd class="text-neutral-900">{{ exportData()!.account.email }}</dd>
+              <dd class="text-neutral-900">{{ getEmailLabel(exportData()!.account.email) }}</dd>
               <dt class="text-neutral-500">Rol:</dt>
-              <dd class="text-neutral-900">{{ exportData()!.account.role }}</dd>
+              <dd class="text-neutral-900">{{ getRoleLabel(exportData()!.account.role) }}</dd>
               <dt class="text-neutral-500">Nivel:</dt>
-              <dd class="text-neutral-900">{{ exportData()!.account.tier }}</dd>
+              <dd class="text-neutral-900">{{ getTierLabel(exportData()!.account.tier) }}</dd>
               <dt class="text-neutral-500">Registro:</dt>
               <dd class="text-neutral-900">{{ exportData()!.account.registeredAt | date:'dd/MM/yyyy' }}</dd>
             </dl>
-
+ 
             @if (exportData()!.person) {
               <h3 class="mt-4 text-sm font-medium text-neutral-700">Datos personales</h3>
               <dl class="mt-2 grid grid-cols-2 gap-2 text-sm">
@@ -80,7 +80,7 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
         }
       </div>
 
-      <!-- Delete Account Section -->
+			<!-- Delete Account Section -->
       <div class="mt-8 rounded-2xl border border-red-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 class="text-lg font-semibold text-red-900">Eliminar mi cuenta</h2>
         <p class="mt-1 text-sm text-neutral-600">
@@ -131,6 +131,48 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
           </button>
         </form>
       </div>
+
+      <!-- Consent History Section -->
+      <div class="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 class="text-lg font-semibold text-neutral-900">Historial de consentimientos</h2>
+        <p class="mt-1 text-sm text-neutral-600">
+          Registro de todos los consentimientos otorgados o revocados (Art. 7 RGPD).
+        </p>
+
+        @if (consentHistory().length > 0) {
+          <div class="mt-4 overflow-hidden rounded-lg border border-neutral-200">
+            <table class="min-w-full divide-y divide-neutral-200">
+              <thead class="bg-neutral-50">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500">Documento</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500">Acción</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500">Fecha</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-neutral-200 bg-white">
+                @for (entry of consentHistory(); track entry.createdAt) {
+                  <tr>
+                    <td class="px-4 py-3 text-sm text-neutral-900">
+                      {{ entry.documentType === 'PRIVACY_POLICY' ? 'Política de Privacidad' : 'Términos y Condiciones' }}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                      <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium"
+                            [class]="entry.action === 'GRANTED' ? 'bg-green-50 text-green-700' : entry.action === 'REVOKED' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'">
+                        {{ entry.action === 'GRANTED' ? 'Otorgado' : entry.action === 'REVOKED' ? 'Revocado' : 'Actualizado' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-neutral-500">
+                      {{ entry.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="mt-4 text-sm text-neutral-500">No hay registros de consentimientos.</p>
+        }
+      </div>
     </section>
   `
 })
@@ -147,11 +189,15 @@ export class AccountSettingsComponent implements OnInit {
   readonly deleteError = signal<string | null>(null);
   readonly deleteSuccess = signal<string | null>(null);
 
+  readonly consentHistory = signal<ConsentHistoryEntry[]>([]);
+
   readonly deleteForm = this.fb.nonNullable.group({
     password: ['', [Validators.required]]
   });
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.loadConsentHistory();
+  }
 
   loadExportData(): void {
     this.isLoadingExport.set(true);
@@ -169,11 +215,58 @@ export class AccountSettingsComponent implements OnInit {
     });
   }
 
+  loadConsentHistory(): void {
+    this.authService.getConsentHistory().subscribe({
+      next: response => {
+        this.consentHistory.set(response.history);
+      },
+      error: () => {
+        this.consentHistory.set([]);
+      }
+    });
+  }
+
+  getEmailLabel(email: string): string {
+    if (!email) return '';
+    const parts = email.split('@');
+    if (parts.length < 2) return email;
+    return parts[0] + '@***';
+  }
+
+  getRoleLabel(role: string): string {
+    switch (role) {
+      case 'ORGANIZER': return 'Organizador';
+      case 'UMPIRE': return 'Árbitro';
+      case 'PLAYER': return 'Jugador';
+      case 'ADMIN': return 'Administrador';
+      default: return role;
+    }
+  }
+
+  getTierLabel(tier: string): string {
+    switch (tier) {
+      case 'FREE': return 'Gratuito';
+      case 'INTERMEDIATE': return 'Intermedio';
+      case 'ADVANCED': return 'Avanzado';
+      default: return tier;
+    }
+  }
+
   downloadExport(): void {
     const data = this.exportData();
     if (!data) return;
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const mappedData = {
+      ...data,
+      account: {
+        ...data.account,
+        email: this.getEmailLabel(data.account.email),
+        role: this.getRoleLabel(data.account.role),
+        tier: this.getTierLabel(data.account.tier)
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(mappedData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
