@@ -4,6 +4,9 @@ import com.tfm.tennis_platform.application.commands.CompleteProfileCommand;
 import com.tfm.tennis_platform.domain.exceptions.ExpiredTokenException;
 import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.exceptions.InvalidTokenException;
+import com.tfm.tennis_platform.domain.models.LegalDocumentVersion;
+import com.tfm.tennis_platform.domain.models.enums.ConsentAction;
+import com.tfm.tennis_platform.domain.models.enums.DocumentType;
 import com.tfm.tennis_platform.domain.port.out.EmailSender;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.PersonRepository;
@@ -53,6 +56,8 @@ public class AuthService {
     private final UserDetailsService userDetailsService;
     private final EmailSender emailSender;
     private final EmailProperties emailProperties;
+    private final LegalDocumentService legalDocumentService;
+    private final ConsentService consentService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthTokens login(String email, String password) {
@@ -77,11 +82,15 @@ public class AuthService {
         return issueTokens(userDetails, member.getId(), member.getRole());
     }
 
-    public RegistrationResult register(String email, String password, String name, UserRole role) {
+    public RegistrationResult register(String email, String password, String name, UserRole role, Boolean privacyPolicyAccepted) {
         String normalizedEmail = normalizeEmail(email);
         memberRepository.findByEmail(normalizedEmail).ifPresent(existing -> {
             throw new DuplicateResourceException("Member", "email", normalizedEmail);
         });
+
+        if (privacyPolicyAccepted == null || !privacyPolicyAccepted) {
+            throw new InvalidArgumentException("Debes aceptar la política de privacidad para registrarte.");
+        }
 
         MemberTier tier = MemberTier.FREE;
         String encodedPassword = passwordEncoder.encode(password);
@@ -97,6 +106,12 @@ public class AuthService {
                 .emailVerified(!emailProperties.required())
                 .build();
 
+        LegalDocumentVersion privacyVersion = legalDocumentService.getCurrentVersion(DocumentType.PRIVACY_POLICY);
+        LegalDocumentVersion termsVersion = legalDocumentService.getCurrentVersion(DocumentType.TERMS_CONDITIONS);
+
+        member = member.withPrivacyConsent(privacyVersion.getVersion());
+        member = member.withTermsConsent(termsVersion.getVersion());
+
         String confirmationToken = null;
         if (emailProperties.required()) {
             confirmationToken = generateSecureToken();
@@ -110,6 +125,11 @@ public class AuthService {
         if (savedMember.getId() == null) {
             throw new UnauthorizedException("No se pudo crear la cuenta. Inténtalo de nuevo.");
         }
+
+        consentService.recordConsent(savedMember.getId(), DocumentType.PRIVACY_POLICY, ConsentAction.GRANTED,
+                privacyVersion.getId());
+        consentService.recordConsent(savedMember.getId(), DocumentType.TERMS_CONDITIONS, ConsentAction.GRANTED,
+                termsVersion.getId());
 
         if (!emailProperties.required()) {
             return new RegistrationResult(false, "Cuenta creada. Ya puedes iniciar sesión.");

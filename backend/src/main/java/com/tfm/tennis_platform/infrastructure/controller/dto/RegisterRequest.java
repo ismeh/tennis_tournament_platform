@@ -6,6 +6,7 @@ public record RegisterRequest(
         String email,
         String password,
         String name,
-        UserRole role
+        UserRole role,
+        Boolean privacyPolicyAccepted
 ) {
 }
