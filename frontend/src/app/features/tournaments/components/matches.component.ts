@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { MatchResponse } from '../../../data/interfaces/tournament.model';
+import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/interfaces/tournament.model';
 
 @Component({
   selector: 'app-matches',
@@ -54,7 +54,23 @@ import { MatchResponse } from '../../../data/interfaces/tournament.model';
                     </div>
                   </td>
                   <td class="px-3 py-2">
-                    @if (match.winnerId) {
+                    @if (match.status === 'WALKOVER') {
+                      <span class="inline-block rounded bg-orange-100 px-2 py-1 text-xs text-orange-800">
+                        Walkover
+                      </span>
+                    } @else if (match.status === 'RETIRED') {
+                      <span class="inline-block rounded bg-amber-100 px-2 py-1 text-xs text-amber-800">
+                        Retirada
+                      </span>
+                    } @else if (match.status === 'CANCELLED') {
+                      <span class="inline-block rounded bg-red-100 px-2 py-1 text-xs text-red-800">
+                        Cancelado
+                      </span>
+                    } @else if (match.status === 'SUSPENDED') {
+                      <span class="inline-block rounded bg-purple-100 px-2 py-1 text-xs text-purple-800">
+                        Suspendido
+                      </span>
+                    } @else if (match.winnerId) {
                       <span class="inline-block rounded bg-green-100 px-2 py-1 text-xs text-green-800">
                         Jugado: {{ match.result }}
                       </span>

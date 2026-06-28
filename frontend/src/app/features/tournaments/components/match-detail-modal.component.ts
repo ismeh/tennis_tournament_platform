@@ -1,7 +1,7 @@
 import { Component, EventEmitter, HostListener, Input, Output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/interfaces/tournament.model';
 
 @Component({
   selector: 'app-match-detail-modal',
@@ -160,6 +160,22 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType } from '../../../da
                   <p class="mb-3 text-xs font-semibold text-neutral-600">REGISTRO DE RESULTADO</p>
                   @if (canManageInput) {
                     <div class="space-y-3">
+                    <!-- Match Status -->
+                    <div>
+                      <label class="text-xs font-semibold text-neutral-600">Estado del partido</label>
+                      <select
+                        [(ngModel)]="selectedStatus"
+                        class="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                      >
+                        <option value="PENDING">Pendiente</option>
+                        <option value="COMPLETED">Jugado (Normal)</option>
+                        <option value="WALKOVER">Walkover</option>
+                        <option value="RETIRED">Retirada</option>
+                        <option value="CANCELLED">Cancelado</option>
+                        <option value="SUSPENDED">Suspendido</option>
+                      </select>
+                    </div>
+
                     <!-- Winner Selection -->
                     <div>
                       <label class="text-xs font-semibold text-neutral-600">Ganador</label>
@@ -246,6 +262,7 @@ export class MatchDetailModalComponent {
       this.selectedCourtId = value.courtId || '';
       this.scheduledAtInput = this.toDatetimeLocalValue(value.scheduledAt);
       this.selectedScheduleTimeType = value.scheduleTimeType || 'EXACT';
+      this.selectedStatus = value.status || 'PENDING';
       this.validationMessage.set(null);
       this.scheduleValidationMessage.set(null);
     }
@@ -260,9 +277,10 @@ export class MatchDetailModalComponent {
   selectedCourtId = '';
   scheduledAtInput = '';
   selectedScheduleTimeType: MatchScheduleTimeType = 'EXACT';
+  selectedStatus: MatchStatus = 'PENDING';
 
   @Output() close = new EventEmitter<void>();
-  @Output() saveResult = new EventEmitter<{ matchId: string; winnerId: string | null; result: string }>();
+  @Output() saveResult = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; status: MatchStatus }>();
   @Output() saveSchedule = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -313,7 +331,8 @@ export class MatchDetailModalComponent {
     this.saveResult.emit({
       matchId: this.match()!.id,
       winnerId: this.selectedWinnerId || null,
-      result: this.matchResult
+      result: this.matchResult,
+      status: this.selectedStatus
     });
     this.validationMessage.set(null);
     this.isOpen.set(false);
