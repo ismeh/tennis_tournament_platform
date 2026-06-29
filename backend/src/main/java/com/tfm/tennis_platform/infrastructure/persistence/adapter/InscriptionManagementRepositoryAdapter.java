@@ -217,6 +217,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
         return people.stream()
                 .map(person -> new TournamentInscriptionPlayerView(
                         inscription.getId(),
+                        participant != null ? participant.getId() : null,
                         event != null ? event.getId() : null,
                         event != null && event.getAgeCategory() != null ? event.getAgeCategory().getId() : null,
                         event != null ? getCategoryLabel(event.getAgeCategory()) : null,

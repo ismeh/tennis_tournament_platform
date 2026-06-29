@@ -236,6 +236,11 @@ public class MatchService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Match", matchId));
 
+        ScheduleConfig scheduleConfig = scheduleConfigRepository.findByTournamentId(tournamentId).orElse(null);
+        Duration matchInterval = scheduleConfig != null && scheduleConfig.getMatchDurationMinutes() > 0
+                ? Duration.ofMinutes(scheduleConfig.getMatchDurationMinutes())
+                : DEFAULT_MATCH_INTERVAL;
+
         List<Match> matchesToCascade = cascade ? resolveCascadeMatches(tournamentMatches, currentMatch) : List.of(currentMatch);
         Set<UUID> cascadeMatchIds = matchesToCascade.stream()
                 .map(Match::getId)
@@ -244,7 +249,7 @@ public class MatchService {
         if (!cascade) {
             boolean courtBusy = tournamentMatches.stream()
                     .filter(match -> !cascadeMatchIds.contains(match.getId()))
-                    .anyMatch(match -> isSameCourtSlot(match, courtId, scheduledAt));
+                    .anyMatch(match -> isSameCourtSlot(match, courtId, scheduledAt, matchInterval));
 
             if (courtBusy) {
                 throw new InvalidArgumentException("La pista ya está ocupada en esa hora.");
@@ -273,10 +278,6 @@ public class MatchService {
                 .filter(Court::isActive)
                 .toList();
 
-        ScheduleConfig scheduleConfig = scheduleConfigRepository.findByTournamentId(tournamentId).orElse(null);
-        Duration matchInterval = scheduleConfig != null && scheduleConfig.getMatchDurationMinutes() > 0
-                ? Duration.ofMinutes(scheduleConfig.getMatchDurationMinutes())
-                : DEFAULT_MATCH_INTERVAL;
         List<TimeSlot> timeSlots = scheduleConfig != null ? scheduleConfig.getTimeSlots() : List.of();
 
         Duration shift = currentMatch.getScheduledAt() != null
@@ -311,7 +312,7 @@ public class MatchService {
         allCascade.add(updatedCurrent);
         allCascade.addAll(updatedOtherMatches);
 
-        assignCascadeCourts(allCascade, tournamentMatches, cascadeMatchIds, activeCourts);
+        assignCascadeCourts(allCascade, tournamentMatches, cascadeMatchIds, activeCourts, matchInterval);
 
         java.util.List<Match> resolvedCascade = new java.util.ArrayList<>();
         for (int i = 0; i < allCascade.size(); i++) {
@@ -409,10 +410,10 @@ public class MatchService {
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             final LocalDateTime slot = cursor;
             boolean courtFree = courtId == null || nonCascadeMatches.stream()
-                    .noneMatch(m -> isSameCourtSlot(m, courtId, slot));
+                    .noneMatch(m -> isSameCourtSlot(m, courtId, slot, matchInterval));
             if (courtFree && courtId != null) {
                 courtFree = scheduledCascadeMatches.stream()
-                        .noneMatch(m -> isSameCourtSlot(m, courtId, slot));
+                        .noneMatch(m -> isSameCourtSlot(m, courtId, slot, matchInterval));
             }
 
             boolean playersFree = true;
@@ -458,7 +459,7 @@ public class MatchService {
         return dateTime.plusDays(1).with(timeSlots.get(0).startTime());
     }
 
-    private void assignCascadeCourts(List<Match> cascadeMatches, List<Match> tournamentMatches, Set<UUID> cascadeMatchIds, List<Court> activeCourts) {
+    private void assignCascadeCourts(List<Match> cascadeMatches, List<Match> tournamentMatches, Set<UUID> cascadeMatchIds, List<Court> activeCourts, Duration matchInterval) {
         if (activeCourts.isEmpty()) {
             return;
         }
@@ -475,12 +476,12 @@ public class MatchService {
 
             for (Court c : activeCourts) {
                 boolean occupied = nonCascadeMatches.stream()
-                        .anyMatch(m -> isSameCourtSlot(m, c.getId(), candidate.getScheduledAt()));
+                        .anyMatch(m -> isSameCourtSlot(m, c.getId(), candidate.getScheduledAt(), matchInterval));
 
                 if (!occupied) {
                     occupied = cascadeMatches.stream()
                             .filter(other -> !other.getId().equals(candidate.getId()))
-                            .anyMatch(other -> isSameCourtSlot(other, c.getId(), candidate.getScheduledAt()));
+                            .anyMatch(other -> isSameCourtSlot(other, c.getId(), candidate.getScheduledAt(), matchInterval));
                 }
 
                 if (!occupied) {
@@ -494,19 +495,19 @@ public class MatchService {
         }
     }
 
-    private void validateCascadeCourtAvailability(List<Match> tournamentMatches, List<Match> updatedMatches, Set<UUID> cascadeMatchIds) {
+    private void validateCascadeCourtAvailability(List<Match> tournamentMatches, List<Match> updatedMatches, Set<UUID> cascadeMatchIds, Duration matchInterval) {
         List<Match> nonCascadeMatches = tournamentMatches.stream()
                 .filter(match -> !cascadeMatchIds.contains(match.getId()))
                 .toList();
 
         for (Match updatedMatch : updatedMatches) {
             boolean courtBusy = nonCascadeMatches.stream()
-                    .anyMatch(match -> isSameCourtSlot(match, updatedMatch.getCourtId(), updatedMatch.getScheduledAt()));
+                    .anyMatch(match -> isSameCourtSlot(match, updatedMatch.getCourtId(), updatedMatch.getScheduledAt(), matchInterval));
 
             if (!courtBusy) {
                 courtBusy = updatedMatches.stream()
                         .filter(other -> !other.getId().equals(updatedMatch.getId()))
-                        .anyMatch(other -> isSameCourtSlot(other, updatedMatch.getCourtId(), updatedMatch.getScheduledAt()));
+                        .anyMatch(other -> isSameCourtSlot(other, updatedMatch.getCourtId(), updatedMatch.getScheduledAt(), matchInterval));
             }
 
             if (courtBusy) {
@@ -708,8 +709,19 @@ public class MatchService {
                 .build();
     }
 
-    private boolean isSameCourtSlot(Match match, UUID courtId, LocalDateTime scheduledAt) {
-        return courtId != null && scheduledAt != null && courtId.equals(match.getCourtId()) && scheduledAt.equals(match.getScheduledAt());
+    private boolean isSameCourtSlot(Match match, UUID courtId, LocalDateTime scheduledAt, Duration matchInterval) {
+        if (courtId == null || scheduledAt == null || match.getCourtId() == null || match.getScheduledAt() == null) {
+            return false;
+        }
+        if (!courtId.equals(match.getCourtId())) {
+            return false;
+        }
+        LocalDateTime start1 = scheduledAt;
+        LocalDateTime end1 = scheduledAt.plus(matchInterval);
+        LocalDateTime start2 = match.getScheduledAt();
+        LocalDateTime end2 = match.getScheduledAt().plus(matchInterval);
+
+        return start1.isBefore(end2) && start2.isBefore(end1);
     }
 
     private boolean sharesPlayer(Match match1, Match match2) {
