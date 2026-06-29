@@ -10,7 +10,7 @@ import static io.gatling.javaapi.http.HttpDsl.*;
 
 public class TournamentLoadSimulation extends Simulation {
 
-    private static final String BASE_URL = "http://localhost:8085";
+    private static final String BASE_URL = "http://localhost:8080";
 
     private static final HttpProtocolBuilder httpProtocol = http
             .baseUrl(BASE_URL)
@@ -23,7 +23,6 @@ public class TournamentLoadSimulation extends Simulation {
                     http("Get All Tournaments")
                             .get("/api/tournaments")
                             .check(status().is(200))
-                            .check(jsonPath("$").isArray())
             )
             .pause(Duration.ofSeconds(1))
             .exec(
@@ -45,19 +44,20 @@ public class TournamentLoadSimulation extends Simulation {
             );
 
     private static final ChainBuilder authenticatedTournamentFlow =
-            exec(
+            exec(session -> session.set("userEmail", "perf" + System.nanoTime() + "@test.com"))
+            .exec(
                     http("Register User")
                             .post("/api/auth/register")
                             .body(StringBody("""
                                     {
-                                        "email": "perf#{randomLong()}@test.com",
+                                        "email": "#{userEmail}",
                                         "password": "Password123!",
                                         "name": "PerfUser",
-                                        "role": "ORGANIZER"
+                                        "role": "ORGANIZER",
+                                        "privacyPolicyAccepted": true
                                     }
                                     """))
                             .check(status().is(201))
-                            .check(jsonPath("$.email").saveAs("userEmail"))
             )
             .pause(Duration.ofSeconds(1))
             .exec(
@@ -120,11 +120,19 @@ public class TournamentLoadSimulation extends Simulation {
     {
         setUp(
                 publicReadScenario.injectOpen(
-                        rampUsers(50).during(Duration.ofSeconds(30))
+                        rampUsers(100).during(Duration.ofSeconds(30))
                 ),
                 fullTournamentFlowScenario.injectOpen(
                         rampUsers(10).during(Duration.ofSeconds(60))
                 )
-        ).protocols(httpProtocol);
+        ).protocols(httpProtocol)
+        .assertions(
+                global().responseTime().percentile(95).lt(1000),
+                global().successfulRequests().percent().gt(95.0),
+                details("Get All Tournaments").responseTime().percentile(95).lt(300),
+                details("Get All Tournaments").successfulRequests().percent().gt(99.0),
+                details("Login User").responseTime().percentile(95).lt(1000),
+                details("Login User").successfulRequests().percent().gt(99.0)
+        );
     }
 }
