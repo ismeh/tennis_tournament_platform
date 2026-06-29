@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -233,5 +234,67 @@ class AccountServiceTest {
 
         assertThrows(InvalidArgumentException.class, () -> accountService.updatePrivacyConsent(EMAIL, true, "  "));
         assertThrows(InvalidArgumentException.class, () -> accountService.updatePrivacyConsent(EMAIL, true, null));
+    }
+
+    @Test
+    void updateTermsConsent_updates_when_valid() {
+        Member member = buildMember();
+        LegalDocumentVersion docVersion = LegalDocumentVersion.builder().id(1L).version("1.0").build();
+
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+        when(legalDocumentService.getVersion(DocumentType.TERMS_CONDITIONS, "1.0")).thenReturn(docVersion);
+
+        accountService.updateTermsConsent(EMAIL, true, "1.0");
+
+        verify(memberRepository).updateTermsConsent(eq(MEMBER_ID), eq(true), any(LocalDateTime.class), eq("1.0"));
+    }
+
+    @Test
+    void updateTermsConsent_sets_null_when_declined() {
+        Member member = buildMember();
+        LegalDocumentVersion docVersion = LegalDocumentVersion.builder().id(1L).version("1.0").build();
+
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+        when(legalDocumentService.getVersion(DocumentType.TERMS_CONDITIONS, "1.0")).thenReturn(docVersion);
+
+        accountService.updateTermsConsent(EMAIL, false, "1.0");
+
+        verify(memberRepository).updateTermsConsent(MEMBER_ID, false, null, "1.0");
+    }
+
+    @Test
+    void updateTermsConsent_throws_when_member_not_found() {
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+        assertThrows(UnauthorizedException.class, () -> accountService.updateTermsConsent(EMAIL, true, "1.0"));
+    }
+
+    @Test
+    void updateTermsConsent_throws_when_version_is_blank() {
+        Member member = buildMember();
+
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+
+        assertThrows(InvalidArgumentException.class, () -> accountService.updateTermsConsent(EMAIL, true, "  "));
+        assertThrows(InvalidArgumentException.class, () -> accountService.updateTermsConsent(EMAIL, true, null));
+    }
+
+    @Test
+    void getConsentHistory_returns_history() {
+        Member member = buildMember();
+
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+        when(consentService.getConsentHistory(MEMBER_ID)).thenReturn(List.of());
+
+        var result = accountService.getConsentHistory(EMAIL);
+
+        assertNotNull(result);
+    }
+
+    @Test
+    void getConsentHistory_throws_when_member_not_found() {
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+        assertThrows(UnauthorizedException.class, () -> accountService.getConsentHistory(EMAIL));
     }
 }
