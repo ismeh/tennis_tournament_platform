@@ -39,7 +39,16 @@ describe('TournamentDetailComponent', () => {
       'deleteCourt',
       'submitMatchResult',
       'scheduleMatch',
-      'getScheduleConfig'
+      'getScheduleConfig',
+      'getTournamentUmpires',
+      'searchUmpires',
+      'addTournamentUmpire',
+      'removeTournamentUmpire',
+      'updateTournamentGeneralInfo',
+      'exportTournamentPdf',
+      'updateParticipantsPoints',
+      'generateDraws',
+      'saveScheduleConfig'
     ]);
     memberServiceSpy = jasmine.createSpyObj<MemberService>('MemberService', ['getMemberByEmail', 'getMyProfile']);
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUserEmail']);
@@ -246,6 +255,55 @@ describe('TournamentDetailComponent', () => {
           gender: 'MIXED'
         }
       ]
+    }));
+
+    tournamentServiceSpy.getTournamentUmpires.and.returnValue(of([]));
+    tournamentServiceSpy.searchUmpires.and.returnValue(of([]));
+    tournamentServiceSpy.addTournamentUmpire.and.returnValue(of({
+      id: 'umpire-1',
+      tournamentId: 'tournament-id',
+      umpireId: 'umpire-member-id',
+      umpireFirstName: 'Test',
+      umpireLastName: 'Umpire',
+      umpireEmail: 'umpire@test.com',
+      assignedAt: '2026-04-01T00:00:00Z'
+    }));
+    tournamentServiceSpy.removeTournamentUmpire.and.returnValue(of(void 0));
+    tournamentServiceSpy.updateTournamentGeneralInfo.and.returnValue(of({
+      id: 'tournament-id',
+      formalName: 'Open de Primavera',
+      status: 'DRAFT',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      providerOrganisationId: 'member-id',
+      events: []
+    }));
+    tournamentServiceSpy.exportTournamentPdf.and.returnValue(of(new Blob()));
+    tournamentServiceSpy.updateParticipantsPoints.and.returnValue(of(void 0));
+    tournamentServiceSpy.generateDraws.and.returnValue(of({
+      id: 'tournament-id',
+      formalName: 'Open de Primavera',
+      status: 'DRAFT',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      providerOrganisationId: 'member-id',
+      events: []
+    }));
+    tournamentServiceSpy.saveScheduleConfig.and.returnValue(of({
+      id: null,
+      tournamentId: 'tournament-id',
+      matchDurationMinutes: 60,
+      timeSlots: []
     }));
 
     authServiceSpy.getCurrentUserEmail.and.returnValue('organizer@example.com');
