@@ -132,7 +132,11 @@ export class ProfileComponent implements OnInit {
           nationality: profile.nationality ?? '',
           federationLicense: profile.federationLicense ?? ''
         });
-        this.roleLabel.set(profile.role === 'ORGANIZER' ? 'Organizador' : 'Jugador');
+        this.roleLabel.set(
+          profile.role === 'ORGANIZER' ? 'Organizador' :
+          profile.role === 'UMPIRE' ? 'Árbitro' :
+          'Jugador'
+        );
         this.isLoading.set(false);
       },
       error: (error) => {

@@ -48,10 +48,9 @@ import { AppSettings } from '../shared/constants';
           <div>
             <h3 class="font-semibold text-white mb-4">Legal</h3>
             <ul class="space-y-2 text-sm">
-              <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Política de Privacidad</a></li>
-              <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Términos de Servicio</a></li>
-              <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">Política de Cookies</a></li>
-              <li><a href="#" class="text-neutral-400 hover:text-primary-400 transition-colors">GDPR</a></li>
+              <li><a routerLink="/politica-privacidad" class="text-neutral-400 hover:text-primary-400 transition-colors">Política de Privacidad</a></li>
+              <li><a routerLink="/terminos-condiciones" class="text-neutral-400 hover:text-primary-400 transition-colors">Términos y Condiciones</a></li>
+              <li><a routerLink="/politica-privacidad" class="text-neutral-400 hover:text-primary-400 transition-colors">GDPR</a></li>
             </ul>
           </div>
         </div>

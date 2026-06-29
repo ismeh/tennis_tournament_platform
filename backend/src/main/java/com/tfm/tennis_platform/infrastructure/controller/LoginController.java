@@ -42,7 +42,8 @@ public class LoginController {
                 registerRequest.email(),
                 registerRequest.password(),
                 registerRequest.name(),
-                registerRequest.role()
+                registerRequest.role(),
+                registerRequest.privacyPolicyAccepted()
         );
         log.info("User registered: {}", registerRequest.email());
         return ResponseEntity.status(HttpStatus.CREATED)

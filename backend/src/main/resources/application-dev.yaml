@@ -13,9 +13,10 @@ spring:
       ddl-auto: none # update: Automatically update the database schema to match the entity definitions
   flyway:
     enabled: ${SPRING_FLYWAY_ENABLED:true}
-    locations: classpath:db/migration
+    locations: classpath:db/migration,classpath:db/seed,classpath:db/seed/prod
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
     baseline-version: ${FLYWAY_BASELINE_VERSION:0}
+    out-of-order: ${SPRING_FLYWAY_OUT_OF_ORDER:true}
 logging:
   level:
     org.springframework.web: "info"
@@ -27,4 +28,4 @@ logging:
   pattern:
     level: "%5p [req-id: %X{correlationId}]"
 server:
-  port: ${BACKEND_PORT:8085}
+  port: ${BACKEND_PORT:8080}

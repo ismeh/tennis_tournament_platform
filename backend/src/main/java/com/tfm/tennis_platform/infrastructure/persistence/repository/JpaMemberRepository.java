@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.infrastructure.persistence.repository;
 
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MemberEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.PersonEntity;
 import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -9,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.time.LocalDateTime;
@@ -77,6 +79,48 @@ public interface JpaMemberRepository extends JpaRepository<MemberEntity, UUID> {
             @Param("version") String version
     );
 
+    @Modifying
+    @Transactional
+    @Query("""
+            UPDATE MemberEntity m
+            SET m.termsConditionsAccepted = :accepted,
+                m.termsConditionsAcceptedAt = :acceptedAt,
+                m.termsConditionsVersion = :version
+            WHERE m.id = :id
+            """)
+    int updateTermsConsent(
+            @Param("id") UUID id,
+            @Param("accepted") boolean accepted,
+            @Param("acceptedAt") LocalDateTime acceptedAt,
+            @Param("version") String version
+    );
+
     Optional<MemberEntity> findFirstByRole(UserRole role);
+
+    List<MemberEntity> findAllByRole(UserRole role);
+
+    @Query(value = """
+            SELECT m.id AS id, m.email AS email, p.first_name AS firstName, p.last_name AS lastName
+            FROM users m
+            LEFT JOIN persons p ON m.person_id = p.id
+            WHERE m.user_role = :role
+              AND (
+                  LOWER(m.email) = LOWER(:query)
+                  OR LOWER(COALESCE(p.first_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+                  OR LOWER(COALESCE(p.last_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+                  OR LOWER(CONCAT(COALESCE(p.first_name, ''), ' ', COALESCE(p.last_name, ''))) LIKE LOWER(CONCAT('%', :query, '%'))
+              )
+            ORDER BY m.email ASC
+            """, nativeQuery = true)
+    List<UmpireSearchProjection> searchByRoleAndQuery(@Param("role") String role, @Param("query") String query);
+
+    @Query(value = """
+            SELECT m.id AS id, m.email AS email, p.first_name AS firstName, p.last_name AS lastName
+            FROM users m
+            LEFT JOIN persons p ON m.person_id = p.id
+            WHERE m.user_role = :role
+            ORDER BY m.email ASC
+            """, nativeQuery = true)
+    List<UmpireSearchProjection> findAllByRoleWithPersonData(@Param("role") String role);
 
 }

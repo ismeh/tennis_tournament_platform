@@ -78,11 +78,12 @@ class MatchControllerIT extends IntegrationTestBase {
 
     private String registerAndGetToken() throws Exception {
         String email = "matchplayer" + UUID.randomUUID() + "@test.com";
-        Map<String, String> registerBody = new HashMap<>();
+        Map<String, Object> registerBody = new HashMap<>();
         registerBody.put("email", email);
         registerBody.put("password", "Password123!");
         registerBody.put("name", "Match Player");
         registerBody.put("role", "ORGANIZER");
+        registerBody.put("privacyPolicyAccepted", true);
 
         mockMvc.perform(post(AUTH_URL + "/register")
                         .contentType(MediaType.APPLICATION_JSON)

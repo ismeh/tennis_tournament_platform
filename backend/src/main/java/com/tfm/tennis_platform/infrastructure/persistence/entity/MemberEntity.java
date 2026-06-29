@@ -64,4 +64,14 @@ public class MemberEntity {
 
     @Column(name = "privacy_policy_version", length = 10)
     private String privacyPolicyVersion;
+
+    @Column(name = "terms_conditions_accepted", nullable = false)
+    @Builder.Default
+    private boolean termsConditionsAccepted = false;
+
+    @Column(name = "terms_conditions_accepted_at")
+    private LocalDateTime termsConditionsAcceptedAt;
+
+    @Column(name = "terms_conditions_version", length = 20)
+    private String termsConditionsVersion;
 }

@@ -74,11 +74,11 @@ For HTTPS local or a public Nginx demo, use the environment matrix in [`/docs/de
 | Backend API | http://localhost:8080/api |
 | PostgreSQL | localhost:5432 |
 
-For non-Docker local development, the backend PostgreSQL `dev` profile defaults to `http://localhost:8085`, while `devH2` defaults to `http://localhost:8080`, unless `BACKEND_PORT` is set.
+For non-Docker local development, the backend PostgreSQL `dev` profile and `devH2` profile default to `http://localhost:8080`, unless `BACKEND_PORT` is set.
 
 ### Default Credentials
 
-Sample users are seeded from SQL scripts, but plaintext passwords are not documented in the repository. For local login, use the public registration/login endpoints described in [`/docs/api-spec.md`](./docs/api-spec.md) (`http://localhost:8080` with Docker Compose, `http://localhost:8085` for local PostgreSQL `dev`, or the configured `BACKEND_PORT`).
+Sample users are seeded from SQL scripts, but plaintext passwords are not documented in the repository. For local login, use the public registration/login endpoints described in [`/docs/api-spec.md`](./docs/api-spec.md) (`http://localhost:8080` with Docker Compose, local PostgreSQL `dev`, `devH2`, or the configured `BACKEND_PORT`).
 
 ## Local Development (Without Docker)
 

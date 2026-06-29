@@ -4,7 +4,7 @@ Base URL:
 
 - Docker Compose / `BACKEND_PORT=8080`: `http://localhost:8080`
 - Local H2 profile (`devH2`, default `BACKEND_PORT` unset): `http://localhost:8080`
-- Local PostgreSQL `dev` profile (`BACKEND_PORT` unset): `http://localhost:8085`
+- Local PostgreSQL `dev` profile (`BACKEND_PORT` unset): `http://localhost:8080`
 
 Frontend API configuration normally points to the `/api` namespace, for example `http://localhost:8080/api`.
 

@@ -27,6 +27,9 @@ public class Member {
     private final boolean privacyPolicyAccepted;
     private final LocalDateTime privacyPolicyAcceptedAt;
     private final String privacyPolicyVersion;
+    private final boolean termsConditionsAccepted;
+    private final LocalDateTime termsConditionsAcceptedAt;
+    private final String termsConditionsVersion;
 
     public Member withEmailConfirmation(String tokenHash, LocalDateTime expiresAt) {
         return toBuilder()
@@ -49,6 +52,14 @@ public class Member {
                 .privacyPolicyAccepted(true)
                 .privacyPolicyAcceptedAt(LocalDateTime.now())
                 .privacyPolicyVersion(version)
+                .build();
+    }
+
+    public Member withTermsConsent(String version) {
+        return toBuilder()
+                .termsConditionsAccepted(true)
+                .termsConditionsAcceptedAt(LocalDateTime.now())
+                .termsConditionsVersion(version)
                 .build();
     }
 }

@@ -6,6 +6,7 @@ import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.domain.models.Court;
 import com.tfm.tennis_platform.domain.models.Tournament;
+import com.tfm.tennis_platform.domain.models.enums.MatchStatus;
 import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
@@ -87,16 +88,7 @@ class MatchServiceTest {
         UUID winnerId = UUID.randomUUID();
         UUID loserId = UUID.randomUUID();
 
-        Tournament tournament = Tournament.builder()
-                .id(tournamentId)
-                .name("Open de Primavera")
-                .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
-                .startTime(LocalTime.of(9, 0))
-                .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
-                .surface(Surface.CLAY)
-                .maxPlayers(32)
-                .location("Club Central")
-                .build();
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
 
         Match nextMatch = Match.builder()
                 .id(nextMatchId)
@@ -112,8 +104,10 @@ class MatchServiceTest {
         when(matchRepository.findByIdAndTournamentId(currentMatchId, tournamentId)).thenReturn(Optional.of(currentMatch));
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3", "organizer@example.com");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3", MatchStatus.COMPLETED, "organizer@example.com");
 
         assertEquals(winnerId, updatedCurrentMatch.getWinnerId());
         assertEquals("6-4 6-3", updatedCurrentMatch.getResult());
@@ -142,7 +136,7 @@ class MatchServiceTest {
         UUID winnerId = UUID.randomUUID();
         UUID loserId = UUID.randomUUID();
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Match consolationMatch = Match.builder()
                 .id(consolationMatchId)
                 .build();
@@ -156,8 +150,10 @@ class MatchServiceTest {
         when(matchRepository.findByIdAndTournamentId(currentMatchId, tournamentId)).thenReturn(Optional.of(currentMatch));
         when(matchRepository.findById(consolationMatchId.toString())).thenReturn(Optional.of(consolationMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3", "organizer@example.com");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3", MatchStatus.COMPLETED, "organizer@example.com");
 
         assertEquals(winnerId, updatedCurrentMatch.getWinnerId());
         verify(matchRepository, times(2)).save(any(Match.class));
@@ -176,7 +172,7 @@ class MatchServiceTest {
         UUID newWinnerId = UUID.randomUUID();
         UUID otherAdvancedPlayerId = UUID.randomUUID();
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Match nextMatch = Match.builder()
                 .id(nextMatchId)
                 .firstInscription(Inscription.builder().id(previousWinnerId).build())
@@ -193,8 +189,10 @@ class MatchServiceTest {
         when(matchRepository.findByIdAndTournamentId(currentMatchId, tournamentId)).thenReturn(Optional.of(currentMatch));
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4", "organizer@example.com");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4", MatchStatus.COMPLETED, "organizer@example.com");
 
         assertEquals(newWinnerId, updatedCurrentMatch.getWinnerId());
         verify(matchRepository, times(2)).save(any(Match.class));
@@ -213,7 +211,7 @@ class MatchServiceTest {
         UUID previousWinnerId = UUID.randomUUID();
         UUID newWinnerId = UUID.randomUUID();
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Match nextMatch = Match.builder()
                 .id(nextMatchId)
                 .firstInscription(Inscription.builder().id(previousWinnerId).build())
@@ -230,8 +228,10 @@ class MatchServiceTest {
         when(matchRepository.findByIdAndTournamentId(currentMatchId, tournamentId)).thenReturn(Optional.of(currentMatch));
         when(matchRepository.findById(nextMatchId.toString())).thenReturn(Optional.of(nextMatch));
         when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
 
-        matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4", "organizer@example.com");
+        matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4", MatchStatus.COMPLETED, "organizer@example.com");
 
         verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(match -> {
             if (!nextMatchId.equals(match.getId())) {
@@ -250,7 +250,7 @@ class MatchServiceTest {
         UUID matchId = UUID.randomUUID();
         UUID courtId = UUID.randomUUID();
         LocalDateTime scheduledAt = LocalDateTime.of(2026, 5, 2, 10, 0);
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder()
                 .id(courtId)
                 .tournamentId(tournamentId)
@@ -286,7 +286,7 @@ class MatchServiceTest {
         UUID otherMatchId = UUID.randomUUID();
         UUID courtId = UUID.randomUUID();
         LocalDateTime scheduledAt = LocalDateTime.of(2026, 5, 2, 10, 0);
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder()
                 .id(courtId)
                 .tournamentId(tournamentId)
@@ -322,7 +322,7 @@ class MatchServiceTest {
         LocalDateTime timeB = LocalDateTime.of(2026, 5, 2, 11, 0);
         LocalDateTime newTimeA = LocalDateTime.of(2026, 5, 2, 12, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder().id(courtId).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Match matchA = Match.builder().id(matchAId).courtId(courtId).court("Pista 1").scheduledAt(timeA).scheduleTimeType(ScheduleTimeType.EXACT).build();
         Match matchB = Match.builder().id(matchBId).courtId(courtId).court("Pista 1").scheduledAt(timeB).scheduleTimeType(ScheduleTimeType.EXACT).build();
@@ -355,7 +355,7 @@ class MatchServiceTest {
         LocalDateTime timeB = LocalDateTime.of(2026, 5, 2, 11, 0);
         LocalDateTime newTimeA = LocalDateTime.of(2026, 5, 2, 12, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court1 = Court.builder().id(court1Id).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Court court2 = Court.builder().id(court2Id).tournamentId(tournamentId).name("Pista 2").active(true).build();
         Match matchA = Match.builder().id(matchAId).courtId(court1Id).court("Pista 1").scheduledAt(timeA).scheduleTimeType(ScheduleTimeType.EXACT).build();
@@ -388,7 +388,7 @@ class MatchServiceTest {
         LocalDateTime timeC = LocalDateTime.of(2026, 5, 2, 11, 0);
         LocalDateTime newTimeA = LocalDateTime.of(2026, 5, 2, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder().id(courtId).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Match matchA = Match.builder().id(matchAId).courtId(courtId).court("Pista 1").scheduledAt(timeA).build();
         Match matchB = Match.builder().id(matchBId).courtId(courtId).court("Pista 1").scheduledAt(timeB).build();
@@ -427,7 +427,7 @@ class MatchServiceTest {
         LocalDateTime timeC = LocalDateTime.of(2026, 5, 2, 11, 0);
         LocalDateTime newTimeA = LocalDateTime.of(2026, 5, 2, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder().id(courtId).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Court court2 = Court.builder().id(court2Id).tournamentId(tournamentId).name("Pista 2").active(true).build();
         Court court3 = Court.builder().id(court3Id).tournamentId(tournamentId).name("Pista 3").active(true).build();
@@ -465,7 +465,7 @@ class MatchServiceTest {
         LocalDateTime timeB = LocalDateTime.of(2026, 5, 9, 10, 0);
         LocalDateTime newTimeA = LocalDateTime.of(2026, 5, 10, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder().id(courtId).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Match matchA = Match.builder().id(matchAId).courtId(courtId).scheduledAt(timeA).build();
         Match matchB = Match.builder().id(matchBId).courtId(courtId).scheduledAt(timeB).build();
@@ -486,7 +486,7 @@ class MatchServiceTest {
         UUID courtId = UUID.randomUUID();
         LocalDateTime newTime = LocalDateTime.of(2026, 5, 2, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder().id(courtId).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Match matchA = Match.builder().id(matchAId).roundNumber(1).bracketPosition(1).build();
         Match matchB = Match.builder().id(matchBId).roundNumber(1).bracketPosition(2).scheduledAt(LocalDateTime.of(2026, 5, 2, 11, 0)).build();
@@ -518,7 +518,7 @@ class MatchServiceTest {
         UUID courtId = UUID.randomUUID();
         LocalDateTime newTime = LocalDateTime.of(2026, 5, 2, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder().id(courtId).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Match matchA = Match.builder().id(matchAId).roundNumber(1).bracketPosition(1).build();
         Match matchB = Match.builder().id(matchBId).roundNumber(1).bracketPosition(2).build();
@@ -552,7 +552,7 @@ class MatchServiceTest {
         UUID court2Id = UUID.randomUUID();
         LocalDateTime sameTime = LocalDateTime.of(2026, 5, 2, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court1 = Court.builder().id(court1Id).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Court court2 = Court.builder().id(court2Id).tournamentId(tournamentId).name("Pista 2").active(true).build();
         Match matchA = Match.builder().id(matchAId).courtId(court1Id).court("Pista 1").scheduledAt(sameTime).build();
@@ -586,7 +586,7 @@ class MatchServiceTest {
         UUID playerZ = UUID.randomUUID();
         LocalDateTime sameTime = LocalDateTime.of(2026, 5, 2, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court1 = Court.builder().id(court1Id).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Court court2 = Court.builder().id(court2Id).tournamentId(tournamentId).name("Pista 2").active(true).build();
         Court court3 = Court.builder().id(court3Id).tournamentId(tournamentId).name("Pista 3").active(true).build();
@@ -632,7 +632,7 @@ class MatchServiceTest {
         LocalDateTime timeB = LocalDateTime.of(2026, 5, 2, 13, 0);
         LocalDateTime newTimeA = LocalDateTime.of(2026, 5, 2, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court = Court.builder().id(courtId).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Match matchA = Match.builder().id(matchAId).courtId(courtId).court("Pista 1").scheduledAt(timeA).build();
         Match matchB = Match.builder().id(matchBId).courtId(courtId).court("Pista 1").scheduledAt(timeB).build();
@@ -665,7 +665,7 @@ class MatchServiceTest {
         LocalDateTime timeB = LocalDateTime.of(2026, 5, 2, 11, 0);
         LocalDateTime newTimeA = LocalDateTime.of(2026, 5, 2, 12, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court1 = Court.builder().id(court1Id).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Court court2 = Court.builder().id(court2Id).tournamentId(tournamentId).name("Pista 2").active(true).build();
         Match matchA = Match.builder().id(matchAId).courtId(court1Id).court("Pista 1").scheduledAt(timeA).build();
@@ -697,7 +697,7 @@ class MatchServiceTest {
         UUID court2Id = UUID.randomUUID();
         LocalDateTime newTime = LocalDateTime.of(2026, 5, 2, 10, 0);
 
-        Tournament tournament = tournament(tournamentId);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
         Court court1 = Court.builder().id(court1Id).tournamentId(tournamentId).name("Pista 1").active(true).build();
         Court court2 = Court.builder().id(court2Id).tournamentId(tournamentId).name("Pista 2").active(true).build();
         Match matchA = Match.builder().id(matchAId).roundNumber(1).bracketPosition(1).build();
@@ -724,7 +724,130 @@ class MatchServiceTest {
         }));
     }
 
+    @Test
+    void should_reject_schedule_when_court_is_already_busy_within_overlapping_interval() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID matchId = UUID.randomUUID();
+        UUID otherMatchId = UUID.randomUUID();
+        UUID courtId = UUID.randomUUID();
+        LocalDateTime scheduledAt = LocalDateTime.of(2026, 5, 2, 10, 30);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
+        Court court = Court.builder()
+                .id(courtId)
+                .tournamentId(tournamentId)
+                .name("Pista 1")
+                .active(true)
+                .build();
+        Match match = Match.builder()
+                .id(matchId)
+                .build();
+        Match busyMatch = Match.builder()
+                .id(otherMatchId)
+                .courtId(courtId)
+                .scheduledAt(LocalDateTime.of(2026, 5, 2, 10, 0))
+                .build();
+
+        com.tfm.tennis_platform.domain.models.ScheduleConfig config = com.tfm.tennis_platform.domain.models.ScheduleConfig.builder()
+                .tournamentId(tournamentId)
+                .matchDurationMinutes(60)
+                .build();
+
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        when(courtRepository.findByIdAndTournamentId(courtId, tournamentId)).thenReturn(Optional.of(court));
+        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(match, busyMatch));
+        when(scheduleConfigRepository.findByTournamentId(tournamentId)).thenReturn(Optional.of(config));
+
+        com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException exception = org.junit.jupiter.api.Assertions.assertThrows(
+                com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException.class,
+                () -> matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.EXACT, false, "organizer@example.com")
+        );
+        assertEquals("La pista ya está ocupada en esa hora.", exception.getMessage());
+    }
+
+    @Test
+    void should_accept_schedule_when_court_busy_is_outside_overlapping_interval() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID matchId = UUID.randomUUID();
+        UUID otherMatchId = UUID.randomUUID();
+        UUID courtId = UUID.randomUUID();
+        LocalDateTime scheduledAt = LocalDateTime.of(2026, 5, 2, 11, 0);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
+        Court court = Court.builder()
+                .id(courtId)
+                .tournamentId(tournamentId)
+                .name("Pista 1")
+                .active(true)
+                .build();
+        Match match = Match.builder()
+                .id(matchId)
+                .build();
+        Match busyMatch = Match.builder()
+                .id(otherMatchId)
+                .courtId(courtId)
+                .scheduledAt(LocalDateTime.of(2026, 5, 2, 10, 0))
+                .build();
+
+        com.tfm.tennis_platform.domain.models.ScheduleConfig config = com.tfm.tennis_platform.domain.models.ScheduleConfig.builder()
+                .tournamentId(tournamentId)
+                .matchDurationMinutes(60)
+                .build();
+
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        when(courtRepository.findByIdAndTournamentId(courtId, tournamentId)).thenReturn(Optional.of(court));
+        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(match, busyMatch));
+        when(scheduleConfigRepository.findByTournamentId(tournamentId)).thenReturn(Optional.of(config));
+        when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Match scheduledMatch = matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.EXACT, false, "organizer@example.com");
+        assertEquals(scheduledAt, scheduledMatch.getScheduledAt());
+        assertEquals(courtId, scheduledMatch.getCourtId());
+    }
+
+    @Test
+    void should_reject_schedule_when_custom_match_duration_overlaps() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID matchId = UUID.randomUUID();
+        UUID otherMatchId = UUID.randomUUID();
+        UUID courtId = UUID.randomUUID();
+        LocalDateTime scheduledAt = LocalDateTime.of(2026, 5, 2, 11, 0);
+        Tournament tournament = tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS);
+        Court court = Court.builder()
+                .id(courtId)
+                .tournamentId(tournamentId)
+                .name("Pista 1")
+                .active(true)
+                .build();
+        Match match = Match.builder()
+                .id(matchId)
+                .build();
+        Match busyMatch = Match.builder()
+                .id(otherMatchId)
+                .courtId(courtId)
+                .scheduledAt(LocalDateTime.of(2026, 5, 2, 10, 0))
+                .build();
+
+        com.tfm.tennis_platform.domain.models.ScheduleConfig config = com.tfm.tennis_platform.domain.models.ScheduleConfig.builder()
+                .tournamentId(tournamentId)
+                .matchDurationMinutes(90)
+                .build();
+
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        when(courtRepository.findByIdAndTournamentId(courtId, tournamentId)).thenReturn(Optional.of(court));
+        when(matchRepository.findByTournamentId(tournamentId)).thenReturn(List.of(match, busyMatch));
+        when(scheduleConfigRepository.findByTournamentId(tournamentId)).thenReturn(Optional.of(config));
+
+        com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException exception = org.junit.jupiter.api.Assertions.assertThrows(
+                com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException.class,
+                () -> matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.EXACT, false, "organizer@example.com")
+        );
+        assertEquals("La pista ya está ocupada en esa hora.", exception.getMessage());
+    }
+
     private Tournament tournament(UUID tournamentId) {
+        return tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.DRAFT);
+    }
+
+    private Tournament tournament(UUID tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus status) {
         return Tournament.builder()
                 .id(tournamentId)
                 .name("Open de Primavera")
@@ -734,6 +857,7 @@ class MatchServiceTest {
                 .surface(Surface.CLAY)
                 .maxPlayers(32)
                 .location("Club Central")
+                .state(status)
                 .build();
     }
 }

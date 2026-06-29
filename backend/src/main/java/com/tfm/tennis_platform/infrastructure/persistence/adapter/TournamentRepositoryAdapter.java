@@ -115,6 +115,41 @@ public class TournamentRepositoryAdapter implements TournamentRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<TournamentSummary> findSummariesByUmpireId(UUID umpireId) {
+        List<TournamentSummary> summaries = entityManager.createQuery("""
+                select new com.tfm.tennis_platform.domain.models.TournamentSummary(
+                    t.id,
+                    t.formalName,
+                    t.playStartDate,
+                    t.playEndDate,
+                    t.startTime,
+                    t.inscriptionStartDate,
+                    t.inscriptionEndDate,
+                    t.surface,
+                    t.maxPlayers,
+                    t.location,
+                    t.status,
+                    false
+                )
+                from TournamentUmpireEntity tu
+                join tu.tournament t
+                where tu.umpire.id = :umpireId
+                order by t.playStartDate asc, t.startTime asc, t.formalName asc
+                """, TournamentSummary.class)
+                .setParameter("umpireId", umpireId)
+                .getResultList();
+
+        Map<UUID, Boolean> professionalFlags = findProfessionalTournamentFlags(summaries.stream()
+                .map(TournamentSummary::id)
+                .toList());
+
+        return summaries.stream()
+                .map(summary -> withProfessionalFlag(summary, professionalFlags.getOrDefault(summary.id(), false)))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<Tournament> findById(UUID id) {
         return findDetailedById(id);
     }

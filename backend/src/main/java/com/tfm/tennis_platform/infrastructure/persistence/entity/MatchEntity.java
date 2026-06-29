@@ -68,6 +68,10 @@ public class MatchEntity {
     @Column(name = "result")
     private String result;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
+    private com.tfm.tennis_platform.domain.models.enums.MatchStatus status;
+
     @Version
     @Column(name = "version")
     private Long version;

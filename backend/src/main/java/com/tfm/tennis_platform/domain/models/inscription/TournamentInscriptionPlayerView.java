@@ -4,6 +4,7 @@ import java.util.UUID;
 
 public record TournamentInscriptionPlayerView(
         UUID inscriptionId,
+        UUID participantId,
         UUID eventId,
         Integer categoryId,
         String category,

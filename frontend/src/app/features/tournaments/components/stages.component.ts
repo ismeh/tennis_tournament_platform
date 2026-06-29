@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType, MatchStatus } from '../../../data/interfaces/tournament.model';
 import { DrawsComponent } from './draws.component';
 
 type DrawGenerationFeedback = {
@@ -114,7 +114,7 @@ export class StagesComponent {
 
   @Output() generateDraws = new EventEmitter<{ tournamentId: string; stageId: string }>();
   @Output() matchSelected = new EventEmitter<string>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; status: MatchStatus }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -156,7 +156,7 @@ export class StagesComponent {
     this.matchSelected.emit(matchId);
   }
 
-  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string }) {
+  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }) {
     if (!this.canManageInput) {
       return;
     }

@@ -19,11 +19,12 @@ class ApiContractDocumentationTest extends RestDocsTestBase {
 
     @Test
     void register_endpoint_documentation() throws Exception {
-        Map<String, String> body = new HashMap<>();
+        Map<String, Object> body = new HashMap<>();
         body.put("email", "docs" + UUID.randomUUID() + "@test.com");
         body.put("password", "Password123!");
         body.put("name", "New User");
         body.put("role", "PLAYER");
+        body.put("privacyPolicyAccepted", true);
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -36,7 +37,8 @@ class ApiContractDocumentationTest extends RestDocsTestBase {
                                 fieldWithPath("email").description("User email address"),
                                 fieldWithPath("password").description("User password"),
                                 fieldWithPath("name").description("User display name"),
-                                fieldWithPath("role").description("User role (PLAYER, ORGANIZER)")
+                                fieldWithPath("role").description("User role (PLAYER, ORGANIZER)"),
+                                fieldWithPath("privacyPolicyAccepted").description("Whether user accepts the privacy policy")
                         ),
                         responseFields(
                                 fieldWithPath("emailVerificationRequired").description("Whether email verification is needed"),
@@ -48,11 +50,12 @@ class ApiContractDocumentationTest extends RestDocsTestBase {
     @Test
     void login_endpoint_documentation() throws Exception {
         String email = "logindocs" + UUID.randomUUID() + "@test.com";
-        Map<String, String> registerBody = new HashMap<>();
+        Map<String, Object> registerBody = new HashMap<>();
         registerBody.put("email", email);
         registerBody.put("password", "Password123!");
         registerBody.put("name", "Login Docs User");
         registerBody.put("role", "PLAYER");
+        registerBody.put("privacyPolicyAccepted", true);
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)

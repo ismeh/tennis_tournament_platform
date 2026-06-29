@@ -20,6 +20,9 @@ public interface MemberMapper {
     @Mapping(target = "privacyPolicyAccepted", source = "privacyPolicyAccepted")
     @Mapping(target = "privacyPolicyAcceptedAt", source = "privacyPolicyAcceptedAt")
     @Mapping(target = "privacyPolicyVersion", source = "privacyPolicyVersion")
+    @Mapping(target = "termsConditionsAccepted", source = "termsConditionsAccepted")
+    @Mapping(target = "termsConditionsAcceptedAt", source = "termsConditionsAcceptedAt")
+    @Mapping(target = "termsConditionsVersion", source = "termsConditionsVersion")
     Member toDomain(MemberEntity entity);
 
     @Mapping(target = "passwordHash", source = "password")
@@ -32,5 +35,8 @@ public interface MemberMapper {
     @Mapping(target = "privacyPolicyAccepted", source = "privacyPolicyAccepted")
     @Mapping(target = "privacyPolicyAcceptedAt", source = "privacyPolicyAcceptedAt")
     @Mapping(target = "privacyPolicyVersion", source = "privacyPolicyVersion")
+    @Mapping(target = "termsConditionsAccepted", source = "termsConditionsAccepted")
+    @Mapping(target = "termsConditionsAcceptedAt", source = "termsConditionsAcceptedAt")
+    @Mapping(target = "termsConditionsVersion", source = "termsConditionsVersion")
     MemberEntity toEntity(Member domain);
 }

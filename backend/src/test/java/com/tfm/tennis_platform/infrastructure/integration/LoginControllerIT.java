@@ -30,6 +30,7 @@ class LoginControllerIT extends IntegrationTestBase {
                     put("password", TEST_PASSWORD);
                     put("name", "Test Player");
                     put("role", "PLAYER");
+                    put("privacyPolicyAccepted", true);
                 }}
         );
 
@@ -101,6 +102,7 @@ class LoginControllerIT extends IntegrationTestBase {
                     put("password", TEST_PASSWORD);
                     put("name", "Test Player");
                     put("role", "PLAYER");
+                    put("privacyPolicyAccepted", true);
                 }}
         );
 
@@ -148,6 +150,7 @@ class LoginControllerIT extends IntegrationTestBase {
                     put("password", TEST_PASSWORD);
                     put("name", "Test Player");
                     put("role", "PLAYER");
+                    put("privacyPolicyAccepted", true);
                 }}
         );
 
@@ -170,6 +173,7 @@ class LoginControllerIT extends IntegrationTestBase {
                     put("password", TEST_PASSWORD);
                     put("name", "Test Player");
                     put("role", "PLAYER");
+                    put("privacyPolicyAccepted", true);
                 }}
         );
 

@@ -17,5 +17,6 @@ public record MatchResponse(
     String result,
     Boolean professionalMatch,
     Integer firstWinPoints,
-    Integer secondWinPoints
+    Integer secondWinPoints,
+    String status
 ) {}

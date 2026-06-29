@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus } from '../../../data/interfaces/tournament.model';
 import { MatchesComponent } from './matches.component';
 import { BracketComponent } from './bracket.component';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
@@ -123,7 +123,7 @@ export class DrawsComponent {
   @ViewChild('matchModal') matchModal!: MatchDetailModalComponent;
 
   @Output() matchSelected = new EventEmitter<string>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; status: MatchStatus }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -220,7 +220,7 @@ export class DrawsComponent {
     this.selectedMatch.set(null);
   }
 
-  onSaveMatchResult(event: { matchId: string; winnerId: string | null; result: string }) {
+  onSaveMatchResult(event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }) {
     if (!this.canManageInput) {
       return;
     }

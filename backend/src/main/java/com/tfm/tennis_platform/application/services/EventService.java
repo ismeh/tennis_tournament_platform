@@ -60,6 +60,8 @@ public class EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
         tournamentService.assertTournamentAdmin(tournament, requesterEmail);
 
+        validateTournamentCanEditEvents(tournament);
+
         for (EventCommand.EventItem item : eventCommand.events()) {
             if (item.stages() != null && !item.stages().isEmpty()) {
                 StageSequenceValidator.validate(item.stages());
@@ -88,6 +90,8 @@ public class EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
         tournamentService.assertTournamentAdmin(tournament, requesterEmail);
 
+        validateTournamentCanEditEvents(tournament);
+
         List<Event> updatedEvents = tournament.getEvents().stream()
                 .filter(event -> !eventId.equals(event.getId()))
                 .toList();
@@ -109,6 +113,8 @@ public class EventService {
         Tournament tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
         tournamentService.assertTournamentAdmin(tournament, requesterEmail);
+
+        validateTournamentCanGenerateDraws(tournament);
 
         Event event = tournament.getEvents().stream()
                 .filter(e -> e.getId().equals(eventId))
@@ -629,5 +635,22 @@ public class EventService {
         }
 
         return (match.getFirstInscriptionId() == null) != (match.getSecondInscriptionId() == null);
+    }
+
+    private void validateTournamentCanEditEvents(Tournament tournament) {
+        var state = tournament.getState();
+        if (state != com.tfm.tennis_platform.domain.models.enums.TournamentStatus.DRAFT) {
+            throw new InvalidArgumentException(
+                    "Solo se pueden añadir o eliminar eventos en torneos en borrador (DRAFT). Estado actual: " + state);
+        }
+    }
+
+    private void validateTournamentCanGenerateDraws(Tournament tournament) {
+        var state = tournament.getState();
+        if (state != com.tfm.tennis_platform.domain.models.enums.TournamentStatus.CLOSED
+                && state != com.tfm.tennis_platform.domain.models.enums.TournamentStatus.IN_PROGRESS) {
+            throw new InvalidArgumentException(
+                    "Solo se pueden generar cuadros en torneos cerrados o en curso. Estado actual: " + state);
+        }
     }
 }

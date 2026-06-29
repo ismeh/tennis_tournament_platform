@@ -150,23 +150,29 @@ type TournamentCalendarGroup = {
             <div class="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <h2 class="text-xl font-bold text-neutral-950">{{ isOrganizer() ? 'Mis torneos' : 'Mis partidos' }}</h2>
-                  <p class="mt-1 text-sm text-neutral-600">{{ isOrganizer() ? 'Torneos que has creado.' : 'Partidos con horario asignado dentro del rango.' }}</p>
+                  <h2 class="text-xl font-bold text-neutral-950">
+                    {{ isOrganizer() ? 'Mis torneos' : (isUmpire() ? 'Mis arbitrajes' : 'Mis partidos') }}
+                  </h2>
+                  <p class="mt-1 text-sm text-neutral-600">
+                    {{ isOrganizer() ? 'Torneos que has creado.' : (isUmpire() ? 'Torneos asignados para arbitrar.' : 'Partidos con horario asignado dentro del rango.') }}
+                  </p>
                 </div>
                 <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ sidebarItems().length }}</span>
               </div>
 
               @if (!isLoggedIn()) {
                 <div class="mt-4 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  {{ isOrganizer() ? 'Inicia sesion para ver tus torneos.' : 'Inicia sesion para ver tus partidos asignados.' }}
+                  {{ isOrganizer() ? 'Inicia sesion para ver tus torneos.' : (isUmpire() ? 'Inicia sesion para ver tus torneos a arbitrar.' : 'Inicia sesion para ver tus partidos asignados.') }}
                 </div>
               } @else if (isLoadingSidebar()) {
-                <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">{{ isOrganizer() ? 'Cargando torneos...' : 'Cargando partidos...' }}</div>
+                <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                  {{ isOrganizer() ? 'Cargando torneos...' : (isUmpire() ? 'Cargando arbitrajes...' : 'Cargando partidos...') }}
+                </div>
               } @else if (sidebarError()) {
                 <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ sidebarError() }}</div>
               } @else if (sidebarItems().length === 0) {
                 <div class="mt-4 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  {{ isOrganizer() ? 'No tienes torneos creados en estas fechas.' : 'No tienes partidos programados en estas fechas.' }}
+                  {{ isOrganizer() ? 'No tienes torneos creados en estas fechas.' : (isUmpire() ? 'No tienes torneos asignados para arbitrar en estas fechas.' : 'No tienes partidos programados en estas fechas.') }}
                 </div>
               } @else {
                 <div class="mt-3 mb-3">
@@ -180,8 +186,8 @@ type TournamentCalendarGroup = {
                   </select>
                 </div>
                 <div class="mt-4 space-y-3">
-                  @if (isOrganizer()) {
-                    @for (tournament of paginatedSidebarTournaments(); track tournament.id) {
+                  @if (isOrganizer() || isUmpire()) {
+                    @for (tournament of (isOrganizer() ? paginatedSidebarTournaments() : paginatedSidebarUmpireTournaments()); track tournament.id) {
                       <a
                         [routerLink]="['/torneos', tournament.id]"
                         class="surface-card-bg block rounded-lg px-4 py-4 transition hover:brightness-110"
@@ -424,6 +430,7 @@ export class CalendarComponent implements OnInit {
   readonly tournaments = signal<TournamentCalendarResponse[]>([]);
   readonly myMatches = signal<PlayerMatchCalendarResponse[]>([]);
   readonly myTournaments = signal<TournamentCalendarResponse[]>([]);
+  readonly myUmpireTournaments = signal<TournamentCalendarResponse[]>([]);
   readonly isLoadingTournaments = signal(false);
   readonly isLoadingSidebar = signal(false);
   readonly tournamentsError = signal<string | null>(null);
@@ -443,12 +450,20 @@ export class CalendarComponent implements OnInit {
   readonly sidebarPage = signal(0);
 
   readonly isOrganizer = computed(() => this.userRole() === 'ORGANIZER');
+  readonly isUmpire = computed(() => this.userRole() === 'UMPIRE');
 
   readonly sidebarItems = computed(() => {
-    return this.isOrganizer() ? this.myTournaments() : this.myMatches();
+    if (this.isOrganizer()) {
+      return this.myTournaments();
+    } else if (this.isUmpire()) {
+      return this.myUmpireTournaments();
+    } else {
+      return this.myMatches();
+    }
   });
 
   readonly sortedSidebarTournaments = signal<TournamentCalendarResponse[]>([]);
+  readonly sortedSidebarUmpireTournaments = signal<TournamentCalendarResponse[]>([]);
   readonly sortedSidebarMatches = signal<PlayerMatchCalendarResponse[]>([]);
 
   readonly tournamentGroups = computed<TournamentCalendarGroup[]>(() => {
@@ -481,6 +496,11 @@ export class CalendarComponent implements OnInit {
   readonly paginatedSidebarTournaments = computed(() => {
     const start = this.currentSidebarPage() * this.sidebarPageSize;
     return this.sortedSidebarTournaments().slice(start, start + this.sidebarPageSize);
+  });
+
+  readonly paginatedSidebarUmpireTournaments = computed(() => {
+    const start = this.currentSidebarPage() * this.sidebarPageSize;
+    return this.sortedSidebarUmpireTournaments().slice(start, start + this.sidebarPageSize);
   });
 
   readonly paginatedSidebarMatches = computed(() => {
@@ -516,8 +536,10 @@ export class CalendarComponent implements OnInit {
         } else {
           this.myMatches.set([]);
           this.myTournaments.set([]);
+          this.myUmpireTournaments.set([]);
           this.sortedSidebarMatches.set([]);
           this.sortedSidebarTournaments.set([]);
+          this.sortedSidebarUmpireTournaments.set([]);
           this.sidebarError.set(null);
           this.isLoadingSidebar.set(false);
         }
@@ -606,6 +628,13 @@ export class CalendarComponent implements OnInit {
         return order === 'newest' ? dateB - dateA : dateA - dateB;
       });
       this.sortedSidebarTournaments.set(sorted);
+    } else if (this.isUmpire()) {
+      const sorted = [...this.myUmpireTournaments()].sort((a, b) => {
+        const dateA = new Date(a.playStartDate).getTime();
+        const dateB = new Date(b.playStartDate).getTime();
+        return order === 'newest' ? dateB - dateA : dateA - dateB;
+      });
+      this.sortedSidebarUmpireTournaments.set(sorted);
     } else {
       const sorted = [...this.myMatches()].sort((a, b) => {
         const dateA = new Date(a.scheduledAt).getTime();
@@ -690,9 +719,37 @@ export class CalendarComponent implements OnInit {
 
     if (this.isOrganizer()) {
       this.loadMyTournaments();
+    } else if (this.isUmpire()) {
+      this.loadMyUmpireTournaments();
     } else {
       this.loadMyMatches();
     }
+  }
+
+  private loadMyUmpireTournaments(): void {
+    this.tournamentService.getUmpireTournaments().subscribe({
+      next: tournaments => {
+        const mapped: TournamentCalendarResponse[] = tournaments.map(t => ({
+          id: t.id,
+          formalName: t.formalName,
+          playStartDate: t.playStartDate,
+          playEndDate: t.playEndDate,
+          tournamentStartTime: t.tournamentStartTime,
+          location: t.location,
+          surfaceCategory: t.surfaceCategory,
+          maxPlayers: t.maxPlayers,
+          status: t.status,
+          professionalTournament: t.professionalTournament ?? false
+        }));
+        this.myUmpireTournaments.set(mapped);
+        this.sortSidebarItems();
+        this.isLoadingSidebar.set(false);
+      },
+      error: error => {
+        this.sidebarError.set(getApiErrorMessage(error, 'No se pudieron cargar tus arbitrajes.'));
+        this.isLoadingSidebar.set(false);
+      }
+    });
   }
 
   private loadMyMatches(): void {

@@ -60,6 +60,7 @@ public class MatchDomainMapper {
                 .courtId(entity.getCourtResource() != null ? entity.getCourtResource().getId() : null)
                 .court(entity.getCourtResource() != null ? entity.getCourtResource().getName() : entity.getCourt())
                 .result(entity.getResult())
+                .status(entity.getStatus())
                 .build();
     }
 
@@ -85,6 +86,7 @@ public class MatchDomainMapper {
                 .courtResource(mapCourtEntity(domain.getCourtId()))
                 .court(domain.getCourt())
                 .result(domain.getResult())
+                .status(domain.getStatus())
                 .build();
     }
 
@@ -144,7 +146,8 @@ public class MatchDomainMapper {
             return null;
         }
 
-        return professionalDataByLicense.get(normalizeLicense(participant.getDisplayTennisId()));
+        String normalized = normalizeLicense(participant.getDisplayTennisId());
+        return normalized != null ? professionalDataByLicense.get(normalized) : null;
     }
 
     private Map<String, ProPlayerData> loadProfessionalData(List<MatchEntity> matches) {

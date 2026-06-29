@@ -18,11 +18,12 @@ class TournamentControllerIT extends IntegrationTestBase {
     private static final String AUTH_URL = "/api/auth";
 
     private String registerAndLogin(String email) throws Exception {
-        Map<String, String> registerBody = new HashMap<>();
+        Map<String, Object> registerBody = new HashMap<>();
         registerBody.put("email", email);
         registerBody.put("password", "Password123!");
         registerBody.put("name", "Test Organizer");
         registerBody.put("role", "ORGANIZER");
+        registerBody.put("privacyPolicyAccepted", true);
 
         mockMvc.perform(post(AUTH_URL + "/register")
                         .contentType(MediaType.APPLICATION_JSON)

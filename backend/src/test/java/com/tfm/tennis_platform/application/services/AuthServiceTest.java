@@ -70,6 +70,12 @@ class AuthServiceTest {
 
     private EmailProperties emailProperties;
 
+    @Mock
+    private LegalDocumentService legalDocumentService;
+
+    @Mock
+    private ConsentService consentService;
+
     private AuthService authService;
 
     @BeforeEach
@@ -89,7 +95,9 @@ class AuthServiceTest {
                 passwordEncoder,
                 userDetailsService,
                 emailSender,
-                emailProperties
+                emailProperties,
+                legalDocumentService,
+                consentService
         );
     }
 
@@ -121,6 +129,9 @@ class AuthServiceTest {
         when(memberRepository.findByEmail("new@example.com"))
             .thenReturn(Optional.empty());
         when(passwordEncoder.encode("secret123")).thenReturn("encoded-password");
+        when(legalDocumentService.getCurrentVersion(any())).thenReturn(
+                com.tfm.tennis_platform.domain.models.LegalDocumentVersion.builder()
+                        .id(1L).version("1.0").build());
 
         Member persistedMember = Member.builder()
                 .id(memberId)
@@ -132,7 +143,7 @@ class AuthServiceTest {
 
         when(memberRepository.save(any(Member.class))).thenReturn(persistedMember);
 
-        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User", UserRole.PLAYER);
+        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User", UserRole.PLAYER, true);
 
         assertEquals(true, result.emailVerificationRequired());
         assertEquals("Cuenta creada. Revisa tu correo para confirmar el email.", result.message());
@@ -163,7 +174,9 @@ class AuthServiceTest {
                         "no-reply@tennis-platform.local",
                         "http://localhost:4200/confirmar-email",
                         1440
-                )
+                ),
+                legalDocumentService,
+                consentService
         );
 
         UUID memberId = UUID.randomUUID();
@@ -171,6 +184,9 @@ class AuthServiceTest {
         when(memberRepository.findByEmail("new@example.com"))
             .thenReturn(Optional.empty());
         when(passwordEncoder.encode("secret123")).thenReturn("encoded-password");
+        when(legalDocumentService.getCurrentVersion(any())).thenReturn(
+                com.tfm.tennis_platform.domain.models.LegalDocumentVersion.builder()
+                        .id(1L).version("1.0").build());
 
         Member persistedMember = Member.builder()
                 .id(memberId)
@@ -182,7 +198,7 @@ class AuthServiceTest {
 
         when(memberRepository.save(any(Member.class))).thenReturn(persistedMember);
 
-        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User", UserRole.PLAYER);
+        AuthService.RegistrationResult result = authService.register("new@example.com", "secret123", "New User", UserRole.PLAYER, true);
 
         assertEquals(false, result.emailVerificationRequired());
         assertEquals("Cuenta creada. Ya puedes iniciar sesión.", result.message());
@@ -201,7 +217,7 @@ class AuthServiceTest {
 
         DuplicateResourceException ex = assertThrows(
                 DuplicateResourceException.class,
-                () -> authService.register("used@example.com", "secret123", "Used User", UserRole.PLAYER)
+                () -> authService.register("used@example.com", "secret123", "Used User", UserRole.PLAYER, true)
         );
 
         assertEquals("Ya existe una cuenta registrada con ese email.", ex.getMessage());

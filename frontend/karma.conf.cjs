@@ -1,7 +1,7 @@
-const puppeteer = require('puppeteer');
-
-// Use Puppeteer's bundled Chromium so tests do not depend on system Chrome.
-process.env.CHROME_BIN = puppeteer.executablePath();
+if (!process.env.CHROME_BIN) {
+  const puppeteer = require('puppeteer');
+  process.env.CHROME_BIN = puppeteer.executablePath();
+}
 
 module.exports = function (config) {
   config.set({
@@ -25,7 +25,15 @@ module.exports = function (config) {
     coverageReporter: {
       dir: require('path').join(__dirname, './coverage/tfm_front'),
       subdir: '.',
-      reporters: [{ type: 'html' }, { type: 'text-summary' }]
+      reporters: [{ type: 'html' }, { type: 'text-summary' }],
+      check: {
+        global: {
+          statements: 50,
+          branches: 50,
+          functions: 50,
+          lines: 50
+        }
+      }
     },
     reporters: ['progress', 'kjhtml'],
     customLaunchers: {

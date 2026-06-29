@@ -2,6 +2,7 @@ package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.models.Member;
+import com.tfm.tennis_platform.domain.models.UmpireSearchResult;
 import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.infrastructure.persistence.mapper.MemberMapper;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMemberRepository;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -70,7 +72,51 @@ public class MemberRepositoryAdapter implements MemberRepository {
     }
 
     @Override
+    public void updateTermsConsent(UUID id, boolean accepted, LocalDateTime acceptedAt, String version) {
+        memberRepository.updateTermsConsent(id, accepted, acceptedAt, version);
+    }
+
+    @Override
     public Optional<Member> findByRole(UserRole role) {
         return memberRepository.findFirstByRole(role).map(mapper::toDomain);
+    }
+
+    @Override
+    public List<Member> findAllByRole(UserRole role) {
+        return memberRepository.findAllByRole(role).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Member> searchUmpiresByQuery(String query) {
+        return memberRepository.searchByRoleAndQuery(UserRole.UMPIRE.name(), query).stream()
+                .map(p -> Member.builder()
+                        .id(p.getId())
+                        .email(p.getEmail())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public List<UmpireSearchResult> searchUmpiresWithPersonData(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return memberRepository.findAllByRoleWithPersonData(UserRole.UMPIRE.name()).stream()
+                    .map(p -> UmpireSearchResult.builder()
+                            .id(p.getId())
+                            .email(p.getEmail())
+                            .firstName(p.getFirstName())
+                            .lastName(p.getLastName())
+                            .build())
+                    .toList();
+        }
+        return memberRepository.searchByRoleAndQuery(UserRole.UMPIRE.name(), query.trim()).stream()
+                .map(p -> UmpireSearchResult.builder()
+                        .id(p.getId())
+                        .email(p.getEmail())
+                        .firstName(p.getFirstName())
+                        .lastName(p.getLastName())
+                        .build())
+                .toList();
     }
 }

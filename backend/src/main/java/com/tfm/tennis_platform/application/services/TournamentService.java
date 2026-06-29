@@ -15,6 +15,7 @@ import com.tfm.tennis_platform.domain.port.out.CourtRepository;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.ScheduleConfigRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
+import com.tfm.tennis_platform.domain.port.out.TournamentUmpireRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -33,6 +34,7 @@ public class TournamentService {
     private final MemberRepository memberRepository;
     private final CourtRepository courtRepository;
     private final ScheduleConfigRepository scheduleConfigRepository;
+    private final TournamentUmpireRepository tournamentUmpireRepository;
 
     @Transactional
     public Tournament create(Tournament tournament, String creatorEmail, Integer courtCount) {
@@ -85,6 +87,12 @@ public class TournamentService {
         return tournamentRepository.findSummaries();
     }
 
+    public List<TournamentSummary> findSummariesByUmpire(String email) {
+        Member umpire = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Member", email));
+        return tournamentRepository.findSummariesByUmpireId(umpire.getId());
+    }
+
     public Optional<Tournament> findById(UUID id) {
         return tournamentRepository.findById(id);
     }
@@ -120,7 +128,8 @@ public class TournamentService {
     }
 
     @Transactional
-    public Tournament updateGeneralInfo(UUID tournamentId, String name, TournamentPeriod playPeriod,
+    public Tournament updateGeneralInfo(UUID tournamentId,
+                                         String name, TournamentPeriod playPeriod,
                                          java.time.LocalTime startTime, TournamentPeriod inscriptionPeriod,
                                          com.tfm.tennis_platform.domain.models.enums.Surface surface,
                                          Integer maxPlayers, String location, Double locationLatitude,
@@ -136,43 +145,52 @@ public class TournamentService {
                     "Solo se puede editar la información general de un torneo en borrador o con inscripciones abiertas.");
         }
 
-        if (name == null || name.trim().isEmpty()) {
-            throw new InvalidArgumentException("El nombre del torneo es obligatorio.");
+        Tournament.TournamentBuilder builder = currentTournament.toBuilder();
+
+        if (name != null) {
+            if (name.trim().isEmpty()) {
+                throw new InvalidArgumentException("El nombre del torneo no puede estar vacío.");
+            }
+            builder.name(name.trim());
         }
-        if (playPeriod == null) {
-            throw new InvalidArgumentException("Las fechas de juego son obligatorias.");
+        if (playPeriod != null) {
+            builder.playPeriod(playPeriod);
         }
-        if (inscriptionPeriod == null) {
-            throw new InvalidArgumentException("Las fechas de inscripción son obligatorias.");
+        if (startTime != null) {
+            builder.startTime(startTime);
         }
-        if (surface == null) {
-            throw new InvalidArgumentException("La superficie del torneo es obligatoria.");
+        if (inscriptionPeriod != null) {
+            builder.inscriptionPeriod(inscriptionPeriod);
         }
-        if (maxPlayers == null || maxPlayers <= 0) {
-            throw new InvalidArgumentException("El número máximo de jugadores debe ser mayor que cero.");
+        if (surface != null) {
+            builder.surface(surface);
         }
-        if (location == null || location.trim().isEmpty()) {
-            throw new InvalidArgumentException("La ubicación del torneo es obligatoria.");
+        if (maxPlayers != null) {
+            if (maxPlayers <= 0) {
+                throw new InvalidArgumentException("El número máximo de jugadores debe ser mayor que cero.");
+            }
+            builder.maxPlayers(maxPlayers);
         }
-        if (startTime == null) {
-            throw new InvalidArgumentException("La hora de inicio del torneo es obligatoria.");
+        if (location != null) {
+            if (location.trim().isEmpty()) {
+                throw new InvalidArgumentException("La ubicación del torneo no puede estar vacía.");
+            }
+            builder.location(location.trim());
+        }
+        if (locationLatitude != null) {
+            builder.locationLatitude(locationLatitude);
+        }
+        if (locationLongitude != null) {
+            builder.locationLongitude(locationLongitude);
+        }
+        if (locationPlaceId != null) {
+            builder.locationPlaceId(locationPlaceId);
+        }
+        if (locationFormattedAddress != null) {
+            builder.locationFormattedAddress(locationFormattedAddress);
         }
 
-        Tournament updatedTournament = currentTournament.toBuilder()
-                .name(name.trim())
-                .playPeriod(playPeriod)
-                .startTime(startTime)
-                .inscriptionPeriod(inscriptionPeriod)
-                .surface(surface)
-                .maxPlayers(maxPlayers)
-                .location(location.trim())
-                .locationLatitude(locationLatitude)
-                .locationLongitude(locationLongitude)
-                .locationPlaceId(locationPlaceId)
-                .locationFormattedAddress(locationFormattedAddress)
-                .build();
-
-        return tournamentRepository.save(updatedTournament);
+        return tournamentRepository.save(builder.build());
     }
 
     public void assertTournamentAdmin(UUID tournamentId, String requesterEmail) {
@@ -188,6 +206,14 @@ public class TournamentService {
 
         Member requester = memberRepository.findByEmail(requesterEmail)
                 .orElseThrow(() -> new AccessDeniedException("Only the tournament administrator can perform this action."));
+
+        if (requester.getRole() == UserRole.UMPIRE) {
+            if (tournamentUmpireRepository.existsByTournamentIdAndUmpireId(tournament.getId(), requester.getId())) {
+                return;
+            }
+            throw new AccessDeniedException("You are not assigned as umpire to this tournament.");
+        }
+
         UUID tournamentAdminId = tournament.getCreatedBy().getId();
         if (tournamentAdminId != null && requester.getId() != null && tournamentAdminId.equals(requester.getId())) {
             return;
