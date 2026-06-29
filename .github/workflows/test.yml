@@ -38,7 +38,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -48,5 +48,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build
+        run: npm run build
+
       - name: Run frontend tests with coverage
         run: npm run test:ci
+        env:
+          CHROME_BIN: /usr/bin/chromium-browser

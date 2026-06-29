@@ -1,7 +1,7 @@
-const puppeteer = require('puppeteer');
-
-// Use Puppeteer's bundled Chromium so tests do not depend on system Chrome.
-process.env.CHROME_BIN = puppeteer.executablePath();
+if (!process.env.CHROME_BIN) {
+  const puppeteer = require('puppeteer');
+  process.env.CHROME_BIN = puppeteer.executablePath();
+}
 
 module.exports = function (config) {
   config.set({
