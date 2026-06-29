@@ -37,7 +37,7 @@ npm run start
 Notes:
 
 - `start` uses the `development` configuration defined in `angular.json`.
-- The frontend API target is currently `http://localhost:8080/api` (`src/app/shared/constants.ts` and runtime `public/config.json`). If you run backend locally with the default PostgreSQL `dev` profile, either start it with `BACKEND_PORT=8080` or change `public/config.json` to `http://localhost:8085/api`.
+- The frontend API target is currently `http://localhost:8080/api` (`src/app/shared/constants.ts` and runtime `public/config.json`), matching the default backend port for Docker Compose, `dev`, and `devH2`.
 
 ## Production Build and SSR Runtime
 
