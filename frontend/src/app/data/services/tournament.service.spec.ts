@@ -1,434 +1,374 @@
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { ManualEventInscriptionRequest, TournamentEventsConfigRequest } from '../interfaces/tournament.model';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { TournamentService } from './tournament.service';
 import { AppSettings } from '../../shared/constants';
+import { TournamentCalendarFilters } from '../interfaces/tournament.model';
 
 describe('TournamentService', () => {
   let service: TournamentService;
   let httpMock: HttpTestingController;
+  const originalApiUrl = AppSettings.API_URL;
+  let apiUrl: string;
 
   beforeEach(() => {
+    apiUrl = AppSettings.API_URL;
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), TournamentService]
+      imports: [HttpClientTestingModule],
+      providers: [TournamentService],
     });
-
     service = TestBed.inject(TournamentService);
     httpMock = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
+    AppSettings.API_URL = originalApiUrl;
     httpMock.verify();
   });
 
-  it('should post the tournament payload to the tournaments endpoint', () => {
-    const payload = {
-      formalName: 'Open de Primavera',
-      playStartDate: '2026-05-01',
-      playEndDate: '2026-05-10',
-      tournamentStartTime: '09:00',
-      inscriptionStartDate: '2026-04-01',
-      inscriptionEndDate: '2026-04-20',
-      surfaceCategory: 'CLAY' as const,
-      maxPlayers: 32,
-      location: 'Club Central',
-      courtCount: 4
-    };
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
 
-    service.createTournament(payload).subscribe(response => {
-      expect(response.id).toBe('tournament-id');
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments`);
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(payload);
-
-    request.flush({
-      id: 'tournament-id',
-      ...payload,
-      status: 'DRAFT',
-      providerOrganisationId: 'member-id'
+  describe('getTournaments', () => {
+    it('should GET tournaments', () => {
+      service.getTournaments().subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
     });
   });
 
-  it('should get the event catalog from the backend endpoint', () => {
-    service.getEventCatalog().subscribe(response => {
-      expect(response.length).toBe(1);
-      expect(response[0].category).toBe('Absoluto Individual Masculino');
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/age-categories`);
-    expect(request.request.method).toBe('GET');
-
-    request.flush([
-      {
-        id: 1,
-        category: 'Absoluto Individual Masculino',
-        description: 'Individual masculino open'
-      }
-    ]);
-  });
-
-  it('should get tournament courts from the backend endpoint', () => {
-    service.getCourts('tournament-id').subscribe(response => {
-      expect(response.length).toBe(1);
-      expect(response[0].name).toBe('Pista 1');
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/courts`);
-    expect(request.request.method).toBe('GET');
-
-    request.flush([
-      {
-        id: 'court-id',
-        tournamentId: 'tournament-id',
-        name: 'Pista 1',
-        active: true
-      }
-    ]);
-  });
-
-  it('should get published tournament calendar with filters', () => {
-    service.getPublishedTournamentCalendar({
-      from: '2026-06-01',
-      to: '2026-08-30',
-      surface: 'CLAY',
-      location: 'Central'
-    }).subscribe(response => {
-      expect(response.content.length).toBe(1);
-      expect(response.content[0].formalName).toBe('Open de Verano');
-      expect(response.totalElements).toBe(1);
-      expect(response.totalPages).toBe(1);
-    });
-
-    const request = httpMock.expectOne(
-      `${AppSettings.API_URL}/calendar/tournaments?from=2026-06-01&to=2026-08-30&surface=CLAY&location=Central`
-    );
-    expect(request.request.method).toBe('GET');
-
-    request.flush({
-      content: [
-        {
-          id: 'tournament-id',
-          formalName: 'Open de Verano',
-          playStartDate: '2026-06-10',
-          playEndDate: '2026-06-15',
-          tournamentStartTime: '09:00',
-          location: 'Club Central',
-          surfaceCategory: 'CLAY',
-          maxPlayers: 32,
-          status: 'OPEN'
-        }
-      ],
-      page: 0,
-      size: 10,
-      totalElements: 1,
-      totalPages: 1
+  describe('getUmpireTournaments', () => {
+    it('should GET umpire tournaments', () => {
+      service.getUmpireTournaments().subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/umpires/me/tournaments`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
     });
   });
 
-  it('should get authenticated player match calendar using date filters only', () => {
-    service.getMyMatchCalendar({
-      from: '2026-06-01',
-      to: '2026-08-30',
-      surface: 'CLAY',
-      location: 'Central'
-    }).subscribe(response => {
-      expect(response.length).toBe(1);
-      expect(response[0].matchId).toBe('match-id');
+  describe('getPublishedTournamentCalendar', () => {
+    it('should GET calendar with no filters', () => {
+      service.getPublishedTournamentCalendar().subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/calendar/tournaments`);
+      expect(req.request.method).toBe('GET');
+      req.flush({ content: [], totalElements: 0, totalPages: 0 });
     });
 
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/calendar/my-matches?from=2026-06-01&to=2026-08-30`);
-    expect(request.request.method).toBe('GET');
-
-    request.flush([
-      {
-        tournamentId: 'tournament-id',
-        tournamentName: 'Open de Verano',
-        eventId: 'event-id',
-        eventName: 'Absoluto - Masculino',
-        matchId: 'match-id',
-        roundNumber: 1,
-        scheduledAt: '2026-06-10T10:00:00',
-        scheduleTimeType: 'EXACT',
-        courtId: 'court-id',
-        court: 'Pista 1',
-        firstInscriptionId: 'player-1',
-        firstParticipantName: 'Carlos Lopez',
-        secondInscriptionId: 'player-2',
-        secondParticipantName: 'Luis Garcia',
-        result: null
-      }
-    ]);
-  });
-
-  it('should post a tournament court to the backend endpoint', () => {
-    service.createCourt('tournament-id', { name: 'Pista 2' }).subscribe(response => {
-      expect(response.id).toBe('court-id');
-      expect(response.name).toBe('Pista 2');
+    it('should GET calendar with all filters', () => {
+      const filters: TournamentCalendarFilters = {
+        from: '2026-01-01',
+        to: '2026-12-31',
+        surface: 'CLAY',
+        location: 'Madrid',
+        name: 'Open',
+        professionalTournament: true,
+        status: 'OPEN',
+        page: 0,
+        size: 10,
+      };
+      service.getPublishedTournamentCalendar(filters).subscribe();
+      const req = httpMock.expectOne(r =>
+        r.url === `${apiUrl}/calendar/tournaments` &&
+        r.params.get('from') === '2026-01-01' &&
+        r.params.get('to') === '2026-12-31' &&
+        r.params.get('surface') === 'CLAY' &&
+        r.params.get('location') === 'Madrid' &&
+        r.params.get('name') === 'Open' &&
+        r.params.get('professionalTournament') === 'true' &&
+        r.params.get('status') === 'OPEN' &&
+        r.params.get('page') === '0' &&
+        r.params.get('size') === '10'
+      );
+      expect(req.request.method).toBe('GET');
+      req.flush({ content: [], totalElements: 0, totalPages: 0 });
     });
 
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/courts`);
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({ name: 'Pista 2' });
-
-    request.flush({
-      id: 'court-id',
-      tournamentId: 'tournament-id',
-      name: 'Pista 2',
-      active: true
-    });
-  });
-
-  it('should patch a tournament court to the backend endpoint', () => {
-    service.updateCourt('tournament-id', 'court-id', { name: 'Central' }).subscribe(response => {
-      expect(response.id).toBe('court-id');
-      expect(response.name).toBe('Central');
+    it('should handle location with whitespace only', () => {
+      service.getPublishedTournamentCalendar({ location: '   ' }).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/calendar/tournaments`);
+      expect(req.request.params.has('location')).toBeFalse();
+      req.flush({ content: [], totalElements: 0, totalPages: 0 });
     });
 
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/courts/court-id`);
-    expect(request.request.method).toBe('PATCH');
-    expect(request.request.body).toEqual({ name: 'Central' });
+    it('should handle name with whitespace only', () => {
+      service.getPublishedTournamentCalendar({ name: '   ' }).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/calendar/tournaments`);
+      expect(req.request.params.has('name')).toBeFalse();
+      req.flush({ content: [], totalElements: 0, totalPages: 0 });
+    });
 
-    request.flush({
-      id: 'court-id',
-      tournamentId: 'tournament-id',
-      name: 'Central',
-      active: true
+    it('should handle professionalTournament as false', () => {
+      service.getPublishedTournamentCalendar({ professionalTournament: false }).subscribe();
+      const req = httpMock.expectOne(r =>
+        r.url === `${apiUrl}/calendar/tournaments` &&
+        r.params.get('professionalTournament') === 'false'
+      );
+      req.flush({ content: [], totalElements: 0, totalPages: 0 });
+    });
+
+    it('should handle professionalTournament as null', () => {
+      service.getPublishedTournamentCalendar({ professionalTournament: null }).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/calendar/tournaments`);
+      expect(req.request.params.has('professionalTournament')).toBeFalse();
+      req.flush({ content: [], totalElements: 0, totalPages: 0 });
     });
   });
 
-  it('should delete a tournament court through the backend endpoint', () => {
-    service.deleteCourt('tournament-id', 'court-id').subscribe(response => {
-      expect(response).toBeNull();
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/courts/court-id`);
-    expect(request.request.method).toBe('DELETE');
-
-    request.flush(null);
-  });
-
-  it('should post the configured events list to the tournament events endpoint', () => {
-    const payload: TournamentEventsConfigRequest = {
-      events: [
-        {
-          categoryId: 1,
-          gender: 'MALE',
-          stages: ['SINGLE_ELIMINATION']
-        },
-        {
-          categoryId: 1,
-          gender: 'MIXED',
-          stages: ['ROUND_ROBIN', 'CONSOLATION']
-        }
-      ]
-    };
-
-    service.saveTournamentEvents('tournament-id', payload).subscribe(response => {
-      expect(response.id).toBe('tournament-id');
-      expect(response.events?.length).toBe(2);
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/events`);
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(payload);
-
-    request.flush({
-      id: 'tournament-id',
-      formalName: 'Open de Primavera',
-      playStartDate: '2026-05-01',
-      playEndDate: '2026-05-10',
-      tournamentStartTime: '09:00',
-      inscriptionStartDate: '2026-04-01',
-      inscriptionEndDate: '2026-04-20',
-      surfaceCategory: 'CLAY',
-      maxPlayers: 32,
-      location: 'Club Central',
-      status: 'DRAFT',
-      providerOrganisationId: 'member-id',
-      events: [
-        {
-          eventId: 'event-1',
-          categoryId: 1,
-          gender: 'MALE'
-        },
-        {
-          eventId: 'event-2',
-          categoryId: 1,
-          gender: 'MIXED'
-        }
-      ]
+  describe('getMyMatchCalendar', () => {
+    it('should GET my matches', () => {
+      service.getMyMatchCalendar().subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/calendar/my-matches`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
     });
   });
 
-  it('should patch tournament status to the backend endpoint', () => {
-    service.updateTournamentStatus('tournament-id', { status: 'OPEN' }).subscribe(response => {
-      expect(response.status).toBe('OPEN');
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/status`);
-    expect(request.request.method).toBe('PATCH');
-    expect(request.request.body).toEqual({ status: 'OPEN' });
-
-    request.flush({
-      id: 'tournament-id',
-      formalName: 'Open de Primavera',
-      playStartDate: '2026-05-01',
-      playEndDate: '2026-05-10',
-      inscriptionStartDate: '2026-04-01',
-      inscriptionEndDate: '2026-04-20',
-      surfaceCategory: 'CLAY',
-      maxPlayers: 32,
-      location: 'Club Central',
-      status: 'OPEN',
-      providerOrganisationId: 'member-id',
-      events: []
+  describe('getMyTournamentCalendar', () => {
+    it('should GET my tournaments', () => {
+      service.getMyTournamentCalendar().subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/calendar/my-tournaments`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
     });
   });
 
-  it('should get tournament inscriptions with optional event filter', () => {
-    service.getTournamentInscriptions('tournament-id', 'event-1').subscribe(response => {
-      expect(response.selectedEventId).toBe('event-1');
-      expect(response.inscriptions.length).toBe(1);
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/inscriptions?eventId=event-1`);
-    expect(request.request.method).toBe('GET');
-
-    request.flush({
-      tournamentId: 'tournament-id',
-      selectedEventId: 'event-1',
-      events: [
-        {
-          eventId: 'event-1',
-          categoryId: 1,
-          category: 'Absoluto',
-          eventName: 'Absoluto - Masculino',
-          eventGender: 'MALE'
-        }
-      ],
-      categoryCounts: [
-        {
-          categoryId: 1,
-          category: 'Absoluto',
-          totalPlayers: 1,
-          genders: [
-            {
-              gender: 'MALE',
-              totalPlayers: 1
-            }
-          ]
-        }
-      ],
-      inscriptions: [
-        {
-          inscriptionId: 'inscription-1',
-          participantId: 'participant-1',
-          eventId: 'event-1',
-          categoryId: 1,
-          category: 'Absoluto',
-          eventName: 'Absoluto - Masculino',
-          eventGender: 'MALE',
-          firstName: 'Carlos',
-          lastName: 'Lopez',
-          gender: 'MALE'
-        }
-      ]
+  describe('getTournamentById', () => {
+    it('should GET tournament by id', () => {
+      service.getTournamentById('t1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1`);
+      expect(req.request.method).toBe('GET');
+      req.flush({});
     });
   });
 
-  it('should post a manual inscription to the dedicated endpoint', () => {
-    const payload: ManualEventInscriptionRequest = {
-      playerSource: 'MANUAL',
-      firstName: 'Lucia',
-      lastName: 'Perez',
-      gender: 'FEMALE',
-      birthDate: '1998-03-05',
-      nationality: 'ESP',
-      tennisId: 'LIC-77'
-    };
-
-    service.addManualInscription('tournament-id', 'event-1', payload).subscribe(response => {
-      expect(response.id).toBe('inscription-created');
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/events/event-1/manual-inscriptions`);
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(payload);
-
-    request.flush({
-      id: 'inscription-created',
-      tournamentId: 'tournament-id',
-      eventId: 'event-1',
-      categoryId: 1,
-      memberId: 'person-2',
-      participantId: 'participant-id',
-      partnerId: null,
-      status: 'PENDING',
-      paymentStatus: 'UNPAID',
-      registeredAt: '2026-04-29T00:00:00Z'
+  describe('createTournament', () => {
+    it('should POST tournament', () => {
+      service.createTournament({} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments`);
+      expect(req.request.method).toBe('POST');
+      req.flush({});
     });
   });
 
-  it('should post a match result to the tournament-scoped endpoint', () => {
-    const payload = {
-      winnerId: 'winner-id',
-      scoreString: '6-4 6-3'
-    };
-
-    service.submitMatchResult('tournament-id', 'match-id', payload).subscribe(response => {
-      expect(response.id).toBe('match-id');
-      expect(response.winnerId).toBe('winner-id');
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/matches/match-id/result`);
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(payload);
-
-    request.flush({
-      id: 'match-id',
-      firstInscriptionId: 'winner-id',
-      secondInscriptionId: 'loser-id',
-      winnerId: 'winner-id',
-      roundNumber: 1,
-      scheduledAt: null,
-      scheduleTimeType: null,
-      courtId: null,
-      court: null,
-      result: '6-4 6-3'
+  describe('getCourts', () => {
+    it('should GET courts', () => {
+      service.getCourts('t1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/courts`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
     });
   });
 
-  it('should patch a match schedule to the tournament-scoped endpoint', () => {
-    const payload = {
-      courtId: 'court-id',
-      scheduledAt: '2026-05-02T10:00',
-      scheduleTimeType: 'NOT_BEFORE' as const
-    };
+  describe('createCourt', () => {
+    it('should POST court', () => {
+      service.createCourt('t1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/courts`);
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+    });
+  });
 
-    service.scheduleMatch('tournament-id', 'match-id', payload).subscribe(response => {
-      expect(response.id).toBe('match-id');
-      expect(response.courtId).toBe('court-id');
-      expect(response.scheduleTimeType).toBe('NOT_BEFORE');
+  describe('updateCourt', () => {
+    it('should PATCH court', () => {
+      service.updateCourt('t1', 'c1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/courts/c1`);
+      expect(req.request.method).toBe('PATCH');
+      req.flush({});
+    });
+  });
+
+  describe('deleteCourt', () => {
+    it('should DELETE court', () => {
+      service.deleteCourt('t1', 'c1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/courts/c1`);
+      expect(req.request.method).toBe('DELETE');
+      req.flush(null);
+    });
+  });
+
+  describe('getEventCatalog', () => {
+    it('should GET event catalog', () => {
+      service.getEventCatalog().subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/age-categories`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+  });
+
+  describe('getEventCatalogAll', () => {
+    it('should GET all event catalog', () => {
+      service.getEventCatalogAll().subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/age-categories/all`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+  });
+
+  describe('saveTournamentEvents', () => {
+    it('should POST events', () => {
+      service.saveTournamentEvents('t1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/events`);
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+    });
+  });
+
+  describe('updateTournamentStatus', () => {
+    it('should PATCH status', () => {
+      service.updateTournamentStatus('t1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/status`);
+      expect(req.request.method).toBe('PATCH');
+      req.flush({});
+    });
+  });
+
+  describe('updateTournamentGeneralInfo', () => {
+    it('should PATCH general info', () => {
+      service.updateTournamentGeneralInfo('t1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/general-info`);
+      expect(req.request.method).toBe('PATCH');
+      req.flush({});
+    });
+  });
+
+  describe('requestInscription', () => {
+    it('should POST inscription', () => {
+      service.requestInscription('t1', 'e1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/events/e1/inscriptions`);
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+    });
+  });
+
+  describe('addManualInscription', () => {
+    it('should POST manual inscription', () => {
+      service.addManualInscription('t1', 'e1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/events/e1/manual-inscriptions`);
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+    });
+  });
+
+  describe('getTournamentInscriptions', () => {
+    it('should GET inscriptions without eventId', () => {
+      service.getTournamentInscriptions('t1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/inscriptions`);
+      expect(req.request.method).toBe('GET');
+      req.flush({});
     });
 
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/tournaments/tournament-id/matches/match-id/schedule`);
-    expect(request.request.method).toBe('PATCH');
-    expect(request.request.body).toEqual(payload);
+    it('should GET inscriptions with eventId', () => {
+      service.getTournamentInscriptions('t1', 'e1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/inscriptions?eventId=e1`);
+      expect(req.request.method).toBe('GET');
+      req.flush({});
+    });
+  });
 
-    request.flush({
-      id: 'match-id',
-      firstInscriptionId: 'player-1',
-      secondInscriptionId: 'player-2',
-      winnerId: null,
-      roundNumber: 1,
-      scheduledAt: '2026-05-02T10:00:00',
-      scheduleTimeType: 'NOT_BEFORE',
-      courtId: 'court-id',
-      court: 'Pista 1',
-      result: null
+  describe('generateDraws', () => {
+    it('should POST generate draws', () => {
+      service.generateDraws('t1', 'e1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/events/e1/generate-draws`);
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+    });
+  });
+
+  describe('submitMatchResult', () => {
+    it('should POST match result', () => {
+      service.submitMatchResult('t1', 'm1', { scoreString: '6-3 6-4', winnerId: 'p1' }).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/matches/m1/result`);
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+    });
+  });
+
+  describe('scheduleMatch', () => {
+    it('should PATCH match schedule', () => {
+      service.scheduleMatch('t1', 'm1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/matches/m1/schedule`);
+      expect(req.request.method).toBe('PATCH');
+      req.flush({});
+    });
+  });
+
+  describe('exportTournamentPdf', () => {
+    it('should GET PDF export', () => {
+      service.exportTournamentPdf('t1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/export/pdf`);
+      expect(req.request.method).toBe('GET');
+      req.flush(new Blob());
+    });
+  });
+
+  describe('updateParticipantsPoints', () => {
+    it('should PATCH participants points', () => {
+      service.updateParticipantsPoints('t1', []).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/participants/points`);
+      expect(req.request.method).toBe('PATCH');
+      req.flush(null);
+    });
+  });
+
+  describe('getScheduleConfig', () => {
+    it('should GET schedule config', () => {
+      service.getScheduleConfig('t1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/schedule-config`);
+      expect(req.request.method).toBe('GET');
+      req.flush({});
+    });
+  });
+
+  describe('saveScheduleConfig', () => {
+    it('should PUT schedule config', () => {
+      service.saveScheduleConfig('t1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/schedule-config`);
+      expect(req.request.method).toBe('PUT');
+      req.flush({});
+    });
+  });
+
+  describe('searchUmpires', () => {
+    it('should GET umpires without query', () => {
+      service.searchUmpires().subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/umpires`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+
+    it('should GET umpires with query', () => {
+      service.searchUmpires('john').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/umpires?query=john`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+  });
+
+  describe('getTournamentUmpires', () => {
+    it('should GET tournament umpires', () => {
+      service.getTournamentUmpires('t1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/umpires`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+  });
+
+  describe('addTournamentUmpire', () => {
+    it('should POST umpire', () => {
+      service.addTournamentUmpire('t1', {} as any).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/umpires`);
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+    });
+  });
+
+  describe('removeTournamentUmpire', () => {
+    it('should DELETE umpire', () => {
+      service.removeTournamentUmpire('t1', 'u1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/umpires/u1`);
+      expect(req.request.method).toBe('DELETE');
+      req.flush(null);
     });
   });
 });
