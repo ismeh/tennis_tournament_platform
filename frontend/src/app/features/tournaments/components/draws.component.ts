@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse } from '../../../data/interfaces/tournament.model';
 import { MatchesComponent } from './matches.component';
 import { BracketComponent } from './bracket.component';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
@@ -66,6 +66,8 @@ interface DrawDisplayItem {
                       [showDrawCardInput]="false"
                       [tournamentNameInput]="tournamentNameInput"
                       [categoryNameInput]="categoryNameInput"
+                      [setsPerMatch]="setsPerMatch"
+                      [decisiveTiebreakPoints]="decisiveTiebreakPoints"
                       (matchSelected)="matchSelected.emit($event.id)"
                       (matchResultSaved)="onSaveMatchResult($event)"
                       (matchScheduleSaved)="onSaveMatchSchedule($event)"
@@ -98,6 +100,8 @@ interface DrawDisplayItem {
       [participantNamesInput]="participantNamesInput"
       [courtsInput]="courtsInput"
       [canManageInput]="canManageInput"
+      [setsPerMatch]="setsPerMatch"
+      [decisiveTiebreakPoints]="decisiveTiebreakPoints"
       (saveResult)="onSaveMatchResult($event)"
       (saveSchedule)="onSaveMatchSchedule($event)"
       (close)="onModalClose()"
@@ -111,9 +115,21 @@ export class DrawsComponent {
   @Input() canManageInput = false;
   @Input() tournamentNameInput = '';
   @Input() categoryNameInput = '';
+  @Input() setsPerMatch = 3;
+  @Input() decisiveTiebreakPoints = 7;
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
+    const sel = this.selectedMatch();
+    if (sel) {
+      for (const draw of value) {
+        const updated = (draw.matches || []).find(m => m.id === sel.id);
+        if (updated) {
+          this.selectedMatch.set(updated);
+          break;
+        }
+      }
+    }
   }
   private _draws = signal<DrawResponse[]>([]);
   draws = computed(() => this._draws());
@@ -123,7 +139,7 @@ export class DrawsComponent {
   @ViewChild('matchModal') matchModal!: MatchDetailModalComponent;
 
   @Output() matchSelected = new EventEmitter<string>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; status: MatchStatus }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; sets?: SetScoreResponse[] | null; notes?: string | null; status: MatchStatus; keepOpen?: boolean }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -220,13 +236,15 @@ export class DrawsComponent {
     this.selectedMatch.set(null);
   }
 
-  onSaveMatchResult(event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }) {
+  onSaveMatchResult(event: { matchId: string; winnerId: string | null; result: string; sets?: SetScoreResponse[] | null; notes?: string | null; status: MatchStatus; keepOpen?: boolean }) {
     if (!this.canManageInput) {
       return;
     }
 
     this.matchResultSaved.emit(event);
-    this.selectedMatch.set(null);
+    if (!event.keepOpen) {
+      this.selectedMatch.set(null);
+    }
   }
 
   onSaveMatchSchedule(event: {

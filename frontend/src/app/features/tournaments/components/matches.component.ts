@@ -70,13 +70,27 @@ import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/i
                       <span class="inline-block rounded bg-purple-100 px-2 py-1 text-xs text-purple-800">
                         Suspendido
                       </span>
+                    } @else if (match.status === 'IN_PROGRESS') {
+                      <span class="inline-block rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
+                        En juego{{ match.result ? ': ' + match.result : '' }}
+                        @if (match.firstPlayerPoints && match.secondPlayerPoints) {
+                          <span class="font-extrabold text-[10px] text-blue-900 ml-1">
+                            ({{ match.firstPlayerPoints }}-{{ match.secondPlayerPoints }})
+                          </span>
+                        }
+                      </span>
                     } @else if (match.winnerId) {
                       <span class="inline-block rounded bg-green-100 px-2 py-1 text-xs text-green-800">
                         Jugado: {{ match.result }}
                       </span>
                     } @else if (match.result) {
                       <span class="inline-block rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
-                        En curso: {{ match.result }}
+                        En juego: {{ match.result }}
+                        @if (match.firstPlayerPoints && match.secondPlayerPoints) {
+                          <span class="font-extrabold text-[10px] text-blue-900 ml-1">
+                            ({{ match.firstPlayerPoints }}-{{ match.secondPlayerPoints }})
+                          </span>
+                        }
                       </span>
                     } @else {
                       <span class="inline-block rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-800">
