@@ -25,7 +25,21 @@ public class Match {
     private final UUID courtId;
     private final String court;
     private final String result;
+    private final MatchScore score;
+    private final String notes;
+    private final String firstPlayerPoints;
+    private final String secondPlayerPoints;
     private final MatchStatus status;
+
+    public String getResult() {
+        if (score != null) {
+            String scoreStr = score.toResultString();
+            if (scoreStr != null && !scoreStr.isEmpty()) {
+                return scoreStr;
+            }
+        }
+        return result;
+    }
 
     public UUID getTournamentId() {
         return tournament != null ? tournament.getId() : null;

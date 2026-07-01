@@ -17,6 +17,7 @@ public class Inscription {
     private final LocalDateTime registeredAt;
     private final ParticipantSource participantSource;
     private final Integer seed;
+    private final Integer points;
     private final Integer professionalRankingPosition;
     private final Integer professionalAwardedPoints;
 

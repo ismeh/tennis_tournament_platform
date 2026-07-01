@@ -10,5 +10,7 @@ import java.util.UUID;
 public class AgeCategoryRef {
     private final Integer id;
     private final String category;
+    private final String description;
+    private final Integer displayOrder;
     private final UUID organizerId;
 }
