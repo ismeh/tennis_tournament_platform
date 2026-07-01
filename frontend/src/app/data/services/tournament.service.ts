@@ -13,6 +13,7 @@ import {
   MatchScheduleRequest,
   MatchResponse,
   MatchStatus,
+  SetScoreResponse,
   ParticipantPointsUpdateRequest,
   PlayerMatchCalendarResponse,
   ScheduleConfigRequest,
@@ -137,7 +138,15 @@ export class TournamentService {
   submitMatchResult(
     tournamentId: string,
     matchId: string,
-    payload: { winnerId?: string | null; scoreString: string; status?: MatchStatus }
+    payload: {
+      winnerId?: string | null;
+      scoreString: string;
+      sets?: SetScoreResponse[] | null;
+      notes?: string | null;
+      firstPlayerPoints?: string | null;
+      secondPlayerPoints?: string | null;
+      status?: MatchStatus;
+    }
   ): Observable<MatchResponse> {
     return this.http.post<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/result`, payload);
   }

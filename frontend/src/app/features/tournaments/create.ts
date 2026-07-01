@@ -116,6 +116,30 @@ import {
               </label>
             </div>
 
+            <div class="grid gap-4 md:grid-cols-2">
+              <label class="block">
+                <span class="mb-1 block text-sm font-medium text-neutral-700">Formato de partido</span>
+                <select
+                  formControlName="setsPerMatch"
+                  class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
+                >
+                  <option [value]="3">Al mejor de 3 sets</option>
+                  <option [value]="5">Al mejor de 5 sets</option>
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-sm font-medium text-neutral-700">Tiebreak set decisivo</span>
+                <select
+                  formControlName="decisiveTiebreakPoints"
+                  class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
+                >
+                  <option [value]="7">Tiebreak normal (a 7 puntos)</option>
+                  <option [value]="10">Super Tiebreak (a 10 puntos)</option>
+                </select>
+              </label>
+            </div>
+
             <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
               El organizador se toma del usuario autenticado. El torneo se crea como <span class="font-semibold text-neutral-900">borrador</span>. Las pruebas se configurarán después.
             </div>
@@ -170,7 +194,9 @@ export class CreateTournamentComponent implements OnInit {
     locationLongitude: [null as number | null],
     locationPlaceId: [null as string | null],
     locationFormattedAddress: [null as string | null],
-    courtCount: [4, [Validators.required, Validators.min(0)]]
+    courtCount: [4, [Validators.required, Validators.min(0)]],
+    setsPerMatch: [3, [Validators.required]],
+    decisiveTiebreakPoints: [7, [Validators.required]]
   });
 
   constructor() {}
@@ -231,7 +257,9 @@ export class CreateTournamentComponent implements OnInit {
       locationLongitude: null,
       locationPlaceId: null,
       locationFormattedAddress: null,
-      courtCount: 4
+      courtCount: 4,
+      setsPerMatch: 3,
+      decisiveTiebreakPoints: 7
     });
     this.errorMessage.set(null);
   }

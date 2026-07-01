@@ -83,7 +83,9 @@ describe('CreateTournamentComponent', () => {
       locationLongitude: null,
       locationPlaceId: null,
       locationFormattedAddress: null,
-      courtCount: 4
+      courtCount: 4,
+      setsPerMatch: 3,
+      decisiveTiebreakPoints: 7
     });
 
     component.submit();
@@ -102,7 +104,9 @@ describe('CreateTournamentComponent', () => {
       locationLongitude: null,
       locationPlaceId: null,
       locationFormattedAddress: null,
-      courtCount: 4
+      courtCount: 4,
+      setsPerMatch: 3,
+      decisiveTiebreakPoints: 7
     });
     expect(component.errorMessage()).toBeNull();
     expect(navigateSpy).toHaveBeenCalledWith(['/torneos', 'tournament-id']);
@@ -125,7 +129,9 @@ describe('CreateTournamentComponent', () => {
       locationLongitude: null,
       locationPlaceId: null,
       locationFormattedAddress: null,
-      courtCount: 4
+      courtCount: 4,
+      setsPerMatch: 3,
+      decisiveTiebreakPoints: 7
     });
 
     component.submit();

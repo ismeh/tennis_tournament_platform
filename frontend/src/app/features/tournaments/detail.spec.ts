@@ -524,6 +524,10 @@ describe('TournamentDetailComponent', () => {
     expect(tournamentServiceSpy.submitMatchResult).toHaveBeenCalledWith('tournament-id', 'match-1', {
       winnerId: 'inscription-2',
       scoreString: '7-5 6-4',
+      sets: undefined,
+      notes: undefined,
+      firstPlayerPoints: undefined,
+      secondPlayerPoints: undefined,
       status: 'COMPLETED'
     });
     expect(tournamentServiceSpy.getTournamentById.calls.count()).toBe(initialTournamentLoadCount);
