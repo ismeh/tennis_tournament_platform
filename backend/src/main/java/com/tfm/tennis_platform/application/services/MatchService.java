@@ -2,6 +2,8 @@ package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.models.Match;
+import com.tfm.tennis_platform.domain.models.MatchScore;
+import com.tfm.tennis_platform.domain.models.SetScore;
 import com.tfm.tennis_platform.domain.models.ScheduleConfig;
 import com.tfm.tennis_platform.domain.models.TimeSlot;
 import lombok.RequiredArgsConstructor;
@@ -58,15 +60,15 @@ public class MatchService {
         return matchRepository.save(match);
     }
 
-    public Match recordResult(UUID tournamentId, UUID matchId, UUID winnerId, String scoreString, MatchStatus status, String requesterEmail) {
+    public Match recordResult(UUID tournamentId, UUID matchId, UUID winnerId, java.util.List<com.tfm.tennis_platform.infrastructure.controller.dto.SetScoreRequest> sets, String notes, String firstPlayerPoints, String secondPlayerPoints, MatchStatus status, String requesterEmail) {
         Match updatedMatch = retryOnConcurrentModification(() -> transactionTemplate.execute(txStatus ->
-                doRecordResult(tournamentId, matchId, winnerId, scoreString, status, requesterEmail)
+                doRecordResult(tournamentId, matchId, winnerId, sets, notes, firstPlayerPoints, secondPlayerPoints, status, requesterEmail)
         ));
         tournamentUpdatePublisher.publish(TournamentUpdateEvent.matchResultUpdated(tournamentId, matchId));
         return updatedMatch;
     }
 
-    private Match doRecordResult(UUID tournamentId, UUID matchId, UUID winnerId, String scoreString, MatchStatus status, String requesterEmail) {
+    private Match doRecordResult(UUID tournamentId, UUID matchId, UUID winnerId, java.util.List<com.tfm.tennis_platform.infrastructure.controller.dto.SetScoreRequest> sets, String notes, String firstPlayerPoints, String secondPlayerPoints, MatchStatus status, String requesterEmail) {
         if (tournamentId == null) {
             throw new InvalidArgumentException("El torneo es obligatorio.");
         }
@@ -77,10 +79,10 @@ public class MatchService {
         boolean isWalkover = status == MatchStatus.WALKOVER;
         boolean isRetired = status == MatchStatus.RETIRED;
         boolean hasWinner = winnerId != null;
-        boolean hasScore = scoreString != null && !scoreString.isBlank();
+        boolean hasSets = sets != null && !sets.isEmpty();
 
-        if (!hasWinner && !hasScore && !isWalkover && !isRetired) {
-            throw new InvalidArgumentException("Debes proporcionar al menos el resultado, el ganador o el tipo de estado especial.");
+        if (!hasWinner && !hasSets && !isWalkover && !isRetired) {
+            throw new InvalidArgumentException("Debes proporcionar al menos el resultado de los sets, el ganador o el tipo de estado especial.");
         }
 
         var tournament = tournamentRepository.findById(tournamentId)
@@ -103,10 +105,66 @@ public class MatchService {
             throw new InvalidArgumentException("El ganador debe ser uno de los participantes del partido.");
         }
 
-        MatchStatus resolvedStatus = resolveStatus(status, hasWinner, hasScore, isWalkover, isRetired);
+        int setsPerMatch = tournament.getSetsPerMatch() != null ? tournament.getSetsPerMatch() : 3;
+        int decisiveTiebreakPoints = tournament.getDecisiveTiebreakPoints() != null ? tournament.getDecisiveTiebreakPoints() : 7;
+        MatchScore matchScore = MatchScore.empty();
+        
+        MatchStatus resolvedStatus = resolveStatus(status, winnerId != null, hasSets, isWalkover, isRetired);
+        boolean requireCompletion = (resolvedStatus == MatchStatus.COMPLETED) && !isWalkover && !isRetired;
+
+        if (hasSets && !isWalkover && !isRetired) {
+            java.util.List<SetScore> domainSets = new java.util.ArrayList<>();
+            for (var setReq : sets) {
+                boolean isDecisive = (setReq.setNumber() == setsPerMatch);
+                SetScore setScore = SetScore.builder()
+                        .setNumber(setReq.setNumber())
+                        .firstPlayerGames(setReq.firstPlayerGames())
+                        .secondPlayerGames(setReq.secondPlayerGames())
+                        .firstPlayerTiebreak(setReq.firstPlayerTiebreak())
+                        .secondPlayerTiebreak(setReq.secondPlayerTiebreak())
+                        .build();
+                if (requireCompletion && !setScore.isComplete(isDecisive, decisiveTiebreakPoints)) {
+                    throw new InvalidArgumentException("El set " + setReq.setNumber() + " no está completo o no sigue las reglas del tenis.");
+                }
+                domainSets.add(setScore);
+            }
+            matchScore = MatchScore.builder().sets(domainSets).build();
+
+            // Validate that we don't have too many sets
+            int setsToWin = (setsPerMatch == 5) ? 3 : 2;
+            int player1Sets = 0;
+            int player2Sets = 0;
+            for (SetScore set : domainSets) {
+                boolean isDecisive = (set.getSetNumber() == setsPerMatch);
+                // Only count winner if the set is complete
+                if (set.isComplete(isDecisive, decisiveTiebreakPoints)) {
+                    Integer sWinner = set.getWinnerSide(isDecisive, decisiveTiebreakPoints);
+                    if (sWinner == 1) player1Sets++;
+                    else if (sWinner == 2) player2Sets++;
+                }
+            }
+            if (player1Sets > setsToWin || player2Sets > setsToWin) {
+                throw new InvalidArgumentException("El resultado excede el formato de sets permitido para este torneo.");
+            }
+
+            if (requireCompletion) {
+                if (!matchScore.isMatchComplete(setsPerMatch, decisiveTiebreakPoints)) {
+                    throw new InvalidArgumentException("El resultado de los sets no define un ganador para dar por completado el partido.");
+                }
+                Integer winnerSide = matchScore.getWinningSide(setsPerMatch, decisiveTiebreakPoints);
+                UUID derivedWinnerId = (winnerSide == 1) ? currentMatch.getFirstInscriptionId() : currentMatch.getSecondInscriptionId();
+                if (hasWinner && !winnerId.equals(derivedWinnerId)) {
+                    throw new InvalidArgumentException("El ganador seleccionado no coincide con el resultado de los sets.");
+                }
+                winnerId = derivedWinnerId;
+            }
+        }
 
         var builder = currentMatch.toBuilder();
         builder.status(resolvedStatus);
+        builder.notes(notes);
+        builder.firstPlayerPoints(firstPlayerPoints);
+        builder.secondPlayerPoints(secondPlayerPoints);
 
         if (isWalkover || isRetired) {
             if (hasWinner) {
@@ -120,10 +178,11 @@ public class MatchService {
             }
             builder.result(isWalkover ? "Walkover" : "Retirada");
         } else {
-            if (hasScore) {
-                builder.result(scoreString.trim());
+            if (hasSets) {
+                builder.score(matchScore);
+                builder.result(matchScore.toResultString());
             }
-            if (hasWinner) {
+            if (winnerId != null) {
                 builder.winner(createInscriptionReference(winnerId));
             }
         }
@@ -155,7 +214,13 @@ public class MatchService {
     }
 
     private MatchStatus resolveStatus(MatchStatus requested, boolean hasWinner, boolean hasScore, boolean isWalkover, boolean isRetired) {
-        if (requested != null && requested != MatchStatus.PENDING && requested != MatchStatus.IN_PROGRESS) {
+        if (requested == MatchStatus.IN_PROGRESS) {
+            return MatchStatus.IN_PROGRESS;
+        }
+        if (requested == MatchStatus.PENDING) {
+            return MatchStatus.PENDING;
+        }
+        if (requested != null) {
             return requested;
         }
         if (hasWinner || hasScore) {

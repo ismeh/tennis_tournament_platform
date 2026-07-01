@@ -71,7 +71,9 @@ public class RoundRobinMatchGenerator implements MatchGenerationStrategy {
 
         List<Inscription> sorted = allInscriptions.stream()
                 .sorted(Comparator
-                        .comparing((Inscription ins) -> ins.getSeedingPosition() == null ? Integer.MAX_VALUE : ins.getSeedingPosition())
+                        .comparing((Inscription ins) -> ins.getSeed() == null ? Integer.MAX_VALUE : ins.getSeed())
+                        .thenComparing((Inscription ins) -> ins.getPoints() == null ? Integer.MIN_VALUE : ins.getPoints(), Comparator.reverseOrder())
+                        .thenComparing((Inscription ins) -> ins.getProfessionalRankingPosition() == null ? Integer.MAX_VALUE : ins.getProfessionalRankingPosition())
                         .thenComparing(ins -> ins.getRegisteredAt() == null ? java.time.LocalDateTime.MAX : ins.getRegisteredAt())
                         .thenComparing(Inscription::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();

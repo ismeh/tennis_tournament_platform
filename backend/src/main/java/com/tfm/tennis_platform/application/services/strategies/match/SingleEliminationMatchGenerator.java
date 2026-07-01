@@ -186,13 +186,17 @@ public class SingleEliminationMatchGenerator implements MatchGenerationStrategy 
 
     private boolean hasSeedingData(List<Inscription> inscriptions) {
         return inscriptions.stream()
-                .anyMatch(inscription -> inscription.getSeedingPosition() != null || inscription.isProfessional());
+                .anyMatch(inscription -> inscription.getSeedingPosition() != null 
+                        || inscription.isProfessional() 
+                        || (inscription.getPoints() != null && inscription.getPoints() > 0));
     }
 
     private List<Inscription> orderForSeeding(List<Inscription> inscriptions) {
         return inscriptions.stream()
                 .sorted(Comparator
-                        .comparing((Inscription inscription) -> inscription.getSeedingPosition() == null ? Integer.MAX_VALUE : inscription.getSeedingPosition())
+                        .comparing((Inscription inscription) -> inscription.getSeed() == null ? Integer.MAX_VALUE : inscription.getSeed())
+                        .thenComparing((Inscription inscription) -> inscription.getPoints() == null ? Integer.MIN_VALUE : inscription.getPoints(), Comparator.reverseOrder())
+                        .thenComparing((Inscription inscription) -> inscription.getProfessionalRankingPosition() == null ? Integer.MAX_VALUE : inscription.getProfessionalRankingPosition())
                         .thenComparing(inscription -> inscription.getRegisteredAt() == null ? java.time.LocalDateTime.MAX : inscription.getRegisteredAt())
                         .thenComparing(Inscription::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
