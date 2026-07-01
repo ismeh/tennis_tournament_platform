@@ -65,7 +65,7 @@ class TournamentWebMapperTest {
                     LocalDate.of(2025, 6, 1),
                     LocalDate.of(2025, 6, 25),
                     Surface.CLAY, 32, "Madrid",
-                    40.4168, -3.7038, "place123", "Madrid, Spain", 4
+                    40.4168, -3.7038, "place123", "Madrid, Spain", 4, 3, 7
             );
 
             Tournament domain = mapper.toDomain(request);
@@ -81,7 +81,7 @@ class TournamentWebMapperTest {
         @Test
         void should_throw_when_dates_are_null() {
             TournamentRequest request = new TournamentRequest(
-                    "Test", null, null, null, null, null, null, null, null, null, null, null, null, null
+                    "Test", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
             );
             assertThatThrownBy(() -> mapper.toDomain(request))
                     .isInstanceOf(NullPointerException.class);

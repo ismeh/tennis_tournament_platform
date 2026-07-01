@@ -217,4 +217,45 @@ class SingleEliminationMatchGeneratorTest {
                 .registeredAt(LocalDateTime.now())
                 .build();
     }
+
+    private Inscription pointsInscription(Integer points) {
+        return Inscription.builder()
+                .id(UUID.randomUUID())
+                .eventId(UUID.randomUUID())
+                .participantId(UUID.randomUUID())
+                .points(points)
+                .registeredAt(LocalDateTime.now())
+                .build();
+    }
+
+    @Test
+    void assigns_byes_to_players_with_most_manual_points() {
+        SingleEliminationMatchGenerator generator = new SingleEliminationMatchGenerator();
+        Draw draw = Draw.builder()
+                .id(UUID.randomUUID())
+                .drawType(DrawType.ELIMINATION)
+                .build();
+
+        Inscription highPoints = pointsInscription(100);
+        Inscription lowPoints = pointsInscription(20);
+        Inscription midPoints = pointsInscription(50);
+
+        List<Match> matches = generator.generateMatches(draw, List.of(
+                inscription(),
+                lowPoints,
+                highPoints,
+                midPoints,
+                inscription()
+        ));
+
+        List<Match> byeMatches = matches.stream()
+                .filter(match -> match.getRoundNumber() != null && match.getRoundNumber() == 1)
+                .filter(match -> (match.getFirstInscriptionId() == null) != (match.getSecondInscriptionId() == null))
+                .toList();
+
+        assertEquals(3, byeMatches.size());
+        assertTrue(byeMatches.stream().anyMatch(match -> highPoints.getId().equals(match.getWinnerId())));
+        assertTrue(byeMatches.stream().anyMatch(match -> midPoints.getId().equals(match.getWinnerId())));
+        assertTrue(byeMatches.stream().anyMatch(match -> lowPoints.getId().equals(match.getWinnerId())));
+    }
 }

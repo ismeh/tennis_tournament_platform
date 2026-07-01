@@ -2,6 +2,7 @@ package com.tfm.tennis_platform.application.service;
 
 import com.tfm.tennis_platform.application.services.MatchService;
 import com.tfm.tennis_platform.application.services.TournamentService;
+import com.tfm.tennis_platform.infrastructure.controller.dto.SetScoreRequest;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.domain.models.Court;
@@ -107,7 +108,9 @@ class MatchServiceTest {
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
         org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3", MatchStatus.COMPLETED, "organizer@example.com");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, 
+                List.of(new SetScoreRequest(1, 6, 4, null, null), new SetScoreRequest(2, 6, 3, null, null)), 
+                null, null, null, MatchStatus.COMPLETED, "organizer@example.com");
 
         assertEquals(winnerId, updatedCurrentMatch.getWinnerId());
         assertEquals("6-4 6-3", updatedCurrentMatch.getResult());
@@ -153,7 +156,9 @@ class MatchServiceTest {
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
         org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, "6-4 6-3", MatchStatus.COMPLETED, "organizer@example.com");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, winnerId, 
+                List.of(new SetScoreRequest(1, 6, 4, null, null), new SetScoreRequest(2, 6, 3, null, null)), 
+                null, null, null, MatchStatus.COMPLETED, "organizer@example.com");
 
         assertEquals(winnerId, updatedCurrentMatch.getWinnerId());
         verify(matchRepository, times(2)).save(any(Match.class));
@@ -192,7 +197,9 @@ class MatchServiceTest {
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
         org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
 
-        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4", MatchStatus.COMPLETED, "organizer@example.com");
+        Match updatedCurrentMatch = matchService.recordResult(tournamentId, currentMatchId, newWinnerId, 
+                List.of(new SetScoreRequest(1, 5, 7, null, null), new SetScoreRequest(2, 4, 6, null, null)), 
+                null, null, null, MatchStatus.COMPLETED, "organizer@example.com");
 
         assertEquals(newWinnerId, updatedCurrentMatch.getWinnerId());
         verify(matchRepository, times(2)).save(any(Match.class));
@@ -231,7 +238,9 @@ class MatchServiceTest {
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
         org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
 
-        matchService.recordResult(tournamentId, currentMatchId, newWinnerId, "7-5 6-4", MatchStatus.COMPLETED, "organizer@example.com");
+        matchService.recordResult(tournamentId, currentMatchId, newWinnerId, 
+                List.of(new SetScoreRequest(1, 5, 7, null, null), new SetScoreRequest(2, 4, 6, null, null)), 
+                null, null, null, MatchStatus.COMPLETED, "organizer@example.com");
 
         verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(match -> {
             if (!nextMatchId.equals(match.getId())) {

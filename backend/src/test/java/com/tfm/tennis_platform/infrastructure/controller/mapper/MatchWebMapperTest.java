@@ -110,6 +110,8 @@ class MatchWebMapperTest {
                     null,
                     null,
                     null,
+                    null,
+                    null,
                     "PENDING"
             );
 
@@ -129,7 +131,7 @@ class MatchWebMapperTest {
             MatchResponse response = new MatchResponse(
                     UUID.randomUUID(), null, null, null,
                     null, null, null, null, null, null, null,
-                    null, null, null, null
+                    null, null, null, null, null, null
             );
 
             Match domain = mapper.toDomain(response);
@@ -142,7 +144,7 @@ class MatchWebMapperTest {
             MatchResponse response = new MatchResponse(
                     UUID.randomUUID(), null, null, null,
                     null, null, null, null, null, null, null,
-                    null, null, null, "PENDING"
+                    null, null, null, null, null, "PENDING"
             );
 
             Match domain = mapper.toDomain(response);
