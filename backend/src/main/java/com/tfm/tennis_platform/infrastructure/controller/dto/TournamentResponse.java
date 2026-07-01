@@ -27,5 +27,7 @@ public record TournamentResponse(
     TournamentStatus status,
     Member providerOrganisationId,
     List<TournamentEventResponse> events,
-    Boolean professionalTournament
+    Boolean professionalTournament,
+    Integer setsPerMatch,
+    Integer decisiveTiebreakPoints
 ) {}
