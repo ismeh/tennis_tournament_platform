@@ -125,6 +125,23 @@ public class MatchRepositoryAdapter implements MatchRepository {
         target.setCourtResource(source.getCourtResource());
         target.setCourt(source.getCourt());
         target.setResult(source.getResult());
+        target.setNotes(source.getNotes());
+        target.setStatus(source.getStatus());
+        target.setFirstPlayerPoints(source.getFirstPlayerPoints());
+        target.setSecondPlayerPoints(source.getSecondPlayerPoints());
+
+        if (target.getSets() != null) {
+            target.getSets().clear();
+            if (source.getSets() != null) {
+                source.getSets().forEach(set -> set.setMatch(target));
+                target.getSets().addAll(source.getSets());
+            }
+        } else {
+            if (source.getSets() != null) {
+                source.getSets().forEach(set -> set.setMatch(target));
+            }
+            target.setSets(source.getSets());
+        }
     }
 
     @Override

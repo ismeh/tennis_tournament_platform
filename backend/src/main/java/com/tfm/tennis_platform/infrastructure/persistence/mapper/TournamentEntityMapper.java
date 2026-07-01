@@ -18,6 +18,7 @@ import com.tfm.tennis_platform.infrastructure.persistence.entity.RefAgeCategoryE
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapping;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.MatchSetEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 
@@ -205,7 +206,27 @@ public interface TournamentEntityMapper {
                 .courtId(entity.getCourtResource() != null ? entity.getCourtResource().getId() : null)
                 .court(entity.getCourtResource() != null ? entity.getCourtResource().getName() : entity.getCourt())
                 .result(entity.getResult())
+                .score(mapSetsEntityToScore(entity.getSets()))
+                .firstPlayerPoints(entity.getFirstPlayerPoints())
+                .secondPlayerPoints(entity.getSecondPlayerPoints())
                 .build();
+    }
+
+    default com.tfm.tennis_platform.domain.models.MatchScore mapSetsEntityToScore(List<MatchSetEntity> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return com.tfm.tennis_platform.domain.models.MatchScore.empty();
+        }
+        List<com.tfm.tennis_platform.domain.models.SetScore> sets = entities.stream()
+                .map(entity -> com.tfm.tennis_platform.domain.models.SetScore.builder()
+                        .setNumber(entity.getSetNumber())
+                        .firstPlayerGames(entity.getFirstPlayerGames())
+                        .secondPlayerGames(entity.getSecondPlayerGames())
+                        .firstPlayerTiebreak(entity.getFirstPlayerTiebreak())
+                        .secondPlayerTiebreak(entity.getSecondPlayerTiebreak())
+                        .build())
+                .sorted(java.util.Comparator.comparingInt(com.tfm.tennis_platform.domain.models.SetScore::getSetNumber))
+                .toList();
+        return com.tfm.tennis_platform.domain.models.MatchScore.builder().sets(sets).build();
     }
 
     default Inscription mapInscriptionDomain(java.util.UUID inscriptionId) {

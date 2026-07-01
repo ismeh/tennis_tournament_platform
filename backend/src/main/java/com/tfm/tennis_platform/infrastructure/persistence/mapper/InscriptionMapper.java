@@ -30,6 +30,7 @@ public class InscriptionMapper {
                 .registeredAt(entity.getRegisteredAt())
                 .participantSource(participant != null ? participant.getParticipantSource() : null)
                 .seed(participant != null ? participant.getSeed() : null)
+                .points(participant != null ? participant.getPoints() : null)
                 .professionalRankingPosition(resolveProfessionalRankingPosition(participant))
                 .professionalAwardedPoints(resolveProfessionalAwardedPoints(participant))
                 .build();
