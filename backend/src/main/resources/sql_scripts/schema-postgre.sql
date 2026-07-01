@@ -45,6 +45,8 @@ CREATE TABLE tournaments (
     location_place_id       VARCHAR(255),
     location_formatted_address VARCHAR(500),
     state                   VARCHAR(20) DEFAULT 'DRAFT', -- DRAFT / OPEN / CLOSED / IN_PROGRESS / COMPLETED / CANCELLED
+    sets_per_match          INTEGER DEFAULT 3,
+    decisive_tiebreak_points INTEGER DEFAULT 7,
     version                 BIGINT NOT NULL DEFAULT 0,
     created_by              UUID REFERENCES users(id) ON DELETE SET NULL,
     venue                   VARCHAR(200),
@@ -158,7 +160,24 @@ CREATE TABLE matches (
     court_id                UUID REFERENCES courts(id) ON DELETE SET NULL,
     court                   VARCHAR(50),
     result                  VARCHAR(255),
+    notes                   TEXT,
+    first_player_points     VARCHAR(10),
+    second_player_points    VARCHAR(10),
+    status                  VARCHAR(20),
     version                 BIGINT NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS match_sets (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    match_id                UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    set_number              SMALLINT NOT NULL,
+    first_player_games      INTEGER NOT NULL DEFAULT 0,
+    second_player_games     INTEGER NOT NULL DEFAULT 0,
+    first_player_tiebreak   INTEGER,
+    second_player_tiebreak  INTEGER,
+    UNIQUE (match_id, set_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_match_sets_match ON match_sets(match_id);
 
 

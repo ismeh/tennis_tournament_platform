@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS consent_records;
 DROP TABLE IF EXISTS legal_document_versions;
 DROP TABLE IF EXISTS pro_player_imports;
 DROP TABLE IF EXISTS pro_players;
+DROP TABLE IF EXISTS match_sets;
 DROP TABLE IF EXISTS matches;
 DROP TABLE IF EXISTS draws;
 DROP TABLE IF EXISTS stages;
@@ -86,6 +87,8 @@ CREATE TABLE tournaments (
     location_place_id       VARCHAR(255),
     location_formatted_address VARCHAR(500),
     state                   VARCHAR(20) DEFAULT 'DRAFT',
+    sets_per_match          INTEGER DEFAULT 3,
+    decisive_tiebreak_points INTEGER DEFAULT 7,
     version                 BIGINT NOT NULL DEFAULT 0,
     created_by              UUID,
     venue                   VARCHAR(255),
@@ -203,6 +206,10 @@ CREATE TABLE matches (
     court_id                UUID,
     court                   VARCHAR(100),
     result                  VARCHAR(255),
+    notes                   VARCHAR(1000),
+    first_player_points     VARCHAR(10),
+    second_player_points    VARCHAR(10),
+    status                  VARCHAR(20),
     version                 BIGINT NOT NULL DEFAULT 0,
     FOREIGN KEY (draw_id) REFERENCES draws(id),
     FOREIGN KEY (first_inscription_id) REFERENCES inscriptions(id),
@@ -236,6 +243,20 @@ CREATE TABLE pro_players (
 CREATE INDEX idx_pro_players_gender_position ON pro_players(gender, posicion);
 CREATE INDEX idx_pro_players_license ON pro_players(licencia);
 CREATE INDEX idx_pro_players_name ON pro_players(name);
+
+CREATE TABLE match_sets (
+    id                      UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    match_id                UUID NOT NULL,
+    set_number              SMALLINT NOT NULL,
+    first_player_games      INTEGER NOT NULL DEFAULT 0,
+    second_player_games     INTEGER NOT NULL DEFAULT 0,
+    first_player_tiebreak   INTEGER,
+    second_player_tiebreak  INTEGER,
+    FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
+    UNIQUE (match_id, set_number)
+);
+
+CREATE INDEX idx_match_sets_match ON match_sets(match_id);
 
 -- Performance indexes
 CREATE INDEX idx_participants_person ON participants(person_id);
