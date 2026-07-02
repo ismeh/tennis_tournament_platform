@@ -1,13 +1,14 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ActivatedRoute } from '@angular/router';
 import { TournamentsListComponent } from './list';
 import { TournamentService } from '../../data/services/tournament.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { TournamentResponse } from '../../data/interfaces/tournament.model';
 import { BehaviorSubject, of, throwError } from 'rxjs';
 
-function createTournament(overrides: Record<string, any> = {}) {
+function createTournament(overrides: Partial<TournamentResponse> = {}): TournamentResponse {
   return {
     id: 't1',
     formalName: 'Open 2026',
@@ -22,10 +23,11 @@ function createTournament(overrides: Record<string, any> = {}) {
     status: 'OPEN',
     professionalTournament: false,
     ...overrides
-  };
+  } as TournamentResponse;
 }
 
 describe('TournamentsListComponent', () => {
+  let fixture: ComponentFixture<TournamentsListComponent>;
   let component: TournamentsListComponent;
   let tournamentService: jasmine.SpyObj<TournamentService>;
   let authService: jasmine.SpyObj<AuthService>;
@@ -33,6 +35,8 @@ describe('TournamentsListComponent', () => {
 
   beforeEach(() => {
     tournamentService = jasmine.createSpyObj('TournamentService', ['getTournaments', 'getUmpireTournaments']);
+    tournamentService.getTournaments.and.returnValue(of([]));
+    tournamentService.getUmpireTournaments.and.returnValue(of([]));
     roleSubject = new BehaviorSubject<string | null>(null);
 
     authService = jasmine.createSpyObj('AuthService', [], {
@@ -50,7 +54,7 @@ describe('TournamentsListComponent', () => {
       ]
     });
 
-    const fixture = TestBed.createComponent(TournamentsListComponent);
+    fixture = TestBed.createComponent(TournamentsListComponent);
     component = fixture.componentInstance;
   });
 
@@ -116,6 +120,97 @@ describe('TournamentsListComponent', () => {
 
       expect(component.isUmpire()).toBe(false);
       expect(component.isLoadingUmpire()).toBe(false);
+    });
+
+    it('handles failure when loading umpire tournaments', () => {
+      tournamentService.getTournaments.and.returnValue(of([]));
+      tournamentService.getUmpireTournaments.and.returnValue(throwError(() => new Error('Umpire error')));
+
+      component.ngOnInit();
+      roleSubject.next('UMPIRE');
+
+      expect(component.isUmpire()).toBe(true);
+      expect(component.isLoadingUmpire()).toBe(false);
+      expect(component.umpireTournaments().length).toBe(0);
+    });
+  });
+
+  describe('getSurfaceLabel', () => {
+    it('returns the correct label for surface category', () => {
+      expect(component.getSurfaceLabel('CLAY')).toBe('Tierra batida');
+      expect(component.getSurfaceLabel('HARD')).toBe('Pista dura');
+      expect(component.getSurfaceLabel('GRASS')).toBe('Cesped');
+    });
+  });
+
+  describe('Template / DOM Rendering', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+    });
+
+    it('renders loading state', () => {
+      component.isLoading.set(true);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Cargando torneos...');
+    });
+
+    it('renders error message', () => {
+      component.isLoading.set(false);
+      component.errorMessage.set('Error de prueba');
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Error de prueba');
+    });
+
+    it('renders empty tournaments message', () => {
+      component.isLoading.set(false);
+      component.errorMessage.set(null);
+      component.tournaments.set([]);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Aún no se han creado torneos');
+    });
+
+    it('renders tournament cards when tournaments are present', () => {
+      component.isLoading.set(false);
+      component.errorMessage.set(null);
+      component.tournaments.set([createTournament({ formalName: 'Torneo Especial' })]);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Torneo Especial');
+    });
+
+    it('renders umpire panel when isUmpire is true and loading', () => {
+      component.isLoading.set(false);
+      component.tournaments.set([]);
+      component.isUmpire.set(true);
+      component.isLoadingUmpire.set(true);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Cargando tus torneos...');
+    });
+
+    it('renders umpire empty message', () => {
+      component.isLoading.set(false);
+      component.tournaments.set([]);
+      component.isUmpire.set(true);
+      component.isLoadingUmpire.set(false);
+      component.umpireTournaments.set([]);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('No tienes torneos asignados para arbitrar.');
+    });
+
+    it('renders umpire tournaments list', () => {
+      component.isLoading.set(false);
+      component.tournaments.set([]);
+      component.isUmpire.set(true);
+      component.isLoadingUmpire.set(false);
+      component.umpireTournaments.set([createTournament({ formalName: 'Arbitraje Pro 2026' })]);
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Arbitraje Pro 2026');
     });
   });
 });
