@@ -69,4 +69,65 @@ describe('LoginComponent', () => {
 
     expect(component.errorMessage()).toContain('No se pudo iniciar sesión');
   });
+
+  it('does not call login when the form is invalid', () => {
+    component.form.setValue({ email: 'invalid-email', password: '123' });
+    component.submit();
+    expect(authServiceSpy.login).not.toHaveBeenCalled();
+  });
+
+  it('does not call login when already submitting', () => {
+    component.form.setValue({ email: 'test@example.com', password: 'secret123' });
+    component.isSubmitting.set(true);
+    component.submit();
+    expect(authServiceSpy.login).not.toHaveBeenCalled();
+  });
+
+  it('redirects to /torneos when returnUrl is empty/whitespace', () => {
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token', role: 'PLAYER' }));
+    returnUrl = '   ';
+    component.form.setValue({ email: 'test@example.com', password: 'secret123' });
+    component.submit();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');
+  });
+
+  it('redirects to /torneos when returnUrl does not start with /', () => {
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token', role: 'PLAYER' }));
+    returnUrl = 'torneos/123';
+    component.form.setValue({ email: 'test@example.com', password: 'secret123' });
+    component.submit();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');
+  });
+
+  it('redirects to /torneos when returnUrl starts with //', () => {
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token', role: 'PLAYER' }));
+    returnUrl = '//external.com';
+    component.form.setValue({ email: 'test@example.com', password: 'secret123' });
+    component.submit();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');
+  });
+
+  it('redirects to /torneos when returnUrl path is /login', () => {
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token', role: 'PLAYER' }));
+    returnUrl = '/login?param=1';
+    component.form.setValue({ email: 'test@example.com', password: 'secret123' });
+    component.submit();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');
+  });
+
+  it('redirects to /torneos when returnUrl path is /register', () => {
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token', role: 'PLAYER' }));
+    returnUrl = '/register#anchor';
+    component.form.setValue({ email: 'test@example.com', password: 'secret123' });
+    component.submit();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');
+  });
+
+  it('redirects to /torneos when returnUrl path is /confirmar-email', () => {
+    authServiceSpy.login.and.returnValue(of({ accessToken: 'jwt-token', role: 'PLAYER' }));
+    returnUrl = '/confirmar-email';
+    component.form.setValue({ email: 'test@example.com', password: 'secret123' });
+    component.submit();
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');
+  });
 });

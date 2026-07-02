@@ -169,4 +169,219 @@ describe('AuthService', () => {
     expect(emittedToken).toBe('brand-new-access-token');
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('brand-new-access-token');
   });
+
+  describe('getCurrentUserEmail', () => {
+    it('returns null when no token is present', () => {
+      expect(service.getCurrentUserEmail()).toBeNull();
+    });
+
+    it('returns null when token payload is invalid', () => {
+      localStorage.setItem(AppSettings.TOKEN_KEY, 'invalid-jwt-format');
+      expect(service.getCurrentUserEmail()).toBeNull();
+    });
+
+    it('returns email from sub claim', () => {
+      const token = createJwt({ sub: 'user@example.com' });
+      localStorage.setItem(AppSettings.TOKEN_KEY, token);
+      expect(service.getCurrentUserEmail()).toBe('user@example.com');
+    });
+
+    it('returns email from email claim', () => {
+      const token = createJwt({ email: 'user2@example.com' });
+      localStorage.setItem(AppSettings.TOKEN_KEY, token);
+      expect(service.getCurrentUserEmail()).toBe('user2@example.com');
+    });
+
+    it('returns email from preferred_username claim', () => {
+      const token = createJwt({ preferred_username: 'user3@example.com' });
+      localStorage.setItem(AppSettings.TOKEN_KEY, token);
+      expect(service.getCurrentUserEmail()).toBe('user3@example.com');
+    });
+
+    it('returns null when sub claim has no email format', () => {
+      const token = createJwt({ sub: 'justname' });
+      localStorage.setItem(AppSettings.TOKEN_KEY, token);
+      expect(service.getCurrentUserEmail()).toBeNull();
+    });
+  });
+
+  describe('logout', () => {
+    it('performs logout and clears session when refresh token is available', () => {
+      localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'refresh-token');
+      localStorage.setItem(AppSettings.TOKEN_KEY, 'access-token');
+
+      service.logout().subscribe();
+
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/logout`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ refreshToken: 'refresh-token' });
+      req.flush(null);
+
+      expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+      expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBeNull();
+    });
+
+    it('performs logout and clears session when refresh token is missing', () => {
+      localStorage.setItem(AppSettings.TOKEN_KEY, 'access-token');
+
+      service.logout().subscribe();
+
+      httpMock.expectNone(`${AppSettings.API_URL}/auth/logout`);
+      expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+    });
+
+    it('clears session even if logout API request fails', () => {
+      localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'refresh-token');
+      localStorage.setItem(AppSettings.TOKEN_KEY, 'access-token');
+
+      service.logout().subscribe();
+
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/logout`);
+      req.flush('Error', { status: 500, statusText: 'Server Error' });
+
+      expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+    });
+  });
+
+  describe('API endpoints', () => {
+    it('calls resendConfirmation', () => {
+      service.resendConfirmation('test@test.com').subscribe();
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/resend-confirmation`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ email: 'test@test.com' });
+      req.flush({ emailVerificationRequired: true, message: 'Sent' });
+    });
+
+    it('calls exportAccountData', () => {
+      service.exportAccountData().subscribe();
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/account/export`);
+      expect(req.request.method).toBe('GET');
+      req.flush({});
+    });
+
+    it('calls deleteAccount', () => {
+      service.deleteAccount('mypass').subscribe();
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/account`);
+      expect(req.request.method).toBe('DELETE');
+      expect(req.request.body).toEqual({ password: 'mypass' });
+      req.flush({});
+    });
+
+    it('calls updatePrivacyConsent', () => {
+      service.updatePrivacyConsent(true, 'v1').subscribe();
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/account/consent`);
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({ accepted: true, privacyPolicyVersion: 'v1' });
+      req.flush({});
+    });
+
+    it('calls updateTermsConsent', () => {
+      service.updateTermsConsent(true, 'v1').subscribe();
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/account/consent/terms`);
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({ accepted: true, termsConditionsVersion: 'v1' });
+      req.flush({});
+    });
+
+    it('calls getConsentHistory', () => {
+      service.getConsentHistory().subscribe();
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/account/consent/history`);
+      expect(req.request.method).toBe('GET');
+      req.flush({ history: [] });
+    });
+
+    it('calls getLegalDocument', () => {
+      service.getLegalDocument('privacy').subscribe();
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/legal/privacy/current`);
+      expect(req.request.method).toBe('GET');
+      req.flush({});
+    });
+  });
+
+  describe('verifyTokensOnStartup', () => {
+    it('clears session when no tokens are present', () => {
+      localStorage.setItem(AppSettings.TOKEN_KEY, '');
+      localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, '');
+      (service as any).verifyTokensOnStartup();
+      expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+    });
+
+    it('proactively refreshes token if close to expiry and refresh token exists', () => {
+      const nearExpiryToken = createJwt({ exp: Math.floor(Date.now() / 1000) + 200 });
+      localStorage.setItem(AppSettings.TOKEN_KEY, nearExpiryToken);
+      localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'my-refresh');
+
+      (service as any).verifyTokensOnStartup();
+
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/refresh`);
+      expect(req.request.method).toBe('POST');
+      req.flush({ accessToken: 'new-token', refreshToken: 'new-refresh' });
+      flushProfileRequest(httpMock);
+
+      expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('new-token');
+    });
+
+    it('proactively refreshes token if expired and refresh token exists', () => {
+      const expiredToken = createJwt({ exp: Math.floor(Date.now() / 1000) - 10 });
+      localStorage.setItem(AppSettings.TOKEN_KEY, expiredToken);
+      localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'my-refresh');
+
+      (service as any).verifyTokensOnStartup();
+
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/refresh`);
+      req.flush({ accessToken: 'new-token2', refreshToken: 'new-refresh2' });
+      flushProfileRequest(httpMock);
+
+      expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('new-token2');
+    });
+
+    it('proactively refreshes token if access token missing but refresh exists', () => {
+      localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'my-refresh');
+
+      (service as any).verifyTokensOnStartup();
+
+      const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/refresh`);
+      req.flush({ accessToken: 'new-token3', refreshToken: 'new-refresh3' });
+      flushProfileRequest(httpMock);
+
+      expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('new-token3');
+    });
+
+    it('updates status and displayName when valid token present', () => {
+      const validToken = createJwt({ exp: Math.floor(Date.now() / 1000) + 1000, name: 'Startup User' });
+      localStorage.setItem(AppSettings.TOKEN_KEY, validToken);
+
+      (service as any).verifyTokensOnStartup();
+
+      let isLoggedIn: boolean | undefined;
+      service.isLoggedIn$.subscribe(val => isLoggedIn = val);
+      expect(isLoggedIn).toBeTrue();
+
+      let displayName: string | null | undefined;
+      service.displayName$.subscribe(val => displayName = val);
+      expect(displayName).toBe('Startup User');
+    });
+  });
+
+  describe('resolveProfileDisplayName', () => {
+    it('returns email prefix if fullName is empty and email contains @', () => {
+      const profile = {
+        firstName: '',
+        lastName: '',
+        email: 'prefix@example.com'
+      } as any;
+      const resolved = (service as any).resolveProfileDisplayName(profile);
+      expect(resolved).toBe('prefix');
+    });
+
+    it('returns email directly if fullName is empty and email does not contain @', () => {
+      const profile = {
+        firstName: '',
+        lastName: '',
+        email: 'noatsymbol'
+      } as any;
+      const resolved = (service as any).resolveProfileDisplayName(profile);
+      expect(resolved).toBe('noatsymbol');
+    });
+  });
 });
