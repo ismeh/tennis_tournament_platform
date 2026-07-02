@@ -13,6 +13,9 @@ spring:
   mail:
     host: localhost
     port: 25
+  restdocs:
+    output:
+      dir: ${java.io.tmpdir}/restdocs-snippets
 
 application:
   security:

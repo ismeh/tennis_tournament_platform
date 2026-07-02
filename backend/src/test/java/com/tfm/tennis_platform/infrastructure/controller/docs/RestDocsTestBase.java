@@ -4,6 +4,6 @@ import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDoc
 
 import com.tfm.tennis_platform.infrastructure.integration.IntegrationTestBase;
 
-@AutoConfigureRestDocs(outputDir = "target/generated-snippets")
+@AutoConfigureRestDocs
 public abstract class RestDocsTestBase extends IntegrationTestBase {
 }
