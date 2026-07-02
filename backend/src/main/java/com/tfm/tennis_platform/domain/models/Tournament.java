@@ -37,6 +37,8 @@ public class Tournament {
     private final String locationPlaceId;
     private final String locationFormattedAddress;
     private final TournamentStatus state; // 'soon', 'inscription', 'playing', 'finished'
+    private final Integer setsPerMatch;
+    private final Integer decisiveTiebreakPoints;
     private final Member createdBy;
     private final List<Event> events;
 
@@ -56,6 +58,18 @@ public class Tournament {
             Objects.requireNonNull(location, "La ubicación del torneo es obligatoria.");
             if (this.state == null) {
                 this.state = TournamentStatus.DRAFT;
+            }
+            if (this.setsPerMatch == null) {
+                this.setsPerMatch = 3;
+            }
+            if (this.setsPerMatch != 3 && this.setsPerMatch != 5) {
+                throw new IllegalArgumentException("El formato de sets debe ser a 3 o 5 sets.");
+            }
+            if (this.decisiveTiebreakPoints == null) {
+                this.decisiveTiebreakPoints = 7;
+            }
+            if (this.decisiveTiebreakPoints != 7 && this.decisiveTiebreakPoints != 10) {
+                throw new IllegalArgumentException("El tiebreak decisivo debe ser a 7 o 10 puntos.");
             }
             if (this.events == null) {
                 this.events = new ArrayList<>();

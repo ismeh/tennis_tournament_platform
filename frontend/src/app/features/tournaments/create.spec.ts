@@ -5,12 +5,15 @@ import { of, throwError } from 'rxjs';
 import { CreateTournamentComponent } from './create';
 import { TournamentService } from '../../data/services/tournament.service';
 import { PlaceService } from '../../data/services/place.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 describe('CreateTournamentComponent', () => {
   let fixture: ComponentFixture<CreateTournamentComponent>;
   let component: CreateTournamentComponent;
   let tournamentServiceSpy: jasmine.SpyObj<TournamentService>;
   let placeServiceSpy: jasmine.SpyObj<PlaceService>;
+  let authServiceSpy: jasmine.SpyObj<AuthService>;
+  let currentRoleMock = 'ORGANIZER';
   const fixedNow = new Date('2026-04-12T10:00:00');
 
   beforeEach(async () => {
@@ -24,13 +27,21 @@ describe('CreateTournamentComponent', () => {
     placeServiceSpy = jasmine.createSpyObj<PlaceService>('PlaceService', ['search']);
     placeServiceSpy.search.and.returnValue(of([]));
 
+    currentRoleMock = 'ORGANIZER';
+    authServiceSpy = jasmine.createSpyObj('AuthService', ['dummyMethod']);
+    Object.defineProperty(authServiceSpy, 'currentRole', {
+      get: () => currentRoleMock,
+      configurable: true
+    });
+
     await TestBed.configureTestingModule({
       imports: [CreateTournamentComponent],
       providers: [
         provideHttpClient(),
         provideRouter([]),
         { provide: TournamentService, useValue: tournamentServiceSpy },
-        { provide: PlaceService, useValue: placeServiceSpy }
+        { provide: PlaceService, useValue: placeServiceSpy },
+        { provide: AuthService, useValue: authServiceSpy }
       ]
     }).compileComponents();
 
@@ -83,7 +94,9 @@ describe('CreateTournamentComponent', () => {
       locationLongitude: null,
       locationPlaceId: null,
       locationFormattedAddress: null,
-      courtCount: 4
+      courtCount: 4,
+      setsPerMatch: 3,
+      decisiveTiebreakPoints: 7
     });
 
     component.submit();
@@ -102,7 +115,9 @@ describe('CreateTournamentComponent', () => {
       locationLongitude: null,
       locationPlaceId: null,
       locationFormattedAddress: null,
-      courtCount: 4
+      courtCount: 4,
+      setsPerMatch: 3,
+      decisiveTiebreakPoints: 7
     });
     expect(component.errorMessage()).toBeNull();
     expect(navigateSpy).toHaveBeenCalledWith(['/torneos', 'tournament-id']);
@@ -125,7 +140,9 @@ describe('CreateTournamentComponent', () => {
       locationLongitude: null,
       locationPlaceId: null,
       locationFormattedAddress: null,
-      courtCount: 4
+      courtCount: 4,
+      setsPerMatch: 3,
+      decisiveTiebreakPoints: 7
     });
 
     component.submit();
@@ -159,5 +176,31 @@ describe('CreateTournamentComponent', () => {
     component.submit();
 
     expect(tournamentServiceSpy.createTournament).not.toHaveBeenCalled();
+  });
+
+  it('should redirect to /torneos in ngOnInit when the role is not ORGANIZER', () => {
+    const router = TestBed.inject(Router);
+    const navigateSpy = spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    
+    currentRoleMock = 'PLAYER';
+    component.ngOnInit();
+    
+    expect(navigateSpy).toHaveBeenCalledWith('/torneos');
+  });
+
+  it('should update location details in form when onLocationSelected is called', () => {
+    const suggestion = {
+      latitude: 40.4167,
+      longitude: -3.7037,
+      placeId: 'madrid-place-id',
+      formattedAddress: 'Madrid, España'
+    };
+    
+    component.onLocationSelected(suggestion);
+    
+    expect(component.form.controls.locationLatitude.value).toBe(40.4167);
+    expect(component.form.controls.locationLongitude.value).toBe(-3.7037);
+    expect(component.form.controls.locationPlaceId.value).toBe('madrid-place-id');
+    expect(component.form.controls.locationFormattedAddress.value).toBe('Madrid, España');
   });
 });

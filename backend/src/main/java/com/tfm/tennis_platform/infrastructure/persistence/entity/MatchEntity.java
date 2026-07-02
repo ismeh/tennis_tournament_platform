@@ -68,6 +68,19 @@ public class MatchEntity {
     @Column(name = "result")
     private String result;
 
+    @Column(name = "notes")
+    private String notes;
+
+    @Column(name = "first_player_points")
+    private String firstPlayerPoints;
+
+    @Column(name = "second_player_points")
+    private String secondPlayerPoints;
+
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<MatchSetEntity> sets = new java.util.ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
     private com.tfm.tennis_platform.domain.models.enums.MatchStatus status;

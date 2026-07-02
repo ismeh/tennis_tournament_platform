@@ -28,7 +28,7 @@ export type MatchStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'WALKOVER' |
 
 export const MATCH_STATUS_LABELS: Record<MatchStatus, string> = {
   PENDING: 'Pendiente',
-  IN_PROGRESS: 'En curso',
+  IN_PROGRESS: 'En juego',
   COMPLETED: 'Jugado',
   WALKOVER: 'Walkover',
   RETIRED: 'Retirada',
@@ -51,6 +51,8 @@ export interface TournamentCreateRequest {
   locationPlaceId?: string | null;
   locationFormattedAddress?: string | null;
   courtCount: number;
+  setsPerMatch?: number;
+  decisiveTiebreakPoints?: number;
 }
 
 export interface TournamentGeneralInfoUpdateRequest {
@@ -67,6 +69,8 @@ export interface TournamentGeneralInfoUpdateRequest {
   locationLongitude?: number | null;
   locationPlaceId?: string | null;
   locationFormattedAddress?: string | null;
+  setsPerMatch?: number;
+  decisiveTiebreakPoints?: number;
 }
 
 export interface TournamentProviderSummary {
@@ -92,6 +96,8 @@ export interface TournamentResponse {
   providerOrganisationId?: string | TournamentProviderSummary | null;
   events?: TournamentEventResponse[];
   professionalTournament?: boolean | null;
+  setsPerMatch?: number | null;
+  decisiveTiebreakPoints?: number | null;
 }
 
 export interface TournamentCalendarFilters {
@@ -186,6 +192,14 @@ export interface DrawResponse {
   matches?: MatchResponse[];
 }
 
+export interface SetScoreResponse {
+  setNumber: number;
+  firstPlayerGames: number;
+  secondPlayerGames: number;
+  firstPlayerTiebreak?: number | null;
+  secondPlayerTiebreak?: number | null;
+}
+
 export interface MatchResponse {
   id: string;
   firstInscriptionId: string | null;
@@ -198,9 +212,13 @@ export interface MatchResponse {
   courtId?: string | null;
   court?: string | null;
   result?: string | null;
+  sets?: SetScoreResponse[] | null;
+  notes?: string | null;
   professionalMatch?: boolean | null;
   firstWinPoints?: number | null;
   secondWinPoints?: number | null;
+  firstPlayerPoints?: string | null;
+  secondPlayerPoints?: string | null;
   status?: MatchStatus | null;
 }
 

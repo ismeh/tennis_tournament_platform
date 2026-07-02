@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse } from '../../../data/interfaces/tournament.model';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
 import { BracketExportService } from '../services/bracket-export.service';
 
@@ -142,7 +142,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                   </div>
 
                                   @if (match.result) {
-                                    <span class="bracket-result">{{ match.result }}</span>
+                                    <span class="bracket-result">
+                                      {{ match.result }}
+                                      @if (match.status === 'IN_PROGRESS' && match.firstPlayerPoints && match.secondPlayerPoints) {
+                                        <span class="ml-1 text-primary-600 font-extrabold text-[10px]">
+                                          ({{ match.firstPlayerPoints }}-{{ match.secondPlayerPoints }})
+                                        </span>
+                                      }
+                                    </span>
                                   }
                                 </button>
                               }
@@ -291,7 +298,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                   </div>
 
                                   @if (match.result) {
-                                    <span class="bracket-result">{{ match.result }}</span>
+                                    <span class="bracket-result">
+                                      {{ match.result }}
+                                      @if (match.status === 'IN_PROGRESS' && match.firstPlayerPoints && match.secondPlayerPoints) {
+                                        <span class="ml-1 text-primary-600 font-extrabold text-[10px]">
+                                          ({{ match.firstPlayerPoints }}-{{ match.secondPlayerPoints }})
+                                        </span>
+                                      }
+                                    </span>
                                   }
                                 </button>
                               }
@@ -435,7 +449,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                   </div>
 
                                   @if (match.result) {
-                                    <span class="bracket-result">{{ match.result }}</span>
+                                    <span class="bracket-result">
+                                      {{ match.result }}
+                                      @if (match.status === 'IN_PROGRESS' && match.firstPlayerPoints && match.secondPlayerPoints) {
+                                        <span class="ml-1 text-primary-600 font-extrabold text-[10px]">
+                                          ({{ match.firstPlayerPoints }}-{{ match.secondPlayerPoints }})
+                                        </span>
+                                      }
+                                    </span>
                                   }
                                 </button>
                               }
@@ -460,6 +481,8 @@ import { BracketExportService } from '../services/bracket-export.service';
         [participantNamesInput]="participantNamesInput"
         [courtsInput]="courtsInput"
         [canManageInput]="canManageInput"
+        [setsPerMatch]="setsPerMatch"
+        [decisiveTiebreakPoints]="decisiveTiebreakPoints"
         (saveResult)="onSaveMatchResult($event)"
         (saveSchedule)="onSaveMatchSchedule($event)"
         (close)="onModalClose()"
@@ -757,9 +780,21 @@ export class BracketComponent {
   @Input() canManageInput = false;
   @Input() tournamentNameInput = '';
   @Input() categoryNameInput = '';
+  @Input() setsPerMatch = 3;
+  @Input() decisiveTiebreakPoints = 7;
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
+    const sel = this.selectedMatch();
+    if (sel) {
+      for (const draw of value) {
+        const updated = (draw.matches || []).find(m => m.id === sel.id);
+        if (updated) {
+          this.selectedMatch.set(updated);
+          break;
+        }
+      }
+    }
   }
   private _draws = signal<DrawResponse[]>([]);
   draws = computed(() => this._draws());
@@ -773,7 +808,7 @@ export class BracketComponent {
   @ViewChild('bracketBoard') bracketBoard?: ElementRef<HTMLElement>;
 
   @Output() matchSelected = new EventEmitter<MatchResponse>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; status: MatchStatus }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; sets?: SetScoreResponse[] | null; notes?: string | null; status: MatchStatus; keepOpen?: boolean }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -821,13 +856,15 @@ export class BracketComponent {
     this.selectedMatch.set(null);
   }
 
-  onSaveMatchResult(event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }): void {
+  onSaveMatchResult(event: { matchId: string; winnerId: string | null; result: string; sets?: SetScoreResponse[] | null; notes?: string | null; status: MatchStatus; keepOpen?: boolean }): void {
     if (!this.canManageInput) {
       return;
     }
 
     this.matchResultSaved.emit(event);
-    this.selectedMatch.set(null);
+    if (!event.keepOpen) {
+      this.selectedMatch.set(null);
+    }
   }
 
   onSaveMatchSchedule(event: {

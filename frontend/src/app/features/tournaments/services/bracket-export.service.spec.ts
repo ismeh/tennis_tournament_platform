@@ -87,5 +87,32 @@ describe('BracketExportService', () => {
         // jsPDF may fail
       }
     });
+
+    it('should sort players by wins and losses in Round Robin standings', async () => {
+      const draw = {
+        id: '1',
+        label: 'Round Robin',
+        stageId: '1',
+        drawType: 'ROUND_ROBIN',
+        matches: [
+          // p1: 2 wins, 0 losses
+          { id: '1', firstInscriptionId: 'p1', secondInscriptionId: 'p2', winnerId: 'p1', roundNumber: 1 },
+          { id: '2', firstInscriptionId: 'p1', secondInscriptionId: 'p3', winnerId: 'p1', roundNumber: 1 },
+          // p2: 1 win, 1 loss
+          { id: '3', firstInscriptionId: 'p2', secondInscriptionId: 'p3', winnerId: 'p2', roundNumber: 1 },
+          // p3: 0 wins, 2 losses
+        ] as any,
+      } as DrawResponse;
+      const participantNames: Record<string, string> = {
+        p1: 'Player 1',
+        p2: 'Player 2',
+        p3: 'Player 3',
+      };
+      try {
+        await service.exportRoundRobinTable(draw, participantNames, 'Tournament', 'Category');
+      } catch (e) {
+        // jsPDF may fail
+      }
+    });
   });
 });

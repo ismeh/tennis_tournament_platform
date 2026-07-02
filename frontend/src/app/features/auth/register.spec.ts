@@ -64,4 +64,47 @@ describe('RegisterComponent', () => {
 
     expect(component.errorMessage()).toContain('No se pudo registrar');
   });
+
+  it('does not call register when the form is invalid', () => {
+    component.form.setValue({
+      email: 'invalid-email',
+      password: '123',
+      role: 'PLAYER',
+      privacyPolicyAccepted: false
+    });
+    component.submit();
+    expect(authServiceSpy.register).not.toHaveBeenCalled();
+  });
+
+  it('does not call register when already submitting', () => {
+    component.form.setValue({
+      email: 'new@example.com',
+      password: 'secret123',
+      role: 'PLAYER',
+      privacyPolicyAccepted: true
+    });
+    component.isSubmitting.set(true);
+    component.submit();
+    expect(authServiceSpy.register).not.toHaveBeenCalled();
+  });
+
+  it('updates form role when role buttons are clicked', () => {
+    expect(component.form.value.role).toBe('PLAYER');
+    
+    // Simulate clicking ORGANIZER
+    const compiled = fixture.nativeElement as HTMLElement;
+    const buttons = compiled.querySelectorAll('button[type="button"]');
+    
+    // Click second button (ORGANIZER)
+    (buttons[1] as HTMLButtonElement).click();
+    expect(component.form.value.role).toBe('ORGANIZER');
+    
+    // Click third button (UMPIRE)
+    (buttons[2] as HTMLButtonElement).click();
+    expect(component.form.value.role).toBe('UMPIRE');
+
+    // Click first button (PLAYER)
+    (buttons[0] as HTMLButtonElement).click();
+    expect(component.form.value.role).toBe('PLAYER');
+  });
 });

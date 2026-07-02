@@ -326,7 +326,7 @@ class TournamentGeneralInfoRequestTest {
 
         RecordComponent[] components = request.getClass().getRecordComponents();
 
-        assertThat(components).hasSize(13);
+        assertThat(components).hasSize(15);
         assertThat(components[0].getName()).isEqualTo("formalName");
         assertThat(components[1].getName()).isEqualTo("playStartDate");
         assertThat(components[2].getName()).isEqualTo("playEndDate");
@@ -340,6 +340,8 @@ class TournamentGeneralInfoRequestTest {
         assertThat(components[10].getName()).isEqualTo("locationLongitude");
         assertThat(components[11].getName()).isEqualTo("locationPlaceId");
         assertThat(components[12].getName()).isEqualTo("locationFormattedAddress");
+        assertThat(components[13].getName()).isEqualTo("setsPerMatch");
+        assertThat(components[14].getName()).isEqualTo("decisiveTiebreakPoints");
     }
 
     @Test
@@ -361,6 +363,8 @@ class TournamentGeneralInfoRequestTest {
         assertThat(components[10].getType()).isEqualTo(Double.class);
         assertThat(components[11].getType()).isEqualTo(String.class);
         assertThat(components[12].getType()).isEqualTo(String.class);
+        assertThat(components[13].getType()).isEqualTo(Integer.class);
+        assertThat(components[14].getType()).isEqualTo(Integer.class);
     }
 
     private TournamentGeneralInfoRequest buildWithAllNulls() {

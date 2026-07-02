@@ -64,6 +64,41 @@ describe('StagesComponent', () => {
     });
   });
 
+  describe('sessionStorage persistence', () => {
+    beforeEach(() => {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.clear();
+      }
+    });
+
+    afterEach(() => {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.clear();
+      }
+    });
+
+    it('saves expanded stage ID to sessionStorage on toggleStage', () => {
+      component.tournamentIdInput = 't1';
+      component.toggleStage('stage-1');
+      expect(sessionStorage.getItem('tournament_stage_expanded_stage-1')).toBe('true');
+
+      component.toggleStage('stage-1');
+      expect(sessionStorage.getItem('tournament_stage_expanded_stage-1')).toBeNull();
+    });
+
+    it('restores expanded stage ID from sessionStorage when stages are input', () => {
+      component.tournamentIdInput = 't1';
+      sessionStorage.setItem('tournament_stage_expanded_stage-2', 'true');
+
+      component.stagesInput = [
+        createStage({ id: 'stage-1' }),
+        createStage({ id: 'stage-2' })
+      ];
+
+      expect(component.expandedStageId()).toBe('stage-2');
+    });
+  });
+
   describe('getGenerateDrawsButtonLabel', () => {
     it('returns Generar cuadros when no draws and no feedback', () => {
       const stage = createStage({ draws: [] });

@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType, MatchStatus } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse } from '../../../data/interfaces/tournament.model';
 import { DrawsComponent } from './draws.component';
 
 type DrawGenerationFeedback = {
@@ -66,6 +66,8 @@ type DrawGenerationFeedback = {
                     [canManageInput]="canManageInput"
                     [tournamentNameInput]="tournamentNameInput"
                     [categoryNameInput]="categoryNameInput"
+                    [setsPerMatch]="setsPerMatch"
+                    [decisiveTiebreakPoints]="decisiveTiebreakPoints"
                     (matchSelected)="onMatchSelected($event)"
                     (matchResultSaved)="onMatchResultSaved($event)"
                     (matchScheduleSaved)="onMatchScheduleSaved($event)"
@@ -99,22 +101,38 @@ export class StagesComponent {
   @Input() canManageInput = false;
   @Input() tournamentNameInput = '';
   @Input() categoryNameInput = '';
+  @Input() setsPerMatch = 3;
+  @Input() decisiveTiebreakPoints = 7;
 
   @Input() set stagesInput(value: StageResponse[]) {
     this._stages.set(value);
+    this.tryRestoreExpandedStage();
   }
   private _stages = signal<StageResponse[]>([]);
   stages = computed(() => this._stages());
 
   @Input() set tournamentIdInput(value: string) {
     this._tournamentId.set(value);
+    this.tryRestoreExpandedStage();
   }
   private _tournamentId = signal<string>('');
   tournamentId = computed(() => this._tournamentId());
 
+  private tryRestoreExpandedStage() {
+    const value = this._stages();
+    if (!this.expandedStageId() && value.length > 0) {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const expandedStage = value.find(stage => sessionStorage.getItem(`tournament_stage_expanded_${stage.id}`) === 'true');
+        if (expandedStage) {
+          this.expandedStageId.set(expandedStage.id);
+        }
+      }
+    }
+  }
+
   @Output() generateDraws = new EventEmitter<{ tournamentId: string; stageId: string }>();
   @Output() matchSelected = new EventEmitter<string>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; status: MatchStatus }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; sets?: SetScoreResponse[] | null; notes?: string | null; status: MatchStatus; keepOpen?: boolean }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
@@ -137,7 +155,18 @@ export class StagesComponent {
   drawGenerationFeedback = computed(() => this._drawGenerationFeedback());
 
   toggleStage(stageId: string) {
-    this.expandedStageId.set(this.expandedStageId() === stageId ? null : stageId);
+    const prevExpandedId = this.expandedStageId();
+    const nextVal = prevExpandedId === stageId ? null : stageId;
+    this.expandedStageId.set(nextVal);
+    
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      if (prevExpandedId) {
+        sessionStorage.removeItem(`tournament_stage_expanded_${prevExpandedId}`);
+      }
+      if (nextVal) {
+        sessionStorage.setItem(`tournament_stage_expanded_${nextVal}`, 'true');
+      }
+    }
   }
 
   onGenerateDraws(stage: StageResponse) {
@@ -145,7 +174,16 @@ export class StagesComponent {
       return;
     }
 
+    const prevExpandedId = this.expandedStageId();
     this.expandedStageId.set(stage.id);
+    
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      if (prevExpandedId) {
+        sessionStorage.removeItem(`tournament_stage_expanded_${prevExpandedId}`);
+      }
+      sessionStorage.setItem(`tournament_stage_expanded_${stage.id}`, 'true');
+    }
+
     this.generateDraws.emit({
       tournamentId: this.tournamentId(),
       stageId: stage.id
@@ -156,7 +194,7 @@ export class StagesComponent {
     this.matchSelected.emit(matchId);
   }
 
-  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }) {
+  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string; sets?: SetScoreResponse[] | null; notes?: string | null; status: MatchStatus; keepOpen?: boolean }) {
     if (!this.canManageInput) {
       return;
     }

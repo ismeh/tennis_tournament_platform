@@ -66,6 +66,8 @@ public class TournamentService {
                 .locationLongitude(tournament.getLocationLongitude())
                 .locationPlaceId(tournament.getLocationPlaceId())
                 .locationFormattedAddress(tournament.getLocationFormattedAddress())
+                .setsPerMatch(tournament.getSetsPerMatch())
+                .decisiveTiebreakPoints(tournament.getDecisiveTiebreakPoints())
                 .createdBy(creator)
                 .build();
 
@@ -134,7 +136,8 @@ public class TournamentService {
                                          com.tfm.tennis_platform.domain.models.enums.Surface surface,
                                          Integer maxPlayers, String location, Double locationLatitude,
                                          Double locationLongitude, String locationPlaceId,
-                                         String locationFormattedAddress, String requesterEmail) {
+                                         String locationFormattedAddress, Integer setsPerMatch,
+                                         Integer decisiveTiebreakPoints, String requesterEmail) {
         Tournament currentTournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
         assertTournamentAdmin(currentTournament, requesterEmail);
@@ -189,8 +192,26 @@ public class TournamentService {
         if (locationFormattedAddress != null) {
             builder.locationFormattedAddress(locationFormattedAddress);
         }
+        if (setsPerMatch != null) {
+            builder.setsPerMatch(setsPerMatch);
+        }
+        if (decisiveTiebreakPoints != null) {
+            builder.decisiveTiebreakPoints(decisiveTiebreakPoints);
+        }
 
         return tournamentRepository.save(builder.build());
+    }
+
+    @Transactional
+    public Tournament updateGeneralInfo(UUID tournamentId,
+                                         String name, TournamentPeriod playPeriod,
+                                         java.time.LocalTime startTime, TournamentPeriod inscriptionPeriod,
+                                         com.tfm.tennis_platform.domain.models.enums.Surface surface,
+                                         Integer maxPlayers, String location, Double locationLatitude,
+                                         Double locationLongitude, String locationPlaceId,
+                                         String locationFormattedAddress, String requesterEmail) {
+        return updateGeneralInfo(tournamentId, name, playPeriod, startTime, inscriptionPeriod, surface, maxPlayers,
+                location, locationLatitude, locationLongitude, locationPlaceId, locationFormattedAddress, null, null, requesterEmail);
     }
 
     public void assertTournamentAdmin(UUID tournamentId, String requesterEmail) {

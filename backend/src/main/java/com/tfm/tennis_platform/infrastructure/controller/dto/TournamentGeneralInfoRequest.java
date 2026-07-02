@@ -18,8 +18,30 @@ public record TournamentGeneralInfoRequest(
     Double locationLatitude,
     Double locationLongitude,
     String locationPlaceId,
-    String locationFormattedAddress
+    String locationFormattedAddress,
+    Integer setsPerMatch,
+    Integer decisiveTiebreakPoints
 ) {
+
+    public TournamentGeneralInfoRequest(
+        String formalName,
+        LocalDate playStartDate,
+        LocalDate playEndDate,
+        LocalTime tournamentStartTime,
+        LocalDate inscriptionStartDate,
+        LocalDate inscriptionEndDate,
+        Surface surfaceCategory,
+        Integer maxPlayers,
+        String location,
+        Double locationLatitude,
+        Double locationLongitude,
+        String locationPlaceId,
+        String locationFormattedAddress
+    ) {
+        this(formalName, playStartDate, playEndDate, tournamentStartTime, inscriptionStartDate, inscriptionEndDate,
+             surfaceCategory, maxPlayers, location, locationLatitude, locationLongitude, locationPlaceId,
+             locationFormattedAddress, null, null);
+    }
 
     public boolean hasFormalName() {
         return formalName != null && !formalName.isBlank();
@@ -47,5 +69,13 @@ public record TournamentGeneralInfoRequest(
 
     public boolean hasTournamentStartTime() {
         return tournamentStartTime != null;
+    }
+
+    public boolean hasSetsPerMatch() {
+        return setsPerMatch != null;
+    }
+
+    public boolean hasDecisiveTiebreakPoints() {
+        return decisiveTiebreakPoints != null;
     }
 }

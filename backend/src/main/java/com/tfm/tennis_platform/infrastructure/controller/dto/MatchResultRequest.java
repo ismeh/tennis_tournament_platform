@@ -6,6 +6,9 @@ import java.util.UUID;
 
 public record MatchResultRequest(
         UUID winnerId,
-        String scoreString,
+        java.util.List<SetScoreRequest> sets,
+        String notes,
+        String firstPlayerPoints,
+        String secondPlayerPoints,
         MatchStatus status
 ) {}

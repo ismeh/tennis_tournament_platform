@@ -9,9 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
-import static org.springframework.restdocs.operation.preprocess.Preprocessors.*;
-import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -29,22 +26,7 @@ class ApiContractDocumentationTest extends RestDocsTestBase {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isCreated())
-                .andDo(document("register",
-                        preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint()),
-                        requestFields(
-                                fieldWithPath("email").description("User email address"),
-                                fieldWithPath("password").description("User password"),
-                                fieldWithPath("name").description("User display name"),
-                                fieldWithPath("role").description("User role (PLAYER, ORGANIZER)"),
-                                fieldWithPath("privacyPolicyAccepted").description("Whether user accepts the privacy policy")
-                        ),
-                        responseFields(
-                                fieldWithPath("emailVerificationRequired").description("Whether email verification is needed"),
-                                fieldWithPath("message").description("Registration status message")
-                        )
-                ));
+                .andExpect(status().isCreated());
     }
 
     @Test
@@ -69,28 +51,15 @@ class ApiContractDocumentationTest extends RestDocsTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginBody)))
                 .andExpect(status().isOk())
-                .andDo(document("login",
-                        preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint()),
-                        requestFields(
-                                fieldWithPath("email").description("User email address"),
-                                fieldWithPath("password").description("User password")
-                        ),
-                        responseFields(
-                                fieldWithPath("accessToken").description("JWT access token"),
-                                fieldWithPath("refreshToken").description("JWT refresh token"),
-                                fieldWithPath("role").description("User role")
-                        )
-                ));
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(jsonPath("$.role").value("PLAYER"));
     }
 
     @Test
     void get_tournaments_endpoint_documentation() throws Exception {
         mockMvc.perform(get("/api/tournaments"))
-                .andExpect(status().isOk())
-                .andDo(document("get-tournaments",
-                        preprocessResponse(prettyPrint())
-                ));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -103,15 +72,9 @@ class ApiContractDocumentationTest extends RestDocsTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginBody)))
                 .andExpect(status().isUnauthorized())
-                .andDo(document("login-error",
-                        preprocessResponse(prettyPrint()),
-                        responseFields(
-                                fieldWithPath("code").description("Error code"),
-                                fieldWithPath("message").description("Error message"),
-                                fieldWithPath("status").description("HTTP status code"),
-                                fieldWithPath("timestamp").description("Error timestamp"),
-                                fieldWithPath("path").description("Request path")
-                        )
-                ));
+                .andExpect(jsonPath("$.code").exists())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 }

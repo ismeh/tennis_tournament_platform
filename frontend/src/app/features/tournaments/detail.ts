@@ -34,6 +34,7 @@ import {
   MatchResponse,
   MatchScheduleTimeType,
   MatchStatus,
+  SetScoreResponse,
   StageResponse,
   TournamentProviderSummary,
   TournamentStatus,
@@ -339,6 +340,30 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     ></app-location-input>
                   </label>
 
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Formato de partido</span>
+                      <select
+                        formControlName="setsPerMatch"
+                        class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
+                      >
+                        <option [value]="3">Al mejor de 3 sets</option>
+                        <option [value]="5">Al mejor de 5 sets</option>
+                      </select>
+                    </label>
+
+                    <label class="block">
+                      <span class="mb-1 block text-sm font-medium text-neutral-700">Tiebreak set decisivo</span>
+                      <select
+                        formControlName="decisiveTiebreakPoints"
+                        class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
+                      >
+                        <option [value]="7">Tiebreak normal (a 7 puntos)</option>
+                        <option [value]="10">Super Tiebreak (a 10 puntos)</option>
+                      </select>
+                    </label>
+                  </div>
+
                   @if (generalInfoError()) {
                     <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       {{ generalInfoError() }}
@@ -383,6 +408,14 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     <p class="mt-1 font-semibold text-neutral-900">
                       {{ tournament()!.inscriptionStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.inscriptionEndDate | date: 'dd/MM/yyyy' }}
                     </p>
+                  </div>
+                  <div class="rounded-2xl border border-neutral-200 p-4">
+                    <p class="text-xs uppercase tracking-widest text-neutral-500">Formato de partido</p>
+                    <p class="mt-1 font-semibold text-neutral-900">Al mejor de {{ tournament()!.setsPerMatch ?? 3 }} sets</p>
+                  </div>
+                  <div class="rounded-2xl border border-neutral-200 p-4">
+                    <p class="text-xs uppercase tracking-widest text-neutral-500">Tiebreak set decisivo</p>
+                    <p class="mt-1 font-semibold text-neutral-900">A {{ tournament()!.decisiveTiebreakPoints ?? 7 }} puntos</p>
                   </div>
                 </div>
 
@@ -1778,6 +1811,8 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             [categoryNameInput]="getCategoryLabel(event.categoryId) + ' - ' + getGenderLabelForString(event.gender)"
                             [generatingDrawsForStageIdInput]="generatingDrawsStageId()"
                             [drawGenerationFeedbackInput]="drawGenerationFeedbackByStageId()"
+                            [setsPerMatch]="tournament()!.setsPerMatch ?? 3"
+                            [decisiveTiebreakPoints]="tournament()!.decisiveTiebreakPoints ?? 7"
                             (generateDraws)="onGenerateDraws($event, event.eventId!)"
                             (matchSelected)="onMatchSelected($event)"
                             (matchResultSaved)="onMatchResultSaved($event)"
@@ -2012,7 +2047,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     locationLatitude: [null as number | null],
     locationLongitude: [null as number | null],
     locationPlaceId: [null as string | null],
-    locationFormattedAddress: [null as string | null]
+    locationFormattedAddress: [null as string | null],
+    setsPerMatch: [3, Validators.required],
+    decisiveTiebreakPoints: [7, Validators.required]
   });
 
   readonly canRequestInscription = computed(() => {
@@ -2232,6 +2269,26 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       return;
     }
 
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const savedCourts = sessionStorage.getItem(`tournament_detail_courts_expanded_${tournamentId}`);
+      if (savedCourts !== null) this.isCourtsPanelExpanded.set(savedCourts === 'true');
+
+      const savedSchedule = sessionStorage.getItem(`tournament_detail_match_schedule_expanded_${tournamentId}`);
+      if (savedSchedule !== null) this.isMatchSchedulePanelExpanded.set(savedSchedule === 'true');
+
+      const savedManualPlayer = sessionStorage.getItem(`tournament_detail_manual_player_expanded_${tournamentId}`);
+      if (savedManualPlayer !== null) this.isManualPlayerPanelExpanded.set(savedManualPlayer === 'true');
+
+      const savedManualPlayerFilters = sessionStorage.getItem(`tournament_detail_manual_player_filters_expanded_${tournamentId}`);
+      if (savedManualPlayerFilters !== null) this.isManualPlayerFiltersPanelExpanded.set(savedManualPlayerFilters === 'true');
+
+      const savedRegistered = sessionStorage.getItem(`tournament_detail_registered_players_expanded_${tournamentId}`);
+      if (savedRegistered !== null) this.isRegisteredPlayersPanelExpanded.set(savedRegistered === 'true');
+
+      const savedEventsDraws = sessionStorage.getItem(`tournament_detail_events_draws_expanded_${tournamentId}`);
+      if (savedEventsDraws !== null) this.isEventsDrawsPanelExpanded.set(savedEventsDraws === 'true');
+    }
+
     this.resolveCurrentMemberId();
     this.loadTournament(tournamentId);
     this.startTournamentLiveUpdates(tournamentId);
@@ -2251,6 +2308,11 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.activeSection.set(section);
     this.actionMessage.set(null);
     this.actionError.set(null);
+
+    const tournamentId = this.tournament()?.id || this.route.snapshot.paramMap.get('id');
+    if (tournamentId && typeof window !== 'undefined' && window.sessionStorage) {
+      sessionStorage.setItem(`tournament_detail_section_${tournamentId}`, section);
+    }
 
     if (section === 'overview') {
       setTimeout(() => this.tryInitMap(), 0);
@@ -2280,7 +2342,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       locationLatitude: tournament.locationLatitude ?? null,
       locationLongitude: tournament.locationLongitude ?? null,
       locationPlaceId: tournament.locationPlaceId ?? null,
-      locationFormattedAddress: tournament.locationFormattedAddress ?? null
+      locationFormattedAddress: tournament.locationFormattedAddress ?? null,
+      setsPerMatch: tournament.setsPerMatch ?? 3,
+      decisiveTiebreakPoints: tournament.decisiveTiebreakPoints ?? 7
     });
 
     this.generalInfoError.set(null);
@@ -2355,6 +2419,12 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     }
     if (formValue.locationFormattedAddress !== (currentTournament.locationFormattedAddress ?? null)) {
       payload.locationFormattedAddress = formValue.locationFormattedAddress;
+    }
+    if (formValue.setsPerMatch !== (currentTournament.setsPerMatch ?? 3)) {
+      payload.setsPerMatch = Number(formValue.setsPerMatch);
+    }
+    if (formValue.decisiveTiebreakPoints !== (currentTournament.decisiveTiebreakPoints ?? 7)) {
+      payload.decisiveTiebreakPoints = Number(formValue.decisiveTiebreakPoints);
     }
 
     if (Object.keys(payload).length === 0) {
@@ -2446,18 +2516,26 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       if (source !== 'PROFESSIONAL') {
         this.manualPlayerFilterGender.set('');
         this.manualPlayerFilterCategory.set('');
-        this.isManualPlayerFiltersPanelExpanded.set(false);
+        this.setManualPlayerFiltersPanelExpanded(false);
       }
     } else {
       this.manualPlayerSearchQuery.set('');
       this.manualPlayerFilterGender.set('');
       this.manualPlayerFilterCategory.set('');
-      this.isManualPlayerFiltersPanelExpanded.set(false);
+      this.setManualPlayerFiltersPanelExpanded(false);
+    }
+  }
+
+  private setManualPlayerFiltersPanelExpanded(expanded: boolean): void {
+    this.isManualPlayerFiltersPanelExpanded.set(expanded);
+    const tournamentId = this.tournament()?.id || this.route.snapshot.paramMap.get('id');
+    if (tournamentId && typeof window !== 'undefined' && window.sessionStorage) {
+      sessionStorage.setItem(`tournament_detail_manual_player_filters_expanded_${tournamentId}`, String(expanded));
     }
   }
 
   toggleManualPlayerFiltersPanel(): void {
-    this.isManualPlayerFiltersPanelExpanded.update(expanded => !expanded);
+    this.setManualPlayerFiltersPanelExpanded(!this.isManualPlayerFiltersPanelExpanded());
   }
 
   onManualPlayerFilterGenderChange(gender: string): void {
@@ -3024,19 +3102,47 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   toggleCourtsPanel(): void {
-    this.isCourtsPanelExpanded.update(expanded => !expanded);
+    this.isCourtsPanelExpanded.update(expanded => {
+      const nextVal = !expanded;
+      const tournamentId = this.tournament()?.id || this.route.snapshot.paramMap.get('id');
+      if (tournamentId && typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.setItem(`tournament_detail_courts_expanded_${tournamentId}`, String(nextVal));
+      }
+      return nextVal;
+    });
   }
 
   toggleMatchSchedulePanel(): void {
-    this.isMatchSchedulePanelExpanded.update(expanded => !expanded);
+    this.isMatchSchedulePanelExpanded.update(expanded => {
+      const nextVal = !expanded;
+      const tournamentId = this.tournament()?.id || this.route.snapshot.paramMap.get('id');
+      if (tournamentId && typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.setItem(`tournament_detail_match_schedule_expanded_${tournamentId}`, String(nextVal));
+      }
+      return nextVal;
+    });
   }
 
   toggleManualPlayerPanel(): void {
-    this.isManualPlayerPanelExpanded.update(expanded => !expanded);
+    this.isManualPlayerPanelExpanded.update(expanded => {
+      const nextVal = !expanded;
+      const tournamentId = this.tournament()?.id || this.route.snapshot.paramMap.get('id');
+      if (tournamentId && typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.setItem(`tournament_detail_manual_player_expanded_${tournamentId}`, String(nextVal));
+      }
+      return nextVal;
+    });
   }
 
   toggleRegisteredPlayersPanel(): void {
-    this.isRegisteredPlayersPanelExpanded.update(expanded => !expanded);
+    this.isRegisteredPlayersPanelExpanded.update(expanded => {
+      const nextVal = !expanded;
+      const tournamentId = this.tournament()?.id || this.route.snapshot.paramMap.get('id');
+      if (tournamentId && typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.setItem(`tournament_detail_registered_players_expanded_${tournamentId}`, String(nextVal));
+      }
+      return nextVal;
+    });
   }
 
   onUmpireSearchQueryChange(query: string): void {
@@ -3209,7 +3315,14 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   toggleEventsDrawsPanel(): void {
-    this.isEventsDrawsPanelExpanded.update(expanded => !expanded);
+    this.isEventsDrawsPanelExpanded.update(expanded => {
+      const nextVal = !expanded;
+      const tournamentId = this.tournament()?.id || this.route.snapshot.paramMap.get('id');
+      if (tournamentId && typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.setItem(`tournament_detail_events_draws_expanded_${tournamentId}`, String(nextVal));
+      }
+      return nextVal;
+    });
   }
 
   clearMatchScheduleFilters(): void {
@@ -3337,7 +3450,17 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         this.loadTournamentUmpires();
         this.isLoading.set(false);
         if (!preserveActiveSection) {
-          this.activeSection.set(this.isTournamentAdmin() ? 'setup' : 'overview');
+          let restored = false;
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            const savedSection = sessionStorage.getItem(`tournament_detail_section_${tournamentId}`);
+            if (savedSection && ['overview', 'setup', 'inscriptions', 'stages'].includes(savedSection)) {
+              this.activeSection.set(savedSection as TournamentDetailSection);
+              restored = true;
+            }
+          }
+          if (!restored) {
+            this.activeSection.set(this.isTournamentAdmin() ? 'setup' : 'overview');
+          }
         }
         setTimeout(() => this.tryInitMap(), 0);
       },
@@ -3879,7 +4002,17 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     console.log('Match selected:', matchId);
   }
 
-  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }): void {
+  onMatchResultSaved(event: {
+    matchId: string;
+    winnerId: string | null;
+    result: string;
+    sets?: SetScoreResponse[] | null;
+    notes?: string | null;
+    firstPlayerPoints?: string | null;
+    secondPlayerPoints?: string | null;
+    status: MatchStatus;
+    keepOpen?: boolean;
+  }): void {
     if (!this.isTournamentAdmin()) {
       this.actionError.set('Solo el administrador del torneo puede registrar resultados.');
       return;
@@ -3913,6 +4046,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.tournamentService.submitMatchResult(currentTournament.id, event.matchId, {
       winnerId: event.winnerId || undefined,
       scoreString: event.result,
+      sets: event.sets,
+      notes: event.notes,
+      firstPlayerPoints: event.firstPlayerPoints,
+      secondPlayerPoints: event.secondPlayerPoints,
       status: event.status
     }).subscribe({
       next: (updatedMatch) => {
@@ -4142,8 +4279,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       if (match.id === matchId) {
         return {
           ...match,
-          winnerId: updatedMatch.winnerId,
-          result: updatedMatch.result
+          ...updatedMatch
         };
       }
 
@@ -4181,7 +4317,16 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
   private createOptimisticMatchResult(
     tournament: TournamentResponse,
-    event: { matchId: string; winnerId: string | null; result: string; status: MatchStatus }
+    event: {
+      matchId: string;
+      winnerId: string | null;
+      result: string;
+      sets?: SetScoreResponse[] | null;
+      notes?: string | null;
+      firstPlayerPoints?: string | null;
+      secondPlayerPoints?: string | null;
+      status: MatchStatus;
+    }
   ): MatchResponse | null {
     const match = this.findMatchInTournament(tournament, event.matchId);
     if (!match) {
@@ -4192,6 +4337,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       ...match,
       winnerId: event.winnerId !== null ? event.winnerId : match.winnerId,
       result: event.result || match.result,
+      sets: event.sets || match.sets,
+      notes: event.notes !== undefined ? event.notes : match.notes,
+      firstPlayerPoints: event.firstPlayerPoints !== undefined ? event.firstPlayerPoints : match.firstPlayerPoints,
+      secondPlayerPoints: event.secondPlayerPoints !== undefined ? event.secondPlayerPoints : match.secondPlayerPoints,
       status: event.status
     };
   }

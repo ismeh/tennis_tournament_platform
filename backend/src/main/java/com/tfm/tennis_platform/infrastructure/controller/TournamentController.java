@@ -156,6 +156,8 @@ public class TournamentController {
                 request.locationLongitude(),
                 request.locationPlaceId(),
                 request.locationFormattedAddress(),
+                request.setsPerMatch(),
+                request.decisiveTiebreakPoints(),
                 principal.getName()
         );
         return ResponseEntity.ok(toTournamentResponse(updatedTournament));
@@ -312,7 +314,7 @@ public class TournamentController {
                 Principal principal
         ) {
         return ResponseEntity.ok(matchWebMapper.toResponse(
-            matchService.recordResult(tournamentId, matchId, request.winnerId(), request.scoreString(), request.status(), principal.getName())
+            matchService.recordResult(tournamentId, matchId, request.winnerId(), request.sets(), request.notes(), request.firstPlayerPoints(), request.secondPlayerPoints(), request.status(), principal.getName())
         ));
         }
 
@@ -391,7 +393,9 @@ public class TournamentController {
                 response.status(),
                 response.providerOrganisationId(),
                 response.events(),
-                professionalTournament
+                professionalTournament,
+                response.setsPerMatch(),
+                response.decisiveTiebreakPoints()
         );
     }
 

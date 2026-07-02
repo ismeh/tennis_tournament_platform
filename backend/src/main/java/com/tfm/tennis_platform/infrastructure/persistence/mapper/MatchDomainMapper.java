@@ -2,10 +2,12 @@ package com.tfm.tennis_platform.infrastructure.persistence.mapper;
 
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
+import com.tfm.tennis_platform.domain.models.MatchScore;
 import com.tfm.tennis_platform.domain.models.enums.ParticipantSource;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.DrawEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.InscriptionEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity;
+import com.tfm.tennis_platform.infrastructure.persistence.entity.MatchSetEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.CourtEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.ParticipantEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.ProPlayerEntity;
@@ -60,6 +62,10 @@ public class MatchDomainMapper {
                 .courtId(entity.getCourtResource() != null ? entity.getCourtResource().getId() : null)
                 .court(entity.getCourtResource() != null ? entity.getCourtResource().getName() : entity.getCourt())
                 .result(entity.getResult())
+                .score(mapSetsEntityToScore(entity.getSets()))
+                .notes(entity.getNotes())
+                .firstPlayerPoints(entity.getFirstPlayerPoints())
+                .secondPlayerPoints(entity.getSecondPlayerPoints())
                 .status(entity.getStatus())
                 .build();
     }
@@ -71,7 +77,7 @@ public class MatchDomainMapper {
 
         // Note: do not map nextMatch here to avoid creating multiple MatchEntity instances
         // with the same identifier in the same persistence context when saving batches.
-        return MatchEntity.builder()
+        MatchEntity entity = MatchEntity.builder()
                 .id(domain.getId())
                 .draw(mapDrawEntity(domain.getDrawId()))
                 .firstInscription(mapInscriptionEntity(domain.getFirstInscription() != null ? domain.getFirstInscription().getId() : null))
@@ -86,8 +92,57 @@ public class MatchDomainMapper {
                 .courtResource(mapCourtEntity(domain.getCourtId()))
                 .court(domain.getCourt())
                 .result(domain.getResult())
+                .notes(domain.getNotes())
+                .firstPlayerPoints(domain.getFirstPlayerPoints())
+                .secondPlayerPoints(domain.getSecondPlayerPoints())
                 .status(domain.getStatus())
                 .build();
+
+        if (domain.getScore() != null && domain.getScore().getSets() != null) {
+            MatchEntity existingEntity = matchRepository.findById(domain.getId()).orElse(null);
+            List<MatchSetEntity> sets = domain.getScore().getSets().stream()
+                    .map(set -> MatchSetEntity.builder()
+                            .id(findExistingSetId(existingEntity, set.getSetNumber()))
+                            .match(entity)
+                            .setNumber(set.getSetNumber())
+                            .firstPlayerGames(set.getFirstPlayerGames())
+                            .secondPlayerGames(set.getSecondPlayerGames())
+                            .firstPlayerTiebreak(set.getFirstPlayerTiebreak())
+                            .secondPlayerTiebreak(set.getSecondPlayerTiebreak())
+                            .build())
+                    .collect(Collectors.toList());
+            entity.setSets(sets);
+        }
+
+        return entity;
+    }
+
+    private UUID findExistingSetId(MatchEntity matchEntity, int setNumber) {
+        if (matchEntity != null && matchEntity.getSets() != null) {
+            for (MatchSetEntity existing : matchEntity.getSets()) {
+                if (existing.getSetNumber() != null && existing.getSetNumber() == setNumber) {
+                    return existing.getId();
+                }
+            }
+        }
+        return UUID.randomUUID();
+    }
+
+    private MatchScore mapSetsEntityToScore(List<MatchSetEntity> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return MatchScore.empty();
+        }
+        List<com.tfm.tennis_platform.domain.models.SetScore> sets = entities.stream()
+                .map(entity -> com.tfm.tennis_platform.domain.models.SetScore.builder()
+                        .setNumber(entity.getSetNumber())
+                        .firstPlayerGames(entity.getFirstPlayerGames())
+                        .secondPlayerGames(entity.getSecondPlayerGames())
+                        .firstPlayerTiebreak(entity.getFirstPlayerTiebreak())
+                        .secondPlayerTiebreak(entity.getSecondPlayerTiebreak())
+                        .build())
+                .sorted(java.util.Comparator.comparingInt(com.tfm.tennis_platform.domain.models.SetScore::getSetNumber))
+                .toList();
+        return MatchScore.builder().sets(sets).build();
     }
 
     /**
