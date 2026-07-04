@@ -14,8 +14,10 @@ import {
   MatchResponse,
   MatchStatus,
   SetScoreResponse,
+  ParticipantDetailUpdateRequest,
   ParticipantPointsUpdateRequest,
   PlayerMatchCalendarResponse,
+  ReorganizeMatchPlayersRequest,
   ScheduleConfigRequest,
   ScheduleConfigResponse,
   TournamentCalendarFilters,
@@ -159,6 +161,10 @@ export class TournamentService {
     return this.http.patch<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/schedule`, payload);
   }
 
+  reorganizeMatchPlayers(tournamentId: string, payload: ReorganizeMatchPlayersRequest): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${tournamentId}/matches/reorganize`, payload);
+  }
+
   exportTournamentPdf(tournamentId: string): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/${tournamentId}/export/pdf`, {
       responseType: 'blob',
@@ -170,6 +176,10 @@ export class TournamentService {
 
   updateParticipantsPoints(tournamentId: string, updates: ParticipantPointsUpdateRequest[]): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/${tournamentId}/participants/points`, updates);
+  }
+
+  updateParticipantDetails(tournamentId: string, update: ParticipantDetailUpdateRequest): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${tournamentId}/participants/details`, update);
   }
 
   getScheduleConfig(tournamentId: string): Observable<ScheduleConfigResponse> {

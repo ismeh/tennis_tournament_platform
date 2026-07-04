@@ -7,6 +7,8 @@ import { DrawResponse, MatchResponse } from '../../../data/interfaces/tournament
   providedIn: 'root'
 })
 export class BracketExportService {
+  html2canvasFn = html2canvas;
+  jsPdfClass = jsPDF;
 
   async exportBracket(
     bracketElement: HTMLElement,
@@ -106,7 +108,7 @@ export class BracketExportService {
         const board = boardList[i];
         const { width, height } = boardSizes[i];
 
-        const boardCanvas = await html2canvas(board, {
+        const boardCanvas = await this.html2canvasFn(board, {
           scale,
           useCORS: true,
           allowTaint: true,
@@ -144,7 +146,7 @@ export class BracketExportService {
       const imgHeight = canvas.height;
       const { widthMm, heightMm } = this.calculatePdfSize(imgWidth, imgHeight);
       const orientation = widthMm > heightMm ? 'l' : 'p';
-      const pdf = new jsPDF({ orientation, unit: 'mm', format: [widthMm, heightMm] });
+      const pdf = new this.jsPdfClass({ orientation, unit: 'mm', format: [widthMm, heightMm] });
 
       const imgData = canvas.toDataURL('image/png');
       pdf.addImage(imgData, 'PNG', 0, 0, widthMm, heightMm);
@@ -207,7 +209,7 @@ export class BracketExportService {
       const contentWidth = bracketBoard.scrollWidth + 80;
       const contentHeight = bracketBoard.scrollHeight + 80;
 
-      const canvas = await html2canvas(bracketBoard, {
+      const canvas = await this.html2canvasFn(bracketBoard, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -225,7 +227,7 @@ export class BracketExportService {
       const { widthMm, heightMm } = this.calculatePdfSize(imgWidth, imgHeight);
 
       const orientation = widthMm > heightMm ? 'l' : 'p';
-      const pdf = new jsPDF({
+      const pdf = new this.jsPdfClass({
         orientation,
         unit: 'mm',
         format: [widthMm, heightMm]
@@ -254,7 +256,7 @@ export class BracketExportService {
     tournamentName: string,
     categoryName: string
   ): Promise<void> {
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pdf = new this.jsPdfClass({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();

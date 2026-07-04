@@ -58,6 +58,7 @@ import { MemberService } from '../../data/services/member.service';
 import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
 import { TournamentService } from '../../data/services/tournament.service';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
+import { ClubAutocompleteComponent } from '../../components/club-autocomplete';
 import { LocationInputComponent } from '../../components/location-input';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { StagesComponent } from './components/stages.component';
@@ -103,7 +104,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-tournament-detail-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe, FormsModule, ReactiveFormsModule, StagesComponent, LocationInputComponent],
+  imports: [CommonModule, RouterLink, DatePipe, FormsModule, ReactiveFormsModule, StagesComponent, LocationInputComponent, ClubAutocompleteComponent],
   template: `
     <section class="relative overflow-hidden bg-gradient-to-b from-neutral-50 via-white to-white py-10 sm:py-14">
       <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -466,16 +467,21 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     <div class="block">
                       <span class="mb-1 block text-sm font-medium text-neutral-700">Categorías disponibles</span>
                       <div class="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-neutral-300 bg-white p-3">
-                        @for (event of eventCatalog(); track event.id) {
-                          <label class="flex cursor-pointer items-center gap-3 rounded-xl bg-neutral-50 px-3 py-2 hover:bg-primary-50">
-                            <input
-                              type="checkbox"
-                              class="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                              [checked]="isEventSelected(event.id)"
-                              (change)="toggleCatalogEvent(event, $any($event.target).checked)"
-                            />
-                            <span class="text-sm text-neutral-800">{{ event.category }}</span>
-                          </label>
+                        @for (cat of eventCatalog(); track cat.id) {
+                          <div class="flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-3 py-2 hover:bg-primary-50">
+                            <span class="text-sm font-medium text-neutral-800">{{ cat.category }}</span>
+                            <button
+                              type="button"
+                              class="rounded-full bg-primary-500 p-1.5 text-white transition hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                              [disabled]="isAddCategoryDisabled(cat.id)"
+                              (click)="addCatalogCategory(cat)"
+                              title="Añadir esta categoría"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                          </div>
                         }
                       </div>
                     </div>
@@ -485,53 +491,53 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         <p class="text-sm text-neutral-500">No hay pruebas seleccionadas todavía.</p>
                       } @else {
                         <div class="space-y-3">
-                          @for (event of selectedEvents(); track event.categoryId) {
+                          @for (event of selectedEvents(); track event.uniqueId) {
                             <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                              <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                  <p class="text-sm font-semibold text-neutral-900">{{ getEventLabelById(event.categoryId) }}</p>
+                                  <p class="text-sm font-bold text-neutral-900">{{ event.eventCategory }}</p>
                                 </div>
-                                <div class="min-w-52">
-                                  <div class="mb-2 flex items-center gap-2">
-                                    <span class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Modalidades</span>
-                                    <span
-                                      class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-bold text-neutral-500"
-                                      title="Por cada modalidad seleccionada se creará una prueba."
-                                      aria-label="Información sobre modalidades"
+                                <div class="flex items-center gap-3">
+                                  <label class="block">
+                                    <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Modalidad</span>
+                                    <select
+                                      class="rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500"
+                                      [ngModel]="event.genders[0]"
+                                      (ngModelChange)="changeEventGender(event.uniqueId!, $event)"
                                     >
-                                      i
-                                    </span>
-                                  </div>
-                                  <div class="flex flex-wrap gap-2">
-                                    @for (gender of eventGenderOptions; track gender) {
-                                      <label class="inline-flex cursor-pointer items-center gap-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-primary-400">
-                                        <input
-                                          type="checkbox"
-                                          class="h-3.5 w-3.5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                                          [checked]="hasEventGender(event.categoryId, gender)"
-                                          (change)="toggleEventGender(event.categoryId, gender, $any($event.target).checked)"
-                                        />
-                                        <span>{{ getGenderLabel(gender) }}</span>
-                                      </label>
-                                    }
-                                  </div>
+                                      @for (gender of eventGenderOptions; track gender) {
+                                        <option [value]="gender" [disabled]="isGenderOptionDisabled(event.categoryId, gender, event.uniqueId)">
+                                          {{ getGenderLabel(gender) }}
+                                        </option>
+                                      }
+                                    </select>
+                                  </label>
+
+                                  <button
+                                    type="button"
+                                    class="mt-5 rounded-full border border-red-200 bg-red-50 p-2 text-red-600 transition hover:border-red-300 hover:bg-red-100"
+                                    (click)="removeSelectedEvent(event.uniqueId!)"
+                                    title="Eliminar esta prueba"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                      <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
+                                    </svg>
+                                  </button>
                                 </div>
                               </div>
 
-                              <div class="mt-4 rounded-2xl border border-dashed border-neutral-200 bg-white p-4">
-                                <div class="flex items-center justify-between gap-3">
-                                  <div>
-                                    <p class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Formato de cuadro</p>
-                                    <p class="mt-1 text-sm text-neutral-600">Define el orden y tipo de las cuadros que tendrá esta prueba.</p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700"
-                                    (click)="addEventStage(event.categoryId)"
-                                  >
-                                    Añadir cuadro
-                                  </button>
-                                </div>
+                                  <div class="mt-4 rounded-2xl border border-dashed border-neutral-200 bg-white p-4">
+                                    <div class="flex items-center justify-between gap-3">
+                                      <div>
+                                        <button
+                                          type="button"
+                                          class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700"
+                                          (click)="addEventStage(event.uniqueId!)"
+                                        >
+                                          Añadir cuadro
+                                        </button>
+                                      </div>
+                                    </div>
 
                                 <div class="mt-4 space-y-3">
                                   @for (stage of event.stages; track $index; let stageIndex = $index) {
@@ -543,7 +549,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                             <select
                                                class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:bg-white"
                                                [ngModel]="stage.stageType"
-                                               (ngModelChange)="updateEventStageType(event.categoryId, stageIndex, $event)"
+                                               (ngModelChange)="updateEventStageType(event.uniqueId!, stageIndex, $event)"
                                              >
                                               @for (option of getAvailableStageOptions(event.stages, stageIndex); track option) {
                                                 <option [value]="option">{{ getStageLabel(option) }}</option>
@@ -557,7 +563,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                             type="button"
                                             class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
                                             [disabled]="event.stages.length === 1"
-                                            (click)="removeEventStage(event.categoryId, stageIndex)"
+                                            (click)="removeEventStage(event.uniqueId!, stageIndex)"
                                           >
                                             Eliminar
                                           </button>
@@ -1005,20 +1011,6 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         </label>
 
                         <label class="block">
-                          <span class="mb-1 block text-sm font-medium text-neutral-700">Modalidad</span>
-                          <select
-                            class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
-                            [ngModel]="manualPlayerGender()"
-                            (ngModelChange)="manualPlayerGender.set($event)"
-                            name="manualPlayerGender"
-                          >
-                            <option value="MALE">Masculino</option>
-                            <option value="FEMALE">Femenino</option>
-                            <option value="MIXED">Mixto</option>
-                          </select>
-                        </label>
-
-                        <label class="block">
                           <span class="mb-1 block text-sm font-medium text-neutral-700">Fecha de nacimiento</span>
                           <input
                             type="date"
@@ -1054,6 +1046,47 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             name="manualPlayerTennisId"
                             placeholder="LIC-123"
                           />
+                        </label>
+
+                        <label class="block">
+                          <span class="mb-1 block text-sm font-medium text-neutral-700">Club</span>
+                          <input
+                            type="text"
+                            class="w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                            [ngModel]="manualPlayerClub()"
+                            (ngModelChange)="manualPlayerClub.set($event)"
+                            name="manualPlayerClub"
+                            placeholder="Nombre del club"
+                          />
+                        </label>
+
+                        <label class="block">
+                          <span class="mb-1 block text-sm font-medium text-neutral-700">Puntos</span>
+                          <input
+                            type="number"
+                            class="w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                            [ngModel]="manualPlayerPoints()"
+                            (ngModelChange)="manualPlayerPoints.set($event)"
+                            name="manualPlayerPoints"
+                            placeholder="0"
+                            min="0"
+                          />
+                        </label>
+
+                        <label class="block">
+                          <span class="mb-1 block text-sm font-medium text-neutral-700">Siglas</span>
+                          <select
+                            class="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                            [ngModel]="manualPlayerEntryStatus()"
+                            (ngModelChange)="manualPlayerEntryStatus.set($event)"
+                            name="manualPlayerEntryStatus"
+                          >
+                            <option value="">Selecciona</option>
+                            <option value="DIRECT_ACCEPTANCE">DA - Aceptación directa</option>
+                            <option value="WILDCARD">WC - Wildcard</option>
+                            <option value="QUALIFIER">Q - Clasificado</option>
+                            <option value="LUCKY_LOSER">LL - Perdedor afortunado</option>
+                          </select>
                         </label>
                       </div>
                     }
@@ -1225,24 +1258,26 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         No hay jugadores inscritos para el filtro seleccionado.
                       </div>
                     } @else {
-                      @if (isTournamentAdmin() && hasPointsChanges()) {
+                      @if (isTournamentAdmin() && (hasPointsChanges() || hasDetailChanges())) {
                         <div class="mt-4 flex items-center gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5">
                           <span class="text-sm text-primary-700">Hay cambios sin guardar</span>
-                          <button type="button" (click)="saveAllPoints()" [disabled]="isSavingPoints()" class="rounded-lg bg-primary-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">Guardar</button>
-                          <button type="button" (click)="resetPointsChanges()" class="rounded-lg border border-neutral-300 bg-white px-4 py-1.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">Descartar</button>
+                          <button type="button" (click)="saveAllDetails()" [disabled]="isSavingDetails()" class="rounded-lg bg-primary-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">Guardar</button>
+                          <button type="button" (click)="resetAllChanges()" class="rounded-lg border border-neutral-300 bg-white px-4 py-1.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">Descartar</button>
                         </div>
                       }
 
-                      <div class="mt-4 overflow-hidden rounded-2xl border border-neutral-200">
-                        <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.5fr)] gap-3 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500">
+                      <div class="mt-4 rounded-2xl border border-neutral-200 bg-white">
+                        <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] gap-3 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500 rounded-t-2xl">
                           <span>Nombre</span>
                           <span>Prueba</span>
+                          <span title="Club al que pertenece el jugador" class="cursor-help">Club</span>
+                          <span title="DA = Aceptación Directa · WC = Wildcard · Q = Clasificado · LL = Perdedor Afortunado" class="cursor-help">Tipo Acceso</span>
                           <span class="text-right">Puntos</span>
                         </div>
 
-                        <div class="divide-y divide-neutral-100 bg-white">
+                        <div class="divide-y divide-neutral-100 bg-white rounded-b-2xl">
                           @for (player of tournamentInscriptionPlayers(); track player.inscriptionId + player.firstName + player.lastName) {
-                            <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.5fr)] items-center gap-3 px-4 py-2 text-sm">
+                            <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] items-center gap-3 px-4 py-2 text-sm last:rounded-b-2xl">
                               <div class="min-w-0">
                                 <p class="truncate font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
                                 <p class="truncate text-xs text-neutral-500">{{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}</p>
@@ -1252,10 +1287,37 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 <p class="truncate text-xs text-neutral-400">{{ player.category }}</p>
                               </div>
                               @if (isTournamentAdmin()) {
+                                <div class="min-w-0">
+                                  <app-club-autocomplete
+                                    placeholder="Club..."
+                                    [ngModel]="getEditedClub(player)"
+                                    (ngModelChange)="setEditedClub(player, $event)"
+                                    (clubSelected)="onClubSelected(player, $event)"
+                                  ></app-club-autocomplete>
+                                </div>
+                                <div class="min-w-0">
+                                  <select
+                                    class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                    [ngModel]="getEditedEntryStatus(player)"
+                                    (ngModelChange)="setEditedEntryStatus(player, $event)"
+                                  >
+                                    <option value="">-</option>
+                                    <option value="DIRECT_ACCEPTANCE">DA</option>
+                                    <option value="WILDCARD">WC</option>
+                                    <option value="QUALIFIER">Q</option>
+                                    <option value="LUCKY_LOSER">LL</option>
+                                  </select>
+                                </div>
                                 <div class="flex items-center justify-end">
                                   <input type="number" min="0" class="w-20 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-right text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" [ngModel]="getEditedPoints(player)" (ngModelChange)="setEditedPoints(player, $event)" />
                                 </div>
                               } @else {
+                                <div class="min-w-0">
+                                  <p class="truncate text-xs text-neutral-700">{{ player.club || '-' }}</p>
+                                </div>
+                                <div class="min-w-0">
+                                  <span class="inline-flex rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{{ getEntryStatusLabel(player.entryStatus) }}</span>
+                                </div>
                                 <div class="text-right">
                                   @if (player.points != null) {
                                     <span class="font-semibold text-neutral-900">{{ player.points }}</span>
@@ -1807,6 +1869,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             [participantOrderInput]="participantOrderByInscriptionId()"
                             [courtsInput]="courts()"
                             [canManageInput]="canManageMatches()"
+                            [tournamentStatusInput]="tournament()!.status"
                             [tournamentNameInput]="tournament()!.formalName"
                             [categoryNameInput]="getCategoryLabel(event.categoryId) + ' - ' + getGenderLabelForString(event.gender)"
                             [generatingDrawsForStageIdInput]="generatingDrawsStageId()"
@@ -1817,6 +1880,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             (matchSelected)="onMatchSelected($event)"
                             (matchResultSaved)="onMatchResultSaved($event)"
                             (matchScheduleSaved)="onMatchScheduleSaved($event)"
+                            (playersSwapped)="onPlayersSwapped($event)"
                           ></app-stages>
                         } @else {
                           <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
@@ -1915,10 +1979,12 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly manualPlayerFilterCategory = signal<string>('');
   readonly manualPlayerFirstName = signal<string>('');
   readonly manualPlayerLastName = signal<string>('');
-  readonly manualPlayerGender = signal<string>('MALE');
   readonly manualPlayerBirthDate = signal<string>('');
   readonly manualPlayerNationality = signal<string>('');
   readonly manualPlayerTennisId = signal<string>('');
+  readonly manualPlayerClub = signal<string>('');
+  readonly manualPlayerPoints = signal<string>('');
+  readonly manualPlayerEntryStatus = signal<string>('');
   readonly manualPlayerError = signal<string | null>(null);
   readonly manualPlayerSuccess = signal<string | null>(null);
   readonly isSearchingPersons = signal(false);
@@ -1966,7 +2032,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly scheduleOverlapWarning = signal<string | null>(null);
 
   readonly editedPointsMap = signal<Record<string, number | null>>({});
+  readonly editedClubMap = signal<Record<string, string>>({});
+  readonly editedEntryStatusMap = signal<Record<string, string>>({});
   readonly isSavingPoints = signal(false);
+  readonly isSavingDetails = signal(false);
   readonly manualPlayerSourceOptions: Array<{ value: ManualParticipantSource; label: string; description: string }> = [
     {
       value: 'EXISTING_PERSON',
@@ -2504,10 +2573,12 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     if (source !== 'MANUAL') {
       this.manualPlayerFirstName.set('');
       this.manualPlayerLastName.set('');
-      this.manualPlayerGender.set('');
       this.manualPlayerBirthDate.set('');
       this.manualPlayerNationality.set('');
       this.manualPlayerTennisId.set('');
+      this.manualPlayerClub.set('');
+      this.manualPlayerPoints.set('');
+      this.manualPlayerEntryStatus.set('');
 
       if (this.manualPlayerSearchQuery().trim().length >= 2) {
         this.scheduleManualPlayerSearch();
@@ -2559,69 +2630,87 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.scheduleManualPlayerSearch();
   }
 
-  toggleCatalogEvent(catalogEvent: TournamentEventCatalogItem, checked: boolean): void {
+  addCatalogCategory(catalogEvent: TournamentEventCatalogItem): void {
     this.eventsErrorMessage.set(null);
 
-    if (checked) {
-      if (this.isEventSelected(catalogEvent.id)) {
-        return;
-      }
-
-      this.selectedEvents.update(events => [
-        ...events,
-        {
-          categoryId: catalogEvent.id,
-          eventCategory: catalogEvent.category,
-          eventsByGender: [],
-          genders: [],
-          stages: [
-            {
-              stageType: 'SINGLE_ELIMINATION'
-            }
-          ]
-        }
-      ]);
+    const existingSelections = this.selectedEvents().filter(event => event.categoryId === catalogEvent.id);
+    if (existingSelections.length >= 3) {
+      this.eventsErrorMessage.set('No se puede añadir una categoría más de 3 veces.');
       return;
     }
 
-    this.selectedEvents.update(events => events.filter(event => event.categoryId !== catalogEvent.id));
+    const chosenGenders = existingSelections.flatMap(event => event.genders);
+    const defaultGender = this.eventGenderOptions.find(gender => !chosenGenders.includes(gender));
+
+    if (!defaultGender) {
+      this.eventsErrorMessage.set('Todas las modalidades para esta categoría ya han sido añadidas.');
+      return;
+    }
+
+    const uniqueId = 'sel-' + Math.random().toString(36).substring(2, 9);
+
+    this.selectedEvents.update(events => [
+      ...events,
+      {
+        uniqueId,
+        categoryId: catalogEvent.id,
+        eventCategory: catalogEvent.category,
+        eventsByGender: [{ gender: defaultGender, eventId: null }],
+        genders: [defaultGender],
+        stages: [
+          {
+            stageType: 'SINGLE_ELIMINATION'
+          }
+        ]
+      }
+    ]);
   }
 
-  toggleEventGender(categoryId: number, gender: TournamentEventGender, checked: boolean): void {
+  changeEventGender(uniqueId: string, gender: TournamentEventGender): void {
     this.eventsErrorMessage.set(null);
 
     this.selectedEvents.update(events =>
       events.map(event => {
-        if (event.categoryId !== categoryId) {
+        if (event.uniqueId !== uniqueId) {
           return event;
         }
 
-        const nextGenders = checked
-          ? Array.from(new Set([...event.genders, gender]))
-          : event.genders.filter(currentGender => currentGender !== gender);
+        const isDuplicate = events.some(other =>
+          other.categoryId === event.categoryId &&
+          other.uniqueId !== uniqueId &&
+          other.genders.includes(gender)
+        );
 
-        const genderSet = new Set(nextGenders);
-        const nextEventsByGender = checked
-          ? event.eventsByGender.some(eg => eg.gender === gender)
-            ? event.eventsByGender
-            : [...event.eventsByGender, { gender, eventId: null }]
-          : event.eventsByGender.filter(eg => eg.gender !== gender);
+        if (isDuplicate) {
+          this.eventsErrorMessage.set(`La modalidad ${this.getGenderLabel(gender)} ya está añadida para esta categoría.`);
+          return event;
+        }
+
+        const hasGenderEntry = event.eventsByGender.some(eg => eg.gender === gender);
+        const nextEventsByGender = hasGenderEntry
+          ? event.eventsByGender
+          : [...event.eventsByGender, { gender, eventId: null }];
 
         return {
           ...event,
-          genders: nextGenders,
+          genders: [gender],
           eventsByGender: nextEventsByGender
         };
       })
     );
   }
 
-  addEventStage(categoryId: number): void {
+  removeSelectedEvent(uniqueId: string): void {
+    this.eventsErrorMessage.set(null);
+    this.selectedEvents.update(events => events.filter(event => event.uniqueId !== uniqueId));
+  }
+
+  addEventStage(uniqueId: string): void {
     this.eventsErrorMessage.set(null);
 
     this.selectedEvents.update(events =>
       events.map(event => {
-        if (event.categoryId !== categoryId) {
+        if (event.uniqueId !== uniqueId) {
           return event;
         }
         const newStageType: TournamentStageType = isConsolationDisabled(event.stages.map(s => s.stageType))
@@ -2635,12 +2724,12 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     );
   }
 
-  removeEventStage(categoryId: number, stageIndex: number): void {
+  removeEventStage(uniqueId: string, stageIndex: number): void {
     this.eventsErrorMessage.set(null);
 
     this.selectedEvents.update(events =>
       events.map(event => {
-        if (event.categoryId !== categoryId || event.stages.length <= 1) {
+        if (event.uniqueId !== uniqueId || event.stages.length <= 1) {
           return event;
         }
 
@@ -2672,10 +2761,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     );
   }
 
-  updateEventStageType(categoryId: number, stageIndex: number, stageType: TournamentStageType): void {
+  updateEventStageType(uniqueId: string, stageIndex: number, stageType: TournamentStageType): void {
     this.selectedEvents.update(events =>
       events.map(event => {
-        if (event.categoryId !== categoryId) {
+        if (event.uniqueId !== uniqueId) {
           return event;
         }
 
@@ -2701,10 +2790,23 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     return getAvailableStageOptions(stages.map(s => s.stageType), currentIndex);
   }
 
-  hasEventGender(categoryId: number, gender: TournamentEventGender): boolean {
-    return this.selectedEvents()
-      .find(event => event.categoryId === categoryId)
-      ?.genders?.includes(gender) ?? false;
+  isGenderOptionDisabled(categoryId: number, gender: TournamentEventGender, currentUniqueId?: string): boolean {
+    return this.selectedEvents().some(event =>
+      event.categoryId === categoryId &&
+      event.uniqueId !== currentUniqueId &&
+      event.genders.includes(gender)
+    );
+  }
+
+  isAddCategoryDisabled(categoryId: number): boolean {
+    const count = this.selectedEvents().filter(event => event.categoryId === categoryId).length;
+    if (count >= 3) {
+      return true;
+    }
+    const chosenGenders = this.selectedEvents()
+      .filter(event => event.categoryId === categoryId)
+      .flatMap(event => event.genders);
+    return chosenGenders.length >= 3;
   }
 
   isEventSelected(categoryId: number): boolean {
@@ -3040,10 +3142,12 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     } else {
       payload.firstName = this.manualPlayerFirstName().trim();
       payload.lastName = this.manualPlayerLastName().trim() || null;
-      payload.gender = this.manualPlayerGender().trim() || null;
       payload.birthDate = this.manualPlayerBirthDate().trim() || null;
       payload.nationality = this.manualPlayerNationality().trim() || null;
       payload.tennisId = this.manualPlayerTennisId().trim() || null;
+      payload.club = this.manualPlayerClub().trim() || null;
+      payload.points = this.manualPlayerPoints() ? Number(this.manualPlayerPoints()) : null;
+      payload.entryStatus = this.manualPlayerEntryStatus().trim() || null;
     }
 
     this.isSubmittingManualPlayer.set(true);
@@ -3061,6 +3165,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         this.manualPlayerBirthDate.set('');
         this.manualPlayerNationality.set('');
         this.manualPlayerTennisId.set('');
+        this.manualPlayerClub.set('');
+        this.manualPlayerPoints.set('');
+        this.manualPlayerEntryStatus.set('');
         this.loadTournamentInscriptions();
       },
       error: (error) => {
@@ -3314,6 +3421,180 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.editedPointsMap.set({});
   }
 
+  getEditedClub(player: TournamentInscriptionPlayer): string {
+    const map = this.editedClubMap();
+    if (player.inscriptionId in map) {
+      return map[player.inscriptionId];
+    }
+    return player.club ?? '';
+  }
+
+  setEditedClub(player: TournamentInscriptionPlayer, value: string): void {
+    this.editedClubMap.update(map => ({ ...map, [player.inscriptionId]: value }));
+  }
+
+  onClubSelected(player: TournamentInscriptionPlayer, event: { clubId: string | null; clubName: string }): void {
+    this.setEditedClub(player, event.clubName);
+  }
+
+  getEditedEntryStatus(player: TournamentInscriptionPlayer): string {
+    const map = this.editedEntryStatusMap();
+    if (player.inscriptionId in map) {
+      return map[player.inscriptionId];
+    }
+    return player.entryStatus ?? '';
+  }
+
+  setEditedEntryStatus(player: TournamentInscriptionPlayer, value: string): void {
+    this.editedEntryStatusMap.update(map => ({ ...map, [player.inscriptionId]: value }));
+  }
+
+  getEntryStatusLabel(status: string | null | undefined): string {
+    if (!status) return '-';
+    const labels: Record<string, string> = {
+      'DIRECT_ACCEPTANCE': 'DA',
+      'WILDCARD': 'WC',
+      'QUALIFIER': 'Q',
+      'LUCKY_LOSER': 'LL'
+    };
+    return labels[status] ?? status;
+  }
+
+  hasDetailChanges(): boolean {
+    const clubMap = this.editedClubMap();
+    const entryStatusMap = this.editedEntryStatusMap();
+    const players = this.tournamentInscriptionPlayers();
+    return players.some(p => {
+      const editedClub = clubMap[p.inscriptionId];
+      const originalClub = p.club ?? '';
+      const clubChanged = editedClub !== undefined && editedClub !== originalClub;
+
+      const editedStatus = entryStatusMap[p.inscriptionId];
+      const originalStatus = p.entryStatus ?? '';
+      const statusChanged = editedStatus !== undefined && editedStatus !== originalStatus;
+
+      return clubChanged || statusChanged;
+    });
+  }
+
+  saveAllDetails(): void {
+    const tournamentId = this.tournament()?.id;
+    if (!tournamentId) return;
+
+    const clubMap = this.editedClubMap();
+    const entryStatusMap = this.editedEntryStatusMap();
+    const players = this.tournamentInscriptionPlayers();
+
+    const detailUpdates = players.filter(p => {
+      const clubEdited = clubMap[p.inscriptionId];
+      const clubChanged = clubEdited !== undefined && clubEdited !== (p.club ?? '');
+      const statusEdited = entryStatusMap[p.inscriptionId];
+      const statusChanged = statusEdited !== undefined && statusEdited !== (p.entryStatus ?? '');
+      return clubChanged || statusChanged;
+    }).map(p => ({
+      participantId: p.participantId,
+      clubName: clubMap[p.inscriptionId] !== undefined ? (clubMap[p.inscriptionId] || null) : null,
+      entryStatus: entryStatusMap[p.inscriptionId] !== undefined ? (entryStatusMap[p.inscriptionId] || null) : null
+    }));
+
+    const pointUpdates = players.filter(p => {
+      const edited = this.editedPointsMap()[p.inscriptionId];
+      const original = p.points ?? null;
+      return edited !== undefined && edited !== original;
+    }).map(p => ({
+      participantId: p.participantId,
+      points: this.editedPointsMap()[p.inscriptionId] ?? null,
+      seed: null
+    }));
+
+    if (detailUpdates.length === 0 && pointUpdates.length === 0) return;
+
+    const hasNewClub = detailUpdates.some(u => u.clubName != null && u.clubName.trim().length > 0);
+    this.isSavingDetails.set(true);
+    this.actionMessage.set(null);
+    this.actionError.set(null);
+
+    const reloadAndFinish = (successMsg: string) => {
+      this.tournamentService.getTournamentInscriptions(tournamentId).subscribe({
+        next: (inscriptions) => {
+          this.tournamentInscriptions.set(inscriptions);
+          this.editedPointsMap.set({});
+          this.editedClubMap.set({});
+          this.editedEntryStatusMap.set({});
+          this.isSavingDetails.set(false);
+          this.actionMessage.set(successMsg);
+        },
+        error: () => {
+          this.isSavingDetails.set(false);
+          this.actionError.set('Los datos se guardaron pero no se pudo actualizar la vista.');
+        }
+      });
+    };
+
+    const handleError = () => {
+      this.isSavingDetails.set(false);
+      this.actionError.set('No se pudieron guardar los cambios. Inténtalo de nuevo.');
+    };
+
+    const detailCount = detailUpdates.length;
+    const pointCount = pointUpdates.length;
+
+    const sendDetailUpdates = () => {
+      if (detailCount === 0) {
+        const msg = pointCount > 0 ? 'Puntos actualizados.' : 'Cambios guardados.';
+        reloadAndFinish(msg);
+        return;
+      }
+      let completed = 0;
+      let hasError = false;
+      detailUpdates.forEach(update => {
+        this.tournamentService.updateParticipantDetails(tournamentId, update).subscribe({
+          next: () => {
+            completed++;
+            if (completed === detailCount && !hasError) {
+              const clubInfo = hasNewClub ? ' Club registrado.' : '';
+              const msg = pointCount > 0
+                ? `Detalles y puntos actualizados.${clubInfo}`
+                : `Cambios guardados.${clubInfo}`;
+              if (pointCount > 0) {
+                this.tournamentService.updateParticipantsPoints(tournamentId, pointUpdates).subscribe({
+                  next: () => reloadAndFinish(msg),
+                  error: () => {
+                    reloadAndFinish(`Detalles guardados${clubInfo}. No se pudieron actualizar los puntos.`);
+                  }
+                });
+              } else {
+                reloadAndFinish(msg);
+              }
+            }
+          },
+          error: () => {
+            hasError = true;
+            completed++;
+            if (completed === detailCount) {
+              handleError();
+            }
+          }
+        });
+      });
+    };
+
+    if (pointCount > 0 && detailCount === 0) {
+      this.tournamentService.updateParticipantsPoints(tournamentId, pointUpdates).subscribe({
+        next: () => reloadAndFinish('Puntos actualizados.'),
+        error: () => handleError()
+      });
+    } else {
+      sendDetailUpdates();
+    }
+  }
+
+  resetAllChanges(): void {
+    this.editedPointsMap.set({});
+    this.editedClubMap.set({});
+    this.editedEntryStatusMap.set({});
+  }
+
   toggleEventsDrawsPanel(): void {
     this.isEventsDrawsPanelExpanded.update(expanded => {
       const nextVal = !expanded;
@@ -3552,9 +3833,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         const slots = config.timeSlots.length > 0
           ? config.timeSlots.map(slot => ({ startTime: slot.startTime, endTime: slot.endTime }))
           : [
-              { startTime: '08:00', endTime: '13:00' },
-              { startTime: '16:00', endTime: '20:00' }
-            ];
+            { startTime: '08:00', endTime: '13:00' },
+            { startTime: '16:00', endTime: '20:00' }
+          ];
         this.scheduleConfigDraft.set({
           timeSlots: slots,
           matchDurationMinutes: config.matchDurationMinutes || 60
@@ -3757,40 +4038,37 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   }
 
   private hydrateSelectedEventsFromTournament(events: TournamentEventResponse[]): void {
-    const groupedEvents = new Map<number, { eventIdsByGender: Map<TournamentEventGender, string>; genders: Set<TournamentEventGender>; stages: TournamentEventSelection['stages'] }>();
+    const selections: TournamentEventSelection[] = events
+      .map(event => {
+        const normalizedGender = event.gender.toUpperCase() as TournamentEventGender;
+        if (!this.eventGenderOptions.includes(normalizedGender)) {
+          return null;
+        }
 
-    events.forEach(event => {
-      const normalizedGender = event.gender.toUpperCase() as TournamentEventGender;
-      if (!this.eventGenderOptions.includes(normalizedGender)) {
-        return;
-      }
-
-      const currentEntry = groupedEvents.get(event.categoryId) ?? {
-        eventIdsByGender: new Map<TournamentEventGender, string>(),
-        genders: new Set<TournamentEventGender>(),
-        stages: event.stages?.length
+        const stages = event.stages?.length
           ? event.stages
-              .slice()
-              .sort((left, right) => left.order - right.order)
-              .map(stage => {
-                const raw = stage.strategyName ?? stage.stageType;
-                const stageType: TournamentStageType = isValidStageType(raw) ? raw : 'SINGLE_ELIMINATION';
-                return { stageType };
-              })
-          : [{ stageType: 'SINGLE_ELIMINATION' as TournamentStageType }]
-      };
-      currentEntry.eventIdsByGender.set(normalizedGender, event.eventId);
-      currentEntry.genders.add(normalizedGender);
-      groupedEvents.set(event.categoryId, currentEntry);
-    });
+            .slice()
+            .sort((left, right) => left.order - right.order)
+            .map(stage => {
+              const raw = stage.strategyName ?? stage.stageType;
+              const stageType: TournamentStageType = isValidStageType(raw) ? raw : 'SINGLE_ELIMINATION';
+              return { stageType };
+            })
+          : [{ stageType: 'SINGLE_ELIMINATION' as TournamentStageType }];
 
-    const selections: TournamentEventSelection[] = Array.from(groupedEvents.entries()).map(([categoryId, entry]) => ({
-      categoryId,
-      eventCategory: this.getEventLabelById(categoryId),
-      eventsByGender: Array.from(entry.eventIdsByGender.entries()).map(([gender, eventId]) => ({ gender, eventId })),
-      genders: Array.from(entry.genders),
-      stages: entry.stages
-    }));
+        const uniqueId = 'sel-' + Math.random().toString(36).substring(2, 9);
+
+        const selection: TournamentEventSelection = {
+          uniqueId,
+          categoryId: event.categoryId,
+          eventCategory: this.getEventLabelById(event.categoryId),
+          eventsByGender: [{ gender: normalizedGender, eventId: event.eventId }],
+          genders: [normalizedGender],
+          stages
+        };
+        return selection;
+      })
+      .filter((item): item is TournamentEventSelection => item !== null);
 
     this.selectedEvents.set(selections);
   }
@@ -4127,6 +4405,42 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     });
   }
 
+  onPlayersSwapped(event: {
+    matchId1: string;
+    slot1: 'first' | 'second';
+    matchId2: string;
+    slot2: 'first' | 'second';
+  }): void {
+    if (!this.isTournamentAdmin()) {
+      this.actionError.set('Solo el administrador del torneo puede reorganizar jugadores.');
+      return;
+    }
+
+    const currentTournament = this.tournament();
+    if (!currentTournament) {
+      return;
+    }
+
+    const previousTournament = this.cloneTournament(currentTournament);
+    const optimisticTournament = this.patchMatchPlayersInTournament(currentTournament, event);
+    if (optimisticTournament) {
+      this.tournament.set(optimisticTournament);
+    }
+
+    this.actionError.set(null);
+    this.actionMessage.set('Reorganizando jugadores...');
+
+    this.tournamentService.reorganizeMatchPlayers(currentTournament.id, event).subscribe({
+      next: () => {
+        this.actionMessage.set('Jugadores reorganizados correctamente.');
+      },
+      error: (error) => {
+        this.tournament.set(previousTournament);
+        this.actionError.set(getApiErrorMessage(error, 'No se pudieron reorganizar los jugadores del cuadro.'));
+      }
+    });
+  }
+
   getMatchScheduleDraft(match: MatchResponse): MatchScheduleDraft {
     return this.matchScheduleDrafts()[match.id] ?? this.createMatchScheduleDraft(match);
   }
@@ -4212,7 +4526,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       // prefer stage that has more draws or draws with matches
       const existingScore = (existing.draws ?? []).reduce((s: number, d: DrawResponse) => s + ((d.matches?.length ?? 0) > 0 ? 10 : 1), 0);
       const newScore = (st.draws ?? []).reduce((s: number, d: DrawResponse) => s + ((d.matches?.length ?? 0) > 0 ? 10 : 1), 0);
-      if (newScore > existingScore) {
+      if (newScore >= existingScore) {
         stagesById.set(st.id, st);
       }
     }
@@ -4229,7 +4543,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         }
         const existingScore = (existing.matches ?? []).length;
         const newScore = (dr.matches ?? []).length;
-        if (newScore > existingScore) drawsById.set(dr.id, dr);
+        if (newScore >= existingScore) drawsById.set(dr.id, dr);
       }
       return { ...stage, draws: Array.from(drawsById.values()) };
     });
@@ -4576,6 +4890,95 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     }));
 
     return patched ? { ...currentTournament, events } : null;
+  }
+
+  private patchMatchPlayersInTournament(
+    currentTournament: TournamentResponse,
+    event: {
+      matchId1: string;
+      slot1: 'first' | 'second';
+      matchId2: string;
+      slot2: 'first' | 'second';
+    }
+  ): TournamentResponse | null {
+    const clonedTournament = this.cloneTournament(currentTournament);
+    const sourceMatch = this.findMatchInTournament(clonedTournament, event.matchId1);
+    const targetMatch = this.findMatchInTournament(clonedTournament, event.matchId2);
+
+    if (!sourceMatch || !targetMatch) {
+      return null;
+    }
+
+    if (sourceMatch.id === targetMatch.id && event.slot1 === event.slot2) {
+      return null;
+    }
+
+    const sourceValue = event.slot1 === 'first'
+      ? (sourceMatch.firstInscriptionId ?? null)
+      : (sourceMatch.secondInscriptionId ?? null);
+    const targetValue = event.slot2 === 'first'
+      ? (targetMatch.firstInscriptionId ?? null)
+      : (targetMatch.secondInscriptionId ?? null);
+
+    if (sourceMatch.id === targetMatch.id) {
+      if (event.slot1 === 'first') {
+        sourceMatch.firstInscriptionId = targetValue;
+      } else {
+        sourceMatch.secondInscriptionId = targetValue;
+      }
+
+      if (event.slot2 === 'first') {
+        sourceMatch.firstInscriptionId = sourceValue;
+      } else {
+        sourceMatch.secondInscriptionId = sourceValue;
+      }
+
+      Object.assign(sourceMatch, this.resolveOptimisticMatchState(sourceMatch));
+      return clonedTournament;
+    }
+
+    if (event.slot1 === 'first') {
+      sourceMatch.firstInscriptionId = targetValue;
+    } else {
+      sourceMatch.secondInscriptionId = targetValue;
+    }
+
+    if (event.slot2 === 'first') {
+      targetMatch.firstInscriptionId = sourceValue;
+    } else {
+      targetMatch.secondInscriptionId = sourceValue;
+    }
+
+    Object.assign(sourceMatch, this.resolveOptimisticMatchState(sourceMatch));
+    Object.assign(targetMatch, this.resolveOptimisticMatchState(targetMatch));
+
+    return clonedTournament;
+  }
+
+  private resolveOptimisticMatchState(match: MatchResponse): MatchResponse {
+    if ((match.roundNumber ?? 1) !== 1) {
+      return match;
+    }
+
+    const firstEmpty = !match.firstInscriptionId;
+    const secondEmpty = !match.secondInscriptionId;
+
+    if (firstEmpty !== secondEmpty) {
+      const winnerId = !firstEmpty ? match.firstInscriptionId : match.secondInscriptionId;
+      return {
+        ...match,
+        winnerId,
+        result: 'Bye',
+        status: 'COMPLETED'
+      };
+    }
+
+    return {
+      ...match,
+      winnerId: null,
+      result: null,
+      status: 'PENDING'
+    };
   }
 
   private compareMatchScheduleRows(left: TournamentMatchScheduleRow, right: TournamentMatchScheduleRow): number {

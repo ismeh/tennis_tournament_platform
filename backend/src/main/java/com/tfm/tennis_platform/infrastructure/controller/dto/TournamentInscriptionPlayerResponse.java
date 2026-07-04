@@ -17,6 +17,8 @@ public record TournamentInscriptionPlayerResponse(
         String lastName,
         String gender,
         Integer points,
-        Integer seed
+        Integer seed,
+        String club,
+        String entryStatus
 ) {
 }

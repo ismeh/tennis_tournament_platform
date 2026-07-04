@@ -58,6 +58,8 @@ class InscriptionManagementRepositoryAdapterTest {
     private JpaParticipantRepository participantRepository;
     @Mock
     private ProPlayerRepository proPlayerRepository;
+    @Mock
+    private com.tfm.tennis_platform.application.services.ClubQueryService clubQueryService;
 
     @InjectMocks
     private InscriptionManagementRepositoryAdapter adapter;

@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse, TournamentStatus } from '../../../data/interfaces/tournament.model';
 import { MatchesComponent } from './matches.component';
 import { BracketComponent } from './bracket.component';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
@@ -62,6 +62,7 @@ interface DrawDisplayItem {
                       [participantOrderInput]="participantOrderInput"
                       [courtsInput]="courtsInput"
                       [canManageInput]="canManageInput"
+                      [tournamentStatusInput]="tournamentStatusInput"
                       [showTitleInput]="false"
                       [showDrawCardInput]="false"
                       [tournamentNameInput]="tournamentNameInput"
@@ -71,6 +72,7 @@ interface DrawDisplayItem {
                       (matchSelected)="matchSelected.emit($event.id)"
                       (matchResultSaved)="onSaveMatchResult($event)"
                       (matchScheduleSaved)="onSaveMatchSchedule($event)"
+                      (playersSwapped)="onPlayersSwapped($event)"
                     ></app-bracket>
                   } @else {
                     <app-matches
@@ -113,6 +115,7 @@ export class DrawsComponent {
   @Input() participantOrderInput: Record<string, number> = {};
   @Input() courtsInput: CourtResponse[] = [];
   @Input() canManageInput = false;
+  @Input() tournamentStatusInput: TournamentStatus = 'DRAFT';
   @Input() tournamentNameInput = '';
   @Input() categoryNameInput = '';
   @Input() setsPerMatch = 3;
@@ -145,6 +148,12 @@ export class DrawsComponent {
     courtId: string;
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
+  }>();
+  @Output() playersSwapped = new EventEmitter<{
+    matchId1: string;
+    slot1: 'first' | 'second';
+    matchId2: string;
+    slot2: 'first' | 'second';
   }>();
 
   drawViewModes = signal<Record<string, DrawViewMode>>({});
@@ -258,5 +267,18 @@ export class DrawsComponent {
     }
 
     this.matchScheduleSaved.emit(event);
+  }
+
+  onPlayersSwapped(event: {
+    matchId1: string;
+    slot1: 'first' | 'second';
+    matchId2: string;
+    slot2: 'first' | 'second';
+  }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
+    this.playersSwapped.emit(event);
   }
 }

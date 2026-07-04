@@ -17,4 +17,6 @@ public class Person {
     private final String nationality;
     private final LocalDate birthDate;
     private final String gender;
+    private final UUID clubId;
+    private final String clubName;
 }

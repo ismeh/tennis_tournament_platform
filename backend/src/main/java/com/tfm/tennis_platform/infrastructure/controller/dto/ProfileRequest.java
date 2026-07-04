@@ -8,6 +8,7 @@ public record ProfileRequest(
         String gender,
         LocalDate birthDate,
         String nationality,
-        String federationLicense
+        String federationLicense,
+        String clubName
 ) {
 }

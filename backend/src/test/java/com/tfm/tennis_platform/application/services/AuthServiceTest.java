@@ -76,6 +76,9 @@ class AuthServiceTest {
     @Mock
     private ConsentService consentService;
 
+    @Mock
+    private ClubQueryService clubQueryService;
+
     private AuthService authService;
 
     @BeforeEach
@@ -97,7 +100,8 @@ class AuthServiceTest {
                 emailSender,
                 emailProperties,
                 legalDocumentService,
-                consentService
+                consentService,
+                clubQueryService
         );
     }
 
@@ -176,7 +180,8 @@ class AuthServiceTest {
                         1440
                 ),
                 legalDocumentService,
-                consentService
+                consentService,
+                clubQueryService
         );
 
         UUID memberId = UUID.randomUUID();
@@ -387,7 +392,8 @@ class AuthServiceTest {
             "MALE",
             LocalDate.of(1986, 6, 3),
             "esp",
-            "RLA123"
+            "RLA123",
+            null
         );
 
         AuthService.UserProfile profile = authService.completeProfile("player@example.com", request);

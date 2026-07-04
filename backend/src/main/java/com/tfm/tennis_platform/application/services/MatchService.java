@@ -197,7 +197,7 @@ public class MatchService {
                 Match nextMatch = matchRepository.findById(currentMatch.getNextMatch().getId().toString())
                         .orElseThrow(() -> new ResourceNotFoundException("Next match", currentMatch.getNextMatch().getId()));
 
-                Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, currentMatch, winnerId);
+                Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, currentMatch, winnerId, currentMatch.getWinnerId());
                 matchRepository.save(updatedNextMatch);
             }
 
@@ -640,8 +640,195 @@ public class MatchService {
         }
     }
 
-    private Match placeWinnerInNextMatch(Match nextMatch, Match sourceMatch, UUID winnerId) {
-        UUID previousWinnerId = sourceMatch.getWinnerId();
+    private UUID resolveLoserId(Match match, UUID winnerId) {
+        if (match == null || winnerId == null) {
+            return null;
+        }
+
+        UUID firstInscriptionId = match.getFirstInscriptionId();
+        UUID secondInscriptionId = match.getSecondInscriptionId();
+
+        if (winnerId.equals(firstInscriptionId)) {
+            return secondInscriptionId;
+        }
+
+        if (winnerId.equals(secondInscriptionId)) {
+            return firstInscriptionId;
+        }
+
+        return null;
+    }
+
+    private Inscription createInscriptionReference(UUID inscriptionId) {
+        return Inscription.builder()
+                .id(inscriptionId)
+                .build();
+    }
+
+    private boolean isSameCourtSlot(Match match, UUID courtId, LocalDateTime scheduledAt, Duration matchInterval) {
+        if (courtId == null || scheduledAt == null || match.getCourtId() == null || match.getScheduledAt() == null) {
+            return false;
+        }
+        if (!courtId.equals(match.getCourtId())) {
+            return false;
+        }
+        LocalDateTime start1 = scheduledAt;
+        LocalDateTime end1 = scheduledAt.plus(matchInterval);
+        LocalDateTime start2 = match.getScheduledAt();
+        LocalDateTime end2 = match.getScheduledAt().plus(matchInterval);
+
+        return start1.isBefore(end2) && start2.isBefore(end1);
+    }
+
+    private boolean sharesPlayer(Match match1, Match match2) {
+        if (match1.getFirstInscriptionId() == null && match1.getSecondInscriptionId() == null) {
+            return false;
+        }
+        if (match2.getFirstInscriptionId() == null && match2.getSecondInscriptionId() == null) {
+            return false;
+        }
+
+        boolean sameFirst = match1.getFirstInscriptionId() != null
+                && match1.getFirstInscriptionId().equals(match2.getFirstInscriptionId());
+        boolean sameSecond = match1.getSecondInscriptionId() != null
+                && match1.getSecondInscriptionId().equals(match2.getSecondInscriptionId());
+        boolean crossFirst = match1.getFirstInscriptionId() != null
+                && match1.getFirstInscriptionId().equals(match2.getSecondInscriptionId());
+        boolean crossSecond = match1.getSecondInscriptionId() != null
+                && match1.getSecondInscriptionId().equals(match2.getFirstInscriptionId());
+
+        return sameFirst || sameSecond || crossFirst || crossSecond;
+    }
+
+    public void swapMatchInscriptions(UUID tournamentId, UUID match1Id, String slot1, UUID match2Id, String slot2, String requesterEmail) {
+        transactionTemplate.execute(status -> {
+            doSwapMatchInscriptions(tournamentId, match1Id, slot1, match2Id, slot2, requesterEmail);
+            return null;
+        });
+        tournamentUpdatePublisher.publish(TournamentUpdateEvent.matchResultUpdated(tournamentId, match1Id));
+        if (!match1Id.equals(match2Id)) {
+            tournamentUpdatePublisher.publish(TournamentUpdateEvent.matchResultUpdated(tournamentId, match2Id));
+        }
+    }
+
+    private void doSwapMatchInscriptions(UUID tournamentId, UUID match1Id, String slot1, UUID match2Id, String slot2, String requesterEmail) {
+        if (tournamentId == null) {
+            throw new InvalidArgumentException("El torneo es obligatorio.");
+        }
+        if (match1Id == null || match2Id == null) {
+            throw new InvalidArgumentException("Los partidos son obligatorios.");
+        }
+        if (slot1 == null || slot2 == null) {
+            throw new InvalidArgumentException("Las posiciones de slot son obligatorias.");
+        }
+
+        tournamentService.assertTournamentAdmin(tournamentId, requesterEmail);
+
+        var tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+        if (tournament.getState() == TournamentStatus.IN_PROGRESS
+                || tournament.getState() == TournamentStatus.COMPLETED
+                || tournament.getState() == TournamentStatus.CANCELLED) {
+            throw new InvalidArgumentException("No se pueden reorganizar los encuentros si el torneo ya está en juego o finalizado.");
+        }
+
+        Match match1 = matchRepository.findByIdAndTournamentId(match1Id, tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match", match1Id));
+        Match match2 = matchRepository.findByIdAndTournamentId(match2Id, tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match", match2Id));
+
+        if (match1.getRoundNumber() != 1 || match2.getRoundNumber() != 1) {
+            throw new InvalidArgumentException("Solo se pueden reorganizar jugadores en la primera ronda.");
+        }
+
+        Inscription player1 = slot1.equalsIgnoreCase("first") ? match1.getFirstInscription() : match1.getSecondInscription();
+        Inscription player2 = slot2.equalsIgnoreCase("first") ? match2.getFirstInscription() : match2.getSecondInscription();
+
+        if (match1Id.equals(match2Id)) {
+            Inscription newFirst = slot1.equalsIgnoreCase("first") ? player2 : player1;
+            Inscription newSecond = slot1.equalsIgnoreCase("first") ? player1 : player2;
+
+            Match swapped = match1.toBuilder()
+                    .firstInscription(newFirst)
+                    .secondInscription(newSecond)
+                    .build();
+
+            swapped = updateByeWinnerAndPropagate(swapped);
+            matchRepository.save(swapped);
+            return;
+        }
+
+        Match.MatchBuilder builder1 = match1.toBuilder();
+        if (slot1.equalsIgnoreCase("first")) {
+            builder1.firstInscription(player2);
+        } else {
+            builder1.secondInscription(player2);
+        }
+
+        Match.MatchBuilder builder2 = match2.toBuilder();
+        if (slot2.equalsIgnoreCase("first")) {
+            builder2.firstInscription(player1);
+        } else {
+            builder2.secondInscription(player1);
+        }
+
+        Match updatedMatch1 = builder1.build();
+        Match updatedMatch2 = builder2.build();
+
+        updatedMatch1 = updateByeWinnerAndPropagate(updatedMatch1);
+        updatedMatch2 = updateByeWinnerAndPropagate(updatedMatch2);
+
+        matchRepository.save(updatedMatch1);
+        matchRepository.save(updatedMatch2);
+    }
+
+    private Match updateByeWinnerAndPropagate(Match match) {
+        boolean firstEmpty = match.getFirstInscriptionId() == null;
+        boolean secondEmpty = match.getSecondInscriptionId() == null;
+
+        if (firstEmpty != secondEmpty) {
+            UUID winnerId = !firstEmpty ? match.getFirstInscriptionId() : match.getSecondInscriptionId();
+            UUID previousWinnerId = match.getWinnerId();
+            Match updatedMatch = match.toBuilder()
+                    .winner(createInscriptionReference(winnerId))
+                    .result("Bye")
+                    .status(MatchStatus.COMPLETED)
+                    .build();
+
+            if (updatedMatch.getNextMatch() != null && updatedMatch.getNextMatch().getId() != null) {
+                Match nextMatch = matchRepository.findById(updatedMatch.getNextMatch().getId().toString())
+                        .orElseThrow(() -> new ResourceNotFoundException("Next match", updatedMatch.getNextMatch().getId()));
+                Match updatedNextMatch = placeWinnerInNextMatch(nextMatch, updatedMatch, winnerId, previousWinnerId);
+                matchRepository.save(updatedNextMatch);
+            }
+            return updatedMatch;
+        } else {
+            Match updatedMatch = match.toBuilder()
+                    .winner(null)
+                    .result(null)
+                    .status(MatchStatus.PENDING)
+                    .build();
+
+            if (updatedMatch.getNextMatch() != null && updatedMatch.getNextMatch().getId() != null) {
+                Match nextMatch = matchRepository.findById(updatedMatch.getNextMatch().getId().toString())
+                        .orElseThrow(() -> new ResourceNotFoundException("Next match", updatedMatch.getNextMatch().getId()));
+
+                Match updatedNextMatch = removeWinnerFromNextMatch(nextMatch, match);
+                matchRepository.save(updatedNextMatch);
+            }
+
+            if (updatedMatch.getLoserNextMatch() != null && updatedMatch.getLoserNextMatch().getId() != null) {
+                Match consolationMatch = matchRepository.findById(updatedMatch.getLoserNextMatch().getId().toString())
+                        .orElseThrow(() -> new ResourceNotFoundException("Consolation match", updatedMatch.getLoserNextMatch().getId()));
+                Match updatedConsolationMatch = removeWinnerFromNextMatch(consolationMatch, match);
+                matchRepository.save(updatedConsolationMatch);
+            }
+
+            return updatedMatch;
+        }
+    }
+
+    private Match placeWinnerInNextMatch(Match nextMatch, Match sourceMatch, UUID winnerId, UUID previousWinnerId) {
         if (previousWinnerId != null) {
             if (previousWinnerId.equals(nextMatch.getFirstInscriptionId())) {
                 return nextMatch.toBuilder()
@@ -745,67 +932,22 @@ public class MatchService {
         if (sourceMatch.getBracketPosition() == null) {
             return null;
         }
-
         return sourceMatch.getBracketPosition() % 2 == 0;
     }
 
-    private UUID resolveLoserId(Match match, UUID winnerId) {
-        if (match == null || winnerId == null) {
-            return null;
+    private Match removeWinnerFromNextMatch(Match nextMatch, Match sourceMatch) {
+        Boolean firstSlot = shouldUseFirstSlot(sourceMatch);
+        if (firstSlot != null) {
+            if (firstSlot) {
+                return nextMatch.toBuilder()
+                        .firstInscription(null)
+                        .build();
+            } else {
+                return nextMatch.toBuilder()
+                        .secondInscription(null)
+                        .build();
+            }
         }
-
-        UUID firstInscriptionId = match.getFirstInscriptionId();
-        UUID secondInscriptionId = match.getSecondInscriptionId();
-
-        if (winnerId.equals(firstInscriptionId)) {
-            return secondInscriptionId;
-        }
-
-        if (winnerId.equals(secondInscriptionId)) {
-            return firstInscriptionId;
-        }
-
-        return null;
-    }
-
-    private Inscription createInscriptionReference(UUID inscriptionId) {
-        return Inscription.builder()
-                .id(inscriptionId)
-                .build();
-    }
-
-    private boolean isSameCourtSlot(Match match, UUID courtId, LocalDateTime scheduledAt, Duration matchInterval) {
-        if (courtId == null || scheduledAt == null || match.getCourtId() == null || match.getScheduledAt() == null) {
-            return false;
-        }
-        if (!courtId.equals(match.getCourtId())) {
-            return false;
-        }
-        LocalDateTime start1 = scheduledAt;
-        LocalDateTime end1 = scheduledAt.plus(matchInterval);
-        LocalDateTime start2 = match.getScheduledAt();
-        LocalDateTime end2 = match.getScheduledAt().plus(matchInterval);
-
-        return start1.isBefore(end2) && start2.isBefore(end1);
-    }
-
-    private boolean sharesPlayer(Match match1, Match match2) {
-        if (match1.getFirstInscriptionId() == null && match1.getSecondInscriptionId() == null) {
-            return false;
-        }
-        if (match2.getFirstInscriptionId() == null && match2.getSecondInscriptionId() == null) {
-            return false;
-        }
-
-        boolean sameFirst = match1.getFirstInscriptionId() != null
-                && match1.getFirstInscriptionId().equals(match2.getFirstInscriptionId());
-        boolean sameSecond = match1.getSecondInscriptionId() != null
-                && match1.getSecondInscriptionId().equals(match2.getSecondInscriptionId());
-        boolean crossFirst = match1.getFirstInscriptionId() != null
-                && match1.getFirstInscriptionId().equals(match2.getSecondInscriptionId());
-        boolean crossSecond = match1.getSecondInscriptionId() != null
-                && match1.getSecondInscriptionId().equals(match2.getFirstInscriptionId());
-
-        return sameFirst || sameSecond || crossFirst || crossSecond;
+        return nextMatch;
     }
 }

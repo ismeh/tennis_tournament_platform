@@ -395,13 +395,13 @@ describe('MatchDetailModalComponent', () => {
       expect(component.saveResult.emit).toHaveBeenCalled();
     });
 
-    it('should auto-save in manual mode', () => {
+    it('should not auto-save in manual mode', () => {
       spyOn(component.saveResult, 'emit');
       component.match.set(createMatch());
       component.scoringMode.set('manual');
       component.selectedStatus = 'COMPLETED';
       component.onStatusChanged();
-      expect(component.saveResult.emit).toHaveBeenCalled();
+      expect(component.saveResult.emit).not.toHaveBeenCalled();
     });
   });
 

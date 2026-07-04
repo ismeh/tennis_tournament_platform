@@ -59,7 +59,7 @@ class TournamentPdfExporterTest {
                     inscriptionId, UUID.randomUUID(), UUID.randomUUID(), 1,
                     "Senior", "Individual", "MALE",
                     UUID.randomUUID(), "EXISTING_PERSON", "LIC001",
-                    "Carlos", "Garcia", "MALE", 100, null
+                    "Carlos", "Garcia", "MALE", 100, null, null, null
             );
             TournamentInscriptionsView inscriptions = new TournamentInscriptionsView(
                     tournament.getId(), null, List.of(), List.of(), List.of(player1)
@@ -216,7 +216,7 @@ class TournamentPdfExporterTest {
                     UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null,
                     null, null, null,
                     null, null, null,
-                    "Carlos", null, null, null, null
+                    "Carlos", null, null, null, null, null, null
             );
             TournamentInscriptionsView inscriptions = new TournamentInscriptionsView(
                     tournament.getId(), null, List.of(), List.of(), List.of(playerWithNulls)
