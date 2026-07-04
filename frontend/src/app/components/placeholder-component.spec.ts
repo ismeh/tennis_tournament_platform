@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { PlaceholderComponent } from './placeholder-component';
-import { RouterLink } from '@angular/router';
 
 describe('PlaceholderComponent', () => {
   let component: PlaceholderComponent;
@@ -8,7 +8,8 @@ describe('PlaceholderComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PlaceholderComponent, RouterLink],
+      imports: [PlaceholderComponent],
+      providers: [provideRouter([])],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PlaceholderComponent);
@@ -21,7 +22,7 @@ describe('PlaceholderComponent', () => {
   });
 
   it('should have default title', () => {
-    expect(component.title).toBe('Proximamente');
+    expect(component.title).toBe('Próximamente');
   });
 
   it('should accept custom title via input', () => {
@@ -33,6 +34,6 @@ describe('PlaceholderComponent', () => {
 
   it('should render default title when not overridden', () => {
     const h1 = fixture.nativeElement.querySelector('h1');
-    expect(h1.textContent).toContain('Proximamente');
+    expect(h1.textContent).toContain('Próximamente');
   });
 });
