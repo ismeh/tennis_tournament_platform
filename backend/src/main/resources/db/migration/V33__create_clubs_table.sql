@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS clubs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(150) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_clubs_name_lower ON clubs (LOWER(name));

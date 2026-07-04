@@ -4,6 +4,15 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TYPE user_gender AS ENUM ('H', 'M');
 CREATE TYPE tournament_state AS ENUM ('SOON', 'INSCRIPTION', 'PLAYING', 'FINISHED');
 
+-- CLUBS
+CREATE TABLE clubs (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        VARCHAR(150) NOT NULL,
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX idx_clubs_name_lower ON clubs (LOWER(name));
+
 -- PERSONS (base entity, aligned with international tennis IDs)
 CREATE TABLE persons (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -12,7 +21,8 @@ CREATE TABLE persons (
     last_name     VARCHAR(100),
     nationality   CHAR(3),                      -- ISO 3166-1 alpha-3
     birth_date    DATE,
-    gender        VARCHAR(10)                   -- MALE / FEMALE
+    gender        VARCHAR(10),                  -- MALE / FEMALE
+    club_id       UUID REFERENCES clubs(id)
 );
 
 CREATE TABLE users (

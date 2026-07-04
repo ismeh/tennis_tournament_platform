@@ -16,6 +16,15 @@ DROP TABLE IF EXISTS inscriptions;
 DROP TABLE IF EXISTS tournaments;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS persons;
+DROP TABLE IF EXISTS clubs;
+
+CREATE TABLE clubs (
+    id          UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    name        VARCHAR(150) NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX idx_clubs_name_lower ON clubs (LOWER(name));
 
 CREATE TABLE persons (
     id            UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
@@ -24,7 +33,8 @@ CREATE TABLE persons (
     last_name     VARCHAR(100),
     nationality   CHAR(3),
     birth_date    DATE,
-    gender        VARCHAR(20)
+    gender        VARCHAR(20),
+    club_id       UUID REFERENCES clubs(id)
 );
 
 CREATE TABLE users (
