@@ -4,12 +4,46 @@ import { DrawResponse } from '../../../data/interfaces/tournament.model';
 
 describe('BracketExportService', () => {
   let service: BracketExportService;
+  let saveSpy: jasmine.Spy;
+  let textSpy: jasmine.Spy;
+  let html2canvasSpy: jasmine.Spy;
+
+  function createMockPdf(): any {
+    const mock: any = {
+      save: jasmine.createSpy('save'),
+      text: jasmine.createSpy('text'),
+      addImage: jasmine.createSpy('addImage'),
+      setFont: jasmine.createSpy('setFont'),
+      setFontSize: jasmine.createSpy('setFontSize'),
+      internal: {
+        pageSize: {
+          getWidth: jasmine.createSpy('getWidth').and.returnValue(297),
+          getHeight: jasmine.createSpy('getHeight').and.returnValue(210),
+        },
+      },
+    };
+    mock.text.and.returnValue(mock);
+    mock.setFont.and.returnValue(mock);
+    mock.setFontSize.and.returnValue(mock);
+    mock.addImage.and.returnValue(mock);
+    return mock;
+  }
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [BracketExportService]
-    });
+    TestBed.configureTestingModule({ providers: [BracketExportService] });
     service = TestBed.inject(BracketExportService);
+
+    const mockPdf = createMockPdf();
+    saveSpy = mockPdf.save;
+    textSpy = mockPdf.text;
+
+    (service as any).jsPdfClass = function () { return mockPdf; };
+
+    const mockCanvas = document.createElement('canvas');
+    mockCanvas.width = 800;
+    mockCanvas.height = 600;
+    (mockCanvas as any).toDataURL = jasmine.createSpy('toDataURL').and.returnValue('data:image/png;base64,mock');
+    html2canvasSpy = spyOn(service as any, 'html2canvasFn').and.returnValue(Promise.resolve(mockCanvas));
   });
 
   it('should be created', () => {
@@ -17,24 +51,63 @@ describe('BracketExportService', () => {
   });
 
   describe('exportBracket', () => {
-    it('should throw when no bracket boards found', async () => {
-      const el = document.createElement('div');
-      el.querySelectorAll = () => [] as any;
-      try {
-        await service.exportBracket(el, 'Tournament', 'Category', 'Stage');
-        fail('should have thrown');
-      } catch (e: any) {
-        expect(e.message).toContain('Bracket DOM structure not found');
+    function buildShell(): HTMLElement {
+      const shell = document.createElement('div');
+      shell.className = 'bracket-shell';
+      const scroll = document.createElement('div');
+      scroll.className = 'bracket-scroll';
+      const zoom = document.createElement('div');
+      zoom.className = 'bracket-zoom-surface';
+      const board = document.createElement('div');
+      board.className = 'bracket-board';
+      zoom.appendChild(board);
+      scroll.appendChild(zoom);
+      shell.appendChild(scroll);
+      return shell;
+    }
+
+    function buildMultiShell(): HTMLElement {
+      const shell = document.createElement('div');
+      shell.className = 'bracket-shell';
+      for (let i = 0; i < 2; i++) {
+        const scroll = document.createElement('div');
+        scroll.className = 'bracket-scroll';
+        const zoom = document.createElement('div');
+        zoom.className = 'bracket-zoom-surface';
+        const board = document.createElement('div');
+        board.className = 'bracket-board';
+        zoom.appendChild(board);
+        scroll.appendChild(zoom);
+        shell.appendChild(scroll);
       }
+      return shell;
+    }
+
+    it('throws when no bracket boards found', async () => {
+      const el = document.createElement('div');
+      await expectAsync(service.exportBracket(el as HTMLElement, 'T', 'C', 'S'))
+        .toBeRejectedWithError('Bracket DOM structure not found');
+    });
+
+    it('exports single board', async () => {
+      const shell = buildShell();
+      await service.exportBracket(shell, 'Open de Primavera', 'Masculino A', 'Fase Final');
+      expect(html2canvasSpy).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalledWith('open_de_primavera_masculino_a_fase_final.pdf');
+    });
+
+    it('exports multiple boards', async () => {
+      const shell = buildMultiShell();
+      await service.exportBracket(shell, 'Torneo Especial', 'Femenino B', 'Cuadro Principal');
+      expect(html2canvasSpy).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalledWith('torneo_especial_femenino_b_cuadro_principal.pdf');
     });
   });
 
   describe('exportRoundRobinTable', () => {
-    it('should export a round robin table with winners', async () => {
+    it('exports with winners', async () => {
       const draw = {
-        id: '1',
-        label: 'Round Robin',
-        stageId: '1',
+        id: '1', label: 'RR A', stageId: '1',
         drawType: 'ROUND_ROBIN',
         matches: [
           { id: '1', firstInscriptionId: 'p1', secondInscriptionId: 'p2', winnerId: 'p1', roundNumber: 1 },
@@ -42,77 +115,38 @@ describe('BracketExportService', () => {
           { id: '3', firstInscriptionId: 'p1', secondInscriptionId: 'p3', winnerId: null, roundNumber: 2 },
         ] as any,
       } as DrawResponse;
-      const participantNames: Record<string, string> = {
-        p1: 'Player 1',
-        p2: 'Player 2',
-        p3: 'Player 3',
-        p4: 'Player 4',
-      };
-
-      try {
-        await service.exportRoundRobinTable(draw, participantNames, 'Tournament', 'Category');
-      } catch (e) {
-        // jsPDF may fail in test environment
-      }
+      await service.exportRoundRobinTable(draw, { 'p1': 'Player 1', 'p2': 'Player 2', 'p3': 'Player 3', 'p4': 'Player 4' }, 'Torneo Otono', 'Mixto');
+      expect(textSpy).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalledWith('torneo_otono_mixto_rr_a.pdf');
     });
 
-    it('should handle empty matches', async () => {
+    it('handles empty matches', async () => {
+      const draw = { id: '1', label: 'Vacio', stageId: '1', drawType: 'ROUND_ROBIN', matches: [] } as DrawResponse;
+      await service.exportRoundRobinTable(draw, {}, 'Torneo Otono', 'Mixto');
+      expect(textSpy).toHaveBeenCalled();
+      expect(saveSpy).toHaveBeenCalledWith('torneo_otono_mixto_vacio.pdf');
+    });
+
+    it('handles unknown player IDs', async () => {
       const draw = {
-        id: '1',
-        label: 'Empty',
-        stageId: '1',
-        drawType: 'ROUND_ROBIN',
-        matches: [],
+        id: '1', label: 'RR', stageId: '1', drawType: 'ROUND_ROBIN',
+        matches: [{ id: '1', firstInscriptionId: 'p1', secondInscriptionId: 'p2', winnerId: 'p1', roundNumber: 1 }] as any,
       } as DrawResponse;
-      try {
-        await service.exportRoundRobinTable(draw, {}, 'Tournament', 'Category');
-      } catch (e) {
-        // jsPDF may fail in test environment
-      }
+      await service.exportRoundRobinTable(draw, {}, 'Torneo', 'Categoria');
+      expect(saveSpy).toHaveBeenCalledWith('torneo_categoria_rr.pdf');
     });
 
-    it('should handle matches with unknown player IDs', async () => {
+    it('sorts by wins and losses', async () => {
       const draw = {
-        id: '1',
-        label: 'Round Robin',
-        stageId: '1',
-        drawType: 'ROUND_ROBIN',
+        id: '1', label: 'RR', stageId: '1', drawType: 'ROUND_ROBIN',
         matches: [
-          { id: '1', firstInscriptionId: 'p1', secondInscriptionId: 'p2', winnerId: 'p1', roundNumber: 1 },
-        ] as any,
-      } as DrawResponse;
-      try {
-        await service.exportRoundRobinTable(draw, {}, 'Tournament', 'Category');
-      } catch (e) {
-        // jsPDF may fail
-      }
-    });
-
-    it('should sort players by wins and losses in Round Robin standings', async () => {
-      const draw = {
-        id: '1',
-        label: 'Round Robin',
-        stageId: '1',
-        drawType: 'ROUND_ROBIN',
-        matches: [
-          // p1: 2 wins, 0 losses
           { id: '1', firstInscriptionId: 'p1', secondInscriptionId: 'p2', winnerId: 'p1', roundNumber: 1 },
           { id: '2', firstInscriptionId: 'p1', secondInscriptionId: 'p3', winnerId: 'p1', roundNumber: 1 },
-          // p2: 1 win, 1 loss
           { id: '3', firstInscriptionId: 'p2', secondInscriptionId: 'p3', winnerId: 'p2', roundNumber: 1 },
-          // p3: 0 wins, 2 losses
         ] as any,
       } as DrawResponse;
-      const participantNames: Record<string, string> = {
-        p1: 'Player 1',
-        p2: 'Player 2',
-        p3: 'Player 3',
-      };
-      try {
-        await service.exportRoundRobinTable(draw, participantNames, 'Tournament', 'Category');
-      } catch (e) {
-        // jsPDF may fail
-      }
+      await service.exportRoundRobinTable(draw, { 'p1': 'P1', 'p2': 'P2', 'p3': 'P3' }, 'Torneo', 'Categoria');
+      expect(saveSpy).toHaveBeenCalledWith('torneo_categoria_rr.pdf');
     });
   });
 });
