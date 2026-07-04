@@ -7,11 +7,12 @@ import { AuthService } from '../../core/auth/auth.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { NationalityOption } from '../../data/interfaces/reference-data.model';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
+import { ClubAutocompleteComponent } from '../../components/club-autocomplete';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, ClubAutocompleteComponent],
   template: `
     <section class="mx-auto max-w-2xl px-4 py-10 sm:py-16">
       <div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
@@ -70,6 +71,14 @@ import { ReferenceDataService } from '../../data/services/reference-data.service
             </div>
           </div>
 
+          <div>
+            <label class="mb-1 block text-sm font-medium text-neutral-700">Club</label>
+            <app-club-autocomplete
+              placeholder="Buscar club..."
+              formControlName="clubName"
+            ></app-club-autocomplete>
+          </div>
+
           @if (errorMessage()) {
             <p class="text-sm text-red-600">{{ errorMessage() }}</p>
           }
@@ -109,7 +118,8 @@ export class ProfileComponent implements OnInit {
     gender: ['MALE', [Validators.required]],
     birthDate: ['', [Validators.required]],
     nationality: [''],
-    federationLicense: ['']
+    federationLicense: [''],
+    clubName: ['']
   });
 
   ngOnInit(): void {
@@ -130,7 +140,8 @@ export class ProfileComponent implements OnInit {
           gender: profile.gender ?? '',
           birthDate: profile.birthDate ?? '',
           nationality: profile.nationality ?? '',
-          federationLicense: profile.federationLicense ?? ''
+          federationLicense: profile.federationLicense ?? '',
+          clubName: profile.clubName ?? ''
         });
         this.roleLabel.set(
           profile.role === 'ORGANIZER' ? 'Organizador' :
@@ -162,7 +173,8 @@ export class ProfileComponent implements OnInit {
       gender: raw.gender,
       birthDate: raw.birthDate,
       nationality: raw.nationality || null,
-      federationLicense: raw.federationLicense || null
+      federationLicense: raw.federationLicense || null,
+      clubName: raw.clubName || null
     }).subscribe({
       next: () => {
         this.isSubmitting.set(false);

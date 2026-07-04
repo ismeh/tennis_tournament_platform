@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { MemberService } from '../../data/services/member.service';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
+import { ClubService } from '../../data/services/club.service';
 import { ProfileComponent } from './profile';
 
 describe('ProfileComponent', () => {
@@ -12,12 +13,15 @@ describe('ProfileComponent', () => {
   let memberServiceSpy: jasmine.SpyObj<MemberService>;
   let authServiceSpy: jasmine.SpyObj<AuthService>;
   let referenceDataServiceSpy: jasmine.SpyObj<ReferenceDataService>;
+  let clubServiceSpy: jasmine.SpyObj<ClubService>;
   let router: Router;
 
   beforeEach(async () => {
     memberServiceSpy = jasmine.createSpyObj<MemberService>('MemberService', ['getMyProfile', 'updateMyProfile']);
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['setDisplayName', 'setNationality']);
     referenceDataServiceSpy = jasmine.createSpyObj<ReferenceDataService>('ReferenceDataService', ['getNationalities']);
+    clubServiceSpy = jasmine.createSpyObj<ClubService>('ClubService', ['searchClubs']);
+    clubServiceSpy.searchClubs.and.returnValue(of([]));
 
     memberServiceSpy.getMyProfile.and.returnValue(of({
       memberId: 'member-id',
@@ -31,7 +35,9 @@ describe('ProfileComponent', () => {
       gender: 'MALE',
       birthDate: '1986-06-03',
       nationality: 'ESP',
-      federationLicense: 'RFET-1'
+      federationLicense: 'RFET-1',
+      clubId: null,
+      clubName: null
     }));
     memberServiceSpy.updateMyProfile.and.returnValue(of({
       memberId: 'member-id',
@@ -45,7 +51,9 @@ describe('ProfileComponent', () => {
       gender: 'MALE',
       birthDate: '1986-06-03',
       nationality: 'SUI',
-      federationLicense: 'RFET-1'
+      federationLicense: 'RFET-1',
+      clubId: null,
+      clubName: null
     }));
     referenceDataServiceSpy.getNationalities.and.returnValue(of([
       {
@@ -64,7 +72,8 @@ describe('ProfileComponent', () => {
         provideRouter([]),
         { provide: MemberService, useValue: memberServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
-        { provide: ReferenceDataService, useValue: referenceDataServiceSpy }
+        { provide: ReferenceDataService, useValue: referenceDataServiceSpy },
+        { provide: ClubService, useValue: clubServiceSpy }
       ]
     }).compileComponents();
 
@@ -91,7 +100,8 @@ describe('ProfileComponent', () => {
       gender: 'MALE',
       birthDate: '1986-06-03',
       nationality: 'SUI',
-      federationLicense: 'RFET-1'
+      federationLicense: 'RFET-1',
+      clubName: null
     });
     expect(authServiceSpy.setDisplayName).toHaveBeenCalledWith('Rafael Nadal');
     expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');

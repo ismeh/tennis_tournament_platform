@@ -88,7 +88,8 @@ public class LoginController {
                 request.gender(),
                 request.birthDate(),
                 request.nationality(),
-                request.federationLicense()
+                request.federationLicense(),
+                request.clubName()
         );
         AuthService.UserProfile profile = authService.completeProfile(principal.getName(), command);
         return ResponseEntity.ok(toProfileResponse(profile));
@@ -107,7 +108,9 @@ public class LoginController {
                 profile.gender(),
                 profile.birthDate(),
                 profile.nationality(),
-                profile.federationLicense()
+                profile.federationLicense(),
+                profile.clubId(),
+                profile.clubName()
         );
     }
 }

@@ -4,6 +4,7 @@ import com.tfm.tennis_platform.application.commands.CompleteProfileCommand;
 import com.tfm.tennis_platform.domain.exceptions.ExpiredTokenException;
 import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
 import com.tfm.tennis_platform.domain.exceptions.InvalidTokenException;
+import com.tfm.tennis_platform.domain.models.Club;
 import com.tfm.tennis_platform.domain.models.LegalDocumentVersion;
 import com.tfm.tennis_platform.domain.models.enums.ConsentAction;
 import com.tfm.tennis_platform.domain.models.enums.DocumentType;
@@ -58,6 +59,7 @@ public class AuthService {
     private final EmailProperties emailProperties;
     private final LegalDocumentService legalDocumentService;
     private final ConsentService consentService;
+    private final ClubQueryService clubQueryService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthTokens login(String email, String password) {
@@ -272,6 +274,16 @@ public class AuthService {
                 .build();
         }
 
+        if (request.clubName() != null && !request.clubName().trim().isEmpty()) {
+            Club club = clubQueryService.findOrCreate(request.clubName());
+            if (club != null) {
+                toSave = toSave.toBuilder()
+                    .clubId(club.getId())
+                    .clubName(club.getName())
+                    .build();
+            }
+        }
+
         Person savedPerson = personRepository.save(toSave);
         memberRepository.updatePersonId(member.getId(), savedPerson.getId());
 
@@ -376,7 +388,9 @@ public class AuthService {
                 person != null ? person.getGender() : null,
                 person != null ? person.getBirthDate() : null,
                 person != null ? person.getNationality() : null,
-                person != null ? person.getTennisId() : null
+                person != null ? person.getTennisId() : null,
+                person != null ? person.getClubId() : null,
+                person != null ? person.getClubName() : null
         );
     }
 
@@ -401,7 +415,9 @@ public class AuthService {
             String gender,
             LocalDate birthDate,
             String nationality,
-            String federationLicense
+            String federationLicense,
+            UUID clubId,
+            String clubName
     ) {
     }
 }
