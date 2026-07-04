@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse, TournamentStatus } from '../../../data/interfaces/tournament.model';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
 import { BracketExportService } from '../services/bracket-export.service';
 
@@ -104,6 +104,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
                                     [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
                                     [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                    [class.bracket-player-draggable]="canDragSlot(match, 'first')"
+                                    [class.bracket-player-drag-over]="isDragOver(match.id, 'first')"
+                                    [draggable]="canDragSlot(match, 'first')"
+                                    (dragstart)="onSlotDragStart($event, match, 'first')"
+                                    (dragover)="onSlotDragOver($event, match, 'first')"
+                                    (dragleave)="onSlotDragLeave(match.id, 'first')"
+                                    (drop)="onSlotDrop($event, match, 'first')"
+                                    (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
                                     @if (match.professionalMatch && match.firstInscriptionId) {
@@ -125,6 +133,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
                                     [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
                                     [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                    [class.bracket-player-draggable]="canDragSlot(match, 'second')"
+                                    [class.bracket-player-drag-over]="isDragOver(match.id, 'second')"
+                                    [draggable]="canDragSlot(match, 'second')"
+                                    (dragstart)="onSlotDragStart($event, match, 'second')"
+                                    (dragover)="onSlotDragOver($event, match, 'second')"
+                                    (dragleave)="onSlotDragLeave(match.id, 'second')"
+                                    (drop)="onSlotDrop($event, match, 'second')"
+                                    (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
                                     @if (match.professionalMatch && match.secondInscriptionId) {
@@ -260,6 +276,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
                                     [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
                                     [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                    [class.bracket-player-draggable]="canDragSlot(match, 'first')"
+                                    [class.bracket-player-drag-over]="isDragOver(match.id, 'first')"
+                                    [draggable]="canDragSlot(match, 'first')"
+                                    (dragstart)="onSlotDragStart($event, match, 'first')"
+                                    (dragover)="onSlotDragOver($event, match, 'first')"
+                                    (dragleave)="onSlotDragLeave(match.id, 'first')"
+                                    (drop)="onSlotDrop($event, match, 'first')"
+                                    (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
                                     @if (match.professionalMatch && match.firstInscriptionId) {
@@ -281,6 +305,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
                                     [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
                                     [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                    [class.bracket-player-draggable]="canDragSlot(match, 'second')"
+                                    [class.bracket-player-drag-over]="isDragOver(match.id, 'second')"
+                                    [draggable]="canDragSlot(match, 'second')"
+                                    (dragstart)="onSlotDragStart($event, match, 'second')"
+                                    (dragover)="onSlotDragOver($event, match, 'second')"
+                                    (dragleave)="onSlotDragLeave(match.id, 'second')"
+                                    (drop)="onSlotDrop($event, match, 'second')"
+                                    (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
                                     @if (match.professionalMatch && match.secondInscriptionId) {
@@ -411,6 +443,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     [class.bracket-player-winner]="isWinner(match, match.firstInscriptionId)"
                                     [class.bracket-player-empty]="!match.firstInscriptionId && !isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
                                     [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)"
+                                    [class.bracket-player-draggable]="canDragSlot(match, 'first')"
+                                    [class.bracket-player-drag-over]="isDragOver(match.id, 'first')"
+                                    [draggable]="canDragSlot(match, 'first')"
+                                    (dragstart)="onSlotDragStart($event, match, 'first')"
+                                    (dragover)="onSlotDragOver($event, match, 'first')"
+                                    (dragleave)="onSlotDragLeave(match.id, 'first')"
+                                    (drop)="onSlotDrop($event, match, 'first')"
+                                    (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
                                     @if (match.professionalMatch && match.firstInscriptionId) {
@@ -432,6 +472,14 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     [class.bracket-player-winner]="isWinner(match, match.secondInscriptionId)"
                                     [class.bracket-player-empty]="!match.secondInscriptionId && !isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
                                     [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)"
+                                    [class.bracket-player-draggable]="canDragSlot(match, 'second')"
+                                    [class.bracket-player-drag-over]="isDragOver(match.id, 'second')"
+                                    [draggable]="canDragSlot(match, 'second')"
+                                    (dragstart)="onSlotDragStart($event, match, 'second')"
+                                    (dragover)="onSlotDragOver($event, match, 'second')"
+                                    (dragleave)="onSlotDragLeave(match.id, 'second')"
+                                    (drop)="onSlotDrop($event, match, 'second')"
+                                    (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
                                     @if (match.professionalMatch && match.secondInscriptionId) {
@@ -652,6 +700,16 @@ import { BracketExportService } from '../services/bracket-export.service';
       line-height: 1.5;
     }
 
+    .bracket-player-draggable {
+      cursor: grab;
+    }
+
+    .bracket-player-drag-over {
+      border-color: rgb(96 165 250);
+      background: rgb(239 246 255);
+      box-shadow: inset 0 0 0 1px rgb(147 197 253);
+    }
+
     .bracket-player-name {
       display: block;
       min-width: 0;
@@ -764,6 +822,7 @@ import { BracketExportService } from '../services/bracket-export.service';
   `]
 })
 export class BracketComponent {
+  private static readonly LOCKED_TOURNAMENT_STATUSES: TournamentStatus[] = ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
   private readonly matchHeight = 170;
   private readonly slotPitch = 200;
   readonly minZoom = 0.6;
@@ -778,6 +837,7 @@ export class BracketComponent {
   @Input() showTitleInput = true;
   @Input() showDrawCardInput = true;
   @Input() canManageInput = false;
+  @Input() tournamentStatusInput: TournamentStatus = 'DRAFT';
   @Input() tournamentNameInput = '';
   @Input() categoryNameInput = '';
   @Input() setsPerMatch = 3;
@@ -815,6 +875,19 @@ export class BracketComponent {
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
   }>();
+  @Output() playersSwapped = new EventEmitter<{
+    matchId1: string;
+    slot1: 'first' | 'second';
+    matchId2: string;
+    slot2: 'first' | 'second';
+  }>();
+
+  private readonly draggedSlot = signal<{
+    matchId: string;
+    slot: 'first' | 'second';
+    inscriptionId: string;
+  } | null>(null);
+  private readonly dragOverKey = signal<string | null>(null);
 
   isDoubleElimination = computed(() => {
     const draws = this.draws();
@@ -1034,6 +1107,85 @@ export class BracketComponent {
     return points == null ? '+0 pts' : `+${points} pts`;
   }
 
+  canDragSlot(match: MatchResponse, slot: 'first' | 'second'): boolean {
+    if (!this.canManageInput || this.isTournamentStatusLockedForReorganization()) {
+      return false;
+    }
+
+    if ((match.roundNumber ?? 1) !== 1) {
+      return false;
+    }
+
+    return !!this.getSlotInscriptionId(match, slot);
+  }
+
+  isDragOver(matchId: string, slot: 'first' | 'second'): boolean {
+    return this.dragOverKey() === this.getSlotKey(matchId, slot);
+  }
+
+  onSlotDragStart(event: DragEvent, match: MatchResponse, slot: 'first' | 'second'): void {
+    const inscriptionId = this.getSlotInscriptionId(match, slot);
+    if (!inscriptionId || !this.canDragSlot(match, slot)) {
+      event.preventDefault();
+      return;
+    }
+
+    event.stopPropagation();
+    this.draggedSlot.set({
+      matchId: match.id,
+      slot,
+      inscriptionId
+    });
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', `${match.id}:${slot}`);
+    }
+  }
+
+  onSlotDragOver(event: DragEvent, match: MatchResponse, slot: 'first' | 'second'): void {
+    if (!this.canDropOnSlot(match, slot)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverKey.set(this.getSlotKey(match.id, slot));
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onSlotDragLeave(matchId: string, slot: 'first' | 'second'): void {
+    if (this.dragOverKey() === this.getSlotKey(matchId, slot)) {
+      this.dragOverKey.set(null);
+    }
+  }
+
+  onSlotDrop(event: DragEvent, match: MatchResponse, slot: 'first' | 'second'): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const source = this.draggedSlot();
+    if (!source || !this.canDropOnSlot(match, slot)) {
+      this.clearDragState();
+      return;
+    }
+
+    this.playersSwapped.emit({
+      matchId1: source.matchId,
+      slot1: source.slot,
+      matchId2: match.id,
+      slot2: slot
+    });
+
+    this.clearDragState();
+  }
+
+  onSlotDragEnd(): void {
+    this.clearDragState();
+  }
+
   getZoomLabel(): string {
     return `${Math.round(this.zoomLevel() * 100)}%`;
   }
@@ -1120,6 +1272,40 @@ export class BracketComponent {
 
   private compareStrings(left: string | null | undefined, right: string | null | undefined): number {
     return (left ?? '').localeCompare(right ?? '');
+  }
+
+  private canDropOnSlot(match: MatchResponse, slot: 'first' | 'second'): boolean {
+    if (this.isTournamentStatusLockedForReorganization()) {
+      return false;
+    }
+
+    const source = this.draggedSlot();
+    if (!source) {
+      return false;
+    }
+
+    if ((match.roundNumber ?? 1) !== 1) {
+      return false;
+    }
+
+    return source.matchId !== match.id || source.slot !== slot;
+  }
+
+  private isTournamentStatusLockedForReorganization(): boolean {
+    return BracketComponent.LOCKED_TOURNAMENT_STATUSES.includes(this.tournamentStatusInput);
+  }
+
+  private getSlotInscriptionId(match: MatchResponse, slot: 'first' | 'second'): string | null {
+    return slot === 'first' ? (match.firstInscriptionId ?? null) : (match.secondInscriptionId ?? null);
+  }
+
+  private getSlotKey(matchId: string, slot: 'first' | 'second'): string {
+    return `${matchId}:${slot}`;
+  }
+
+  private clearDragState(): void {
+    this.draggedSlot.set(null);
+    this.dragOverKey.set(null);
   }
 
 }

@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse, TournamentStatus } from '../../../data/interfaces/tournament.model';
 import { DrawsComponent } from './draws.component';
 
 type DrawGenerationFeedback = {
@@ -64,6 +64,7 @@ type DrawGenerationFeedback = {
                     [participantOrderInput]="participantOrderInput"
                     [courtsInput]="courtsInput"
                     [canManageInput]="canManageInput"
+                    [tournamentStatusInput]="tournamentStatusInput"
                     [tournamentNameInput]="tournamentNameInput"
                     [categoryNameInput]="categoryNameInput"
                     [setsPerMatch]="setsPerMatch"
@@ -71,6 +72,7 @@ type DrawGenerationFeedback = {
                     (matchSelected)="onMatchSelected($event)"
                     (matchResultSaved)="onMatchResultSaved($event)"
                     (matchScheduleSaved)="onMatchScheduleSaved($event)"
+                    (playersSwapped)="onPlayersSwapped($event)"
                   ></app-draws>
                 </div>
               }
@@ -99,6 +101,7 @@ export class StagesComponent {
   @Input() participantOrderInput: Record<string, number> = {};
   @Input() courtsInput: CourtResponse[] = [];
   @Input() canManageInput = false;
+  @Input() tournamentStatusInput: TournamentStatus = 'DRAFT';
   @Input() tournamentNameInput = '';
   @Input() categoryNameInput = '';
   @Input() setsPerMatch = 3;
@@ -139,6 +142,12 @@ export class StagesComponent {
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
   }>();
+  @Output() playersSwapped = new EventEmitter<{
+    matchId1: string;
+    slot1: 'first' | 'second';
+    matchId2: string;
+    slot2: 'first' | 'second';
+  }>();
 
   expandedStageId = signal<string | null>(null);
 
@@ -158,7 +167,7 @@ export class StagesComponent {
     const prevExpandedId = this.expandedStageId();
     const nextVal = prevExpandedId === stageId ? null : stageId;
     this.expandedStageId.set(nextVal);
-    
+
     if (typeof window !== 'undefined' && window.sessionStorage) {
       if (prevExpandedId) {
         sessionStorage.removeItem(`tournament_stage_expanded_${prevExpandedId}`);
@@ -176,7 +185,7 @@ export class StagesComponent {
 
     const prevExpandedId = this.expandedStageId();
     this.expandedStageId.set(stage.id);
-    
+
     if (typeof window !== 'undefined' && window.sessionStorage) {
       if (prevExpandedId) {
         sessionStorage.removeItem(`tournament_stage_expanded_${prevExpandedId}`);
@@ -213,6 +222,19 @@ export class StagesComponent {
     }
 
     this.matchScheduleSaved.emit(event);
+  }
+
+  onPlayersSwapped(event: {
+    matchId1: string;
+    slot1: 'first' | 'second';
+    matchId2: string;
+    slot2: 'first' | 'second';
+  }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
+    this.playersSwapped.emit(event);
   }
 
   isGeneratingDraws(stageId: string): boolean {

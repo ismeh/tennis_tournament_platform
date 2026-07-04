@@ -463,56 +463,96 @@ export class MatchDetailModalComponent {
 
   @Input() set matchInput(value: MatchResponse | null) {
     if (value) {
+      const isNewMatch = !this.match() || this.match()?.id !== value.id;
       this.match.set(value);
-      this.selectedWinnerId = value.winnerId || '';
-      this.matchResult = value.result || '';
-      this.selectedCourtId = value.courtId || '';
-      this.scheduledAtInput = this.toDatetimeLocalValue(value.scheduledAt);
-      this.selectedScheduleTimeType = value.scheduleTimeType || 'EXACT';
-      this.selectedStatus = value.status || 'PENDING';
-      this.notesInput = value.notes || '';
-      this.validationMessage.set(null);
-      this.scheduleValidationMessage.set(null);
 
-      // Populate sets for manual entry and interactive scoring
-      const initialSets = value.sets || [];
-      const numSets = this.setsPerMatch;
-      const populatedManualSets = [];
-      for (let i = 0; i < numSets; i++) {
-        const existingSet = initialSets.find(s => s.setNumber === i + 1);
-        populatedManualSets.push({
-          p1Games: existingSet ? existingSet.firstPlayerGames : null,
-          p2Games: existingSet ? existingSet.secondPlayerGames : null,
-          p1Tiebreak: existingSet ? (existingSet.firstPlayerTiebreak ?? null) : null,
-          p2Tiebreak: existingSet ? (existingSet.secondPlayerTiebreak ?? null) : null
-        });
-      }
-      this.manualSets.set(populatedManualSets);
+      if (isNewMatch) {
+        this.selectedWinnerId = value.winnerId || '';
+        this.matchResult = value.result || '';
+        this.selectedCourtId = value.courtId || '';
+        this.scheduledAtInput = this.toDatetimeLocalValue(value.scheduledAt);
+        this.selectedScheduleTimeType = value.scheduleTimeType || 'EXACT';
+        this.selectedStatus = value.status || 'PENDING';
+        this.notesInput = value.notes || '';
+        this.validationMessage.set(null);
+        this.scheduleValidationMessage.set(null);
 
-      // Reset interactive engine
-      this.resetInteractiveScoreState();
-      if (initialSets.length > 0) {
-        const populatedInteractiveSets = initialSets.map(s => ({
-          p1Games: s.firstPlayerGames,
-          p2Games: s.secondPlayerGames,
-          p1Tiebreak: s.firstPlayerTiebreak ?? undefined,
-          p2Tiebreak: s.secondPlayerTiebreak ?? undefined
-        }));
-        this.interactiveSets.set(populatedInteractiveSets);
-        // Find last in-progress/completed set index
-        this.currentSetIndex.set(Math.min(populatedInteractiveSets.length - 1, this.setsPerMatch - 1));
+        // Populate sets for manual entry and interactive scoring
+        const initialSets = value.sets || [];
+        const numSets = this.setsPerMatch;
+        const populatedManualSets = [];
+        for (let i = 0; i < numSets; i++) {
+          const existingSet = initialSets.find(s => s.setNumber === i + 1);
+          populatedManualSets.push({
+            p1Games: existingSet ? existingSet.firstPlayerGames : null,
+            p2Games: existingSet ? existingSet.secondPlayerGames : null,
+            p1Tiebreak: existingSet ? (existingSet.firstPlayerTiebreak ?? null) : null,
+            p2Tiebreak: existingSet ? (existingSet.secondPlayerTiebreak ?? null) : null
+          });
+        }
+        this.manualSets.set(populatedManualSets);
 
-        // Restore current points
-        const p1Str = value.firstPlayerPoints || '0';
-        const p2Str = value.secondPlayerPoints || '0';
-        if (this.isTiebreak()) {
-          this.tbPointsP1.set(parseInt(p1Str, 10) || 0);
-          this.tbPointsP2.set(parseInt(p2Str, 10) || 0);
-        } else {
-          const p1Idx = ['0', '15', '30', '40', 'Ad'].indexOf(p1Str);
-          this.gamePointsP1.set(p1Idx >= 0 ? p1Idx : 0);
-          const p2Idx = ['0', '15', '30', '40', 'Ad'].indexOf(p2Str);
-          this.gamePointsP2.set(p2Idx >= 0 ? p2Idx : 0);
+        // Reset interactive engine
+        this.resetInteractiveScoreState();
+        if (initialSets.length > 0) {
+          const populatedInteractiveSets = initialSets.map(s => ({
+            p1Games: s.firstPlayerGames,
+            p2Games: s.secondPlayerGames,
+            p1Tiebreak: s.firstPlayerTiebreak ?? undefined,
+            p2Tiebreak: s.secondPlayerTiebreak ?? undefined
+          }));
+          this.interactiveSets.set(populatedInteractiveSets);
+          // Find last in-progress/completed set index
+          this.currentSetIndex.set(Math.min(populatedInteractiveSets.length - 1, this.setsPerMatch - 1));
+
+          // Restore current points
+          const p1Str = value.firstPlayerPoints || '0';
+          const p2Str = value.secondPlayerPoints || '0';
+          if (this.isTiebreak()) {
+            this.tbPointsP1.set(parseInt(p1Str, 10) || 0);
+            this.tbPointsP2.set(parseInt(p2Str, 10) || 0);
+          } else {
+            const p1Idx = ['0', '15', '30', '40', 'Ad'].indexOf(p1Str);
+            this.gamePointsP1.set(p1Idx >= 0 ? p1Idx : 0);
+            const p2Idx = ['0', '15', '30', '40', 'Ad'].indexOf(p2Str);
+            this.gamePointsP2.set(p2Idx >= 0 ? p2Idx : 0);
+          }
+        }
+      } else {
+        // Same match (live update, schedule save, etc.)
+        this.selectedCourtId = value.courtId || '';
+        this.scheduledAtInput = this.toDatetimeLocalValue(value.scheduledAt);
+        this.selectedScheduleTimeType = value.scheduleTimeType || 'EXACT';
+
+        if (this.scoringMode() === 'interactive') {
+          this.selectedWinnerId = value.winnerId || '';
+          this.selectedStatus = value.status || 'PENDING';
+          this.matchResult = value.result || '';
+          this.notesInput = value.notes || '';
+
+          const initialSets = value.sets || [];
+          if (initialSets.length > 0) {
+            const populatedInteractiveSets = initialSets.map(s => ({
+              p1Games: s.firstPlayerGames,
+              p2Games: s.secondPlayerGames,
+              p1Tiebreak: s.firstPlayerTiebreak ?? undefined,
+              p2Tiebreak: s.secondPlayerTiebreak ?? undefined
+            }));
+            this.interactiveSets.set(populatedInteractiveSets);
+            this.currentSetIndex.set(Math.min(populatedInteractiveSets.length - 1, this.setsPerMatch - 1));
+
+            const p1Str = value.firstPlayerPoints || '0';
+            const p2Str = value.secondPlayerPoints || '0';
+            if (this.isTiebreak()) {
+              this.tbPointsP1.set(parseInt(p1Str, 10) || 0);
+              this.tbPointsP2.set(parseInt(p2Str, 10) || 0);
+            } else {
+              const p1Idx = ['0', '15', '30', '40', 'Ad'].indexOf(p1Str);
+              this.gamePointsP1.set(p1Idx >= 0 ? p1Idx : 0);
+              const p2Idx = ['0', '15', '30', '40', 'Ad'].indexOf(p2Str);
+              this.gamePointsP2.set(p2Idx >= 0 ? p2Idx : 0);
+            }
+          }
         }
       }
     }
@@ -1084,24 +1124,18 @@ export class MatchDetailModalComponent {
   onStatusChanged(): void {
     if (this.scoringMode() === 'interactive') {
       this.autoSaveInteractiveScore();
-    } else {
-      this.autoSaveManualScore();
     }
   }
 
   onWinnerChanged(): void {
     if (this.scoringMode() === 'interactive') {
       this.autoSaveInteractiveScore();
-    } else {
-      this.autoSaveManualScore();
     }
   }
 
   onNotesChanged(): void {
     if (this.scoringMode() === 'interactive') {
       this.autoSaveInteractiveScore();
-    } else {
-      this.autoSaveManualScore();
     }
   }
 
@@ -1132,7 +1166,6 @@ export class MatchDetailModalComponent {
     }
 
     this.matchResult = this.formatManualResultString();
-    this.autoSaveManualScore();
   }
 
   autoSaveManualScore(): void {

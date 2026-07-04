@@ -362,6 +362,7 @@ export interface TournamentEventGenderEventId {
 }
 
 export interface TournamentEventSelection {
+  uniqueId?: string;
   categoryId: number;
   eventCategory: string;
   eventsByGender: TournamentEventGenderEventId[];
@@ -402,6 +403,9 @@ export interface ManualEventInscriptionRequest {
   nationality?: string | null;
   tennisId?: string | null;
   proPlayerId?: number | null;
+  club?: string | null;
+  points?: number | null;
+  entryStatus?: string | null;
 }
 
 export interface EventInscriptionResponse {
@@ -458,6 +462,8 @@ export interface TournamentInscriptionPlayer {
   gender: string;
   points?: number | null;
   seed?: number | null;
+  club?: string | null;
+  entryStatus?: string | null;
 }
 
 export interface TournamentStatusUpdateRequest {
@@ -468,6 +474,19 @@ export interface ParticipantPointsUpdateRequest {
   participantId: string;
   points: number | null;
   seed: number | null;
+}
+
+export interface ParticipantDetailUpdateRequest {
+  participantId: string;
+  clubName: string | null;
+  entryStatus: string | null;
+}
+
+export interface ReorganizeMatchPlayersRequest {
+  matchId1: string;
+  slot1: 'first' | 'second';
+  matchId2: string;
+  slot2: 'first' | 'second';
 }
 
 export interface ScheduleTimeSlot {
