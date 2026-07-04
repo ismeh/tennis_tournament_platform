@@ -35,6 +35,7 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentSummaryRe
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResultRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResponse;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ReorganizeMatchesRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionCategoryCountResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionEventResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionGenderCountResponse;
@@ -42,9 +43,11 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscripti
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionsResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentGeneralInfoRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentStatusUpdateRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ParticipantDetailUpdateRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ParticipantPointsUpdateRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ScheduleConfigRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ScheduleConfigResponse;
+import com.tfm.tennis_platform.domain.models.inscription.ParticipantDetailUpdateCommand;
 import com.tfm.tennis_platform.domain.models.inscription.ParticipantPointsUpdateCommand;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.TournamentWebMapper;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.MatchWebMapper;
@@ -296,6 +299,18 @@ public class TournamentController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{tournamentId}/participants/details")
+    public ResponseEntity<Void> updateParticipantDetails(
+            @PathVariable UUID tournamentId,
+            @RequestBody ParticipantDetailUpdateRequest update,
+            Principal principal
+    ) {
+        tournamentService.assertTournamentAdmin(tournamentId, principal.getName());
+        inscriptionService.updateParticipantDetails(tournamentId,
+                new ParticipantDetailUpdateCommand(update.participantId(), update.clubName(), update.entryStatus()));
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{tournamentId}/events/{eventId}/generate-draws")
     public ResponseEntity<TournamentResponse> generateDraws(
             @PathVariable UUID tournamentId,
@@ -329,6 +344,23 @@ public class TournamentController {
             matchService.schedule(tournamentId, matchId, request.courtId(), request.scheduledAt(), request.scheduleTimeType(), Boolean.TRUE.equals(request.cascade()), principal.getName())
         ));
         }
+
+    @PostMapping("/{tournamentId}/matches/reorganize")
+    public ResponseEntity<Void> reorganizeMatches(
+            @PathVariable UUID tournamentId,
+            @RequestBody ReorganizeMatchesRequest request,
+            Principal principal
+    ) {
+        matchService.swapMatchInscriptions(
+                tournamentId,
+                request.matchId1(),
+                request.slot1(),
+                request.matchId2(),
+                request.slot2(),
+                principal.getName()
+        );
+        return ResponseEntity.noContent().build();
+    }
 
     @GetMapping("/{tournamentId}/export/pdf")
     public ResponseEntity<byte[]> exportTournamentPdf(
@@ -474,7 +506,9 @@ public class TournamentController {
                 player.lastName(),
                 player.gender(),
                 player.points(),
-                player.seed()
+                player.seed(),
+                player.club(),
+                player.entryStatus()
         );
     }
 

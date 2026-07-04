@@ -54,6 +54,9 @@ public class ParticipantEntity {
     @Column(name = "display_tennis_id")
     private String displayTennisId;
 
+    @Column(name = "display_club")
+    private String displayClub;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "participant_type")
     private ParticipantType participantType;

@@ -3,6 +3,7 @@ package com.tfm.tennis_platform.application.services;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionCommand;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionResult;
 import com.tfm.tennis_platform.domain.models.inscription.ManualEventInscriptionCommand;
+import com.tfm.tennis_platform.domain.models.inscription.ParticipantDetailUpdateCommand;
 import com.tfm.tennis_platform.domain.models.inscription.ParticipantPointsUpdateCommand;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionsView;
 import com.tfm.tennis_platform.domain.port.out.InscriptionManagementRepository;
@@ -46,5 +47,9 @@ public class InscriptionService {
 
     public void updateParticipantsPoints(UUID tournamentId, List<ParticipantPointsUpdateCommand> updates, String requesterEmail) {
         inscriptionManagementRepository.updateParticipantsPoints(tournamentId, updates);
+    }
+
+    public void updateParticipantDetails(UUID tournamentId, ParticipantDetailUpdateCommand update) {
+        inscriptionManagementRepository.updateParticipantDetails(tournamentId, update);
     }
 }

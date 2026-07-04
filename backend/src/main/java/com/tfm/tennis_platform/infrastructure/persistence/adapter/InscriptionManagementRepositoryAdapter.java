@@ -1,8 +1,10 @@
 package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 
+import com.tfm.tennis_platform.application.services.ClubQueryService;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionCommand;
 import com.tfm.tennis_platform.domain.models.inscription.EventInscriptionResult;
 import com.tfm.tennis_platform.domain.models.inscription.ManualEventInscriptionCommand;
+import com.tfm.tennis_platform.domain.models.inscription.ParticipantDetailUpdateCommand;
 import com.tfm.tennis_platform.domain.models.inscription.ParticipantPointsUpdateCommand;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionCategoryCount;
 import com.tfm.tennis_platform.domain.models.inscription.TournamentInscriptionEventView;
@@ -53,6 +55,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
     private final JpaPersonRepository personRepository;
     private final JpaParticipantRepository participantRepository;
     private final ProPlayerRepository proPlayerRepository;
+    private final ClubQueryService clubQueryService;
 
     @Override
     @Transactional
@@ -230,7 +233,9 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                         person.getLastName(),
                         normalizeGender(person.getGender()),
                         participant != null ? participant.getPoints() : null,
-                        participant != null ? participant.getSeed() : null
+                        participant != null ? participant.getSeed() : null,
+                        participant != null ? participant.getDisplayClub() : null,
+                        participant != null && participant.getEntryStatus() != null ? participant.getEntryStatus().name() : null
                 ))
                 .toList();
     }
@@ -588,5 +593,35 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
         }
 
         participantRepository.saveAll(participants);
+    }
+
+    @Override
+    @Transactional
+    public void updateParticipantDetails(UUID tournamentId, ParticipantDetailUpdateCommand update) {
+        List<ParticipantEntity> participants = participantRepository.findByTournamentIdAndIdIn(
+                tournamentId, List.of(update.participantId()));
+
+        if (participants.isEmpty()) {
+            throw new IllegalArgumentException("No se encontró el participante en el torneo.");
+        }
+
+        ParticipantEntity participant = participants.getFirst();
+
+        if (update.entryStatus() != null) {
+            String trimmed = update.entryStatus().trim();
+            participant.setEntryStatus(trimmed.isEmpty() ? null : EntryStatus.valueOf(trimmed));
+        }
+
+        if (update.clubName() != null) {
+            String trimmed = update.clubName().trim();
+            if (trimmed.isEmpty()) {
+                participant.setDisplayClub(null);
+            } else {
+                com.tfm.tennis_platform.domain.models.Club club = clubQueryService.findOrCreate(trimmed);
+                participant.setDisplayClub(club != null ? club.getName() : trimmed);
+            }
+        }
+
+        participantRepository.save(participant);
     }
 }

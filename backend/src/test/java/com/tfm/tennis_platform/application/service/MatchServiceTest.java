@@ -852,6 +852,163 @@ class MatchServiceTest {
         assertEquals("La pista ya está ocupada en esa hora.", exception.getMessage());
     }
 
+    @Test
+    void should_swap_players_within_same_match() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID matchId = UUID.randomUUID();
+        UUID playerA = UUID.randomUUID();
+        UUID playerB = UUID.randomUUID();
+
+        Tournament tournament = tournament(tournamentId);
+        Match match = Match.builder()
+                .id(matchId)
+                .firstInscription(Inscription.builder().id(playerA).build())
+                .secondInscription(Inscription.builder().id(playerB).build())
+                .roundNumber(1)
+                .build();
+
+        when(matchRepository.findByIdAndTournamentId(matchId, tournamentId)).thenReturn(Optional.of(match));
+        when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
+
+        matchService.swapMatchInscriptions(tournamentId, matchId, "first", matchId, "second", "organizer@example.com");
+
+        verify(matchRepository, times(1)).save(org.mockito.ArgumentMatchers.argThat(m ->
+                matchId.equals(m.getId())
+                        && playerB.equals(m.getFirstInscriptionId())
+                        && playerA.equals(m.getSecondInscriptionId())
+        ));
+    }
+
+    @Test
+    void should_swap_players_between_matches_with_bye_propagation() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID match1Id = UUID.randomUUID();
+        UUID match2Id = UUID.randomUUID();
+        UUID nextMatch1Id = UUID.randomUUID();
+        UUID nextMatch2Id = UUID.randomUUID();
+        UUID playerA = UUID.randomUUID();
+        UUID playerC = UUID.randomUUID();
+
+        Tournament tournament = tournament(tournamentId);
+
+        Match nextMatch1 = Match.builder()
+                .id(nextMatch1Id)
+                .firstInscription(Inscription.builder().id(playerA).build())
+                .build();
+        Match nextMatch2 = Match.builder()
+                .id(nextMatch2Id)
+                .firstInscription(Inscription.builder().id(playerC).build())
+                .build();
+
+        // Match1: BYE with playerA propagated to nextMatch1
+        Match match1 = Match.builder()
+                .id(match1Id)
+                .firstInscription(Inscription.builder().id(playerA).build())
+                .secondInscription(null)
+                .winner(Inscription.builder().id(playerA).build())
+                .roundNumber(1)
+                .bracketPosition(0)
+                .nextMatch(nextMatch1)
+                .build();
+        // Match2: BYE with playerC propagated to nextMatch2
+        Match match2 = Match.builder()
+                .id(match2Id)
+                .firstInscription(Inscription.builder().id(playerC).build())
+                .secondInscription(null)
+                .winner(Inscription.builder().id(playerC).build())
+                .roundNumber(1)
+                .bracketPosition(1)
+                .nextMatch(nextMatch2)
+                .build();
+
+        when(matchRepository.findByIdAndTournamentId(match1Id, tournamentId)).thenReturn(Optional.of(match1));
+        when(matchRepository.findByIdAndTournamentId(match2Id, tournamentId)).thenReturn(Optional.of(match2));
+        when(matchRepository.findById(nextMatch1Id.toString())).thenReturn(Optional.of(nextMatch1));
+        when(matchRepository.findById(nextMatch2Id.toString())).thenReturn(Optional.of(nextMatch2));
+        when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
+
+        matchService.swapMatchInscriptions(tournamentId, match1Id, "first", match2Id, "first", "organizer@example.com");
+
+        // After swap: match1 should have playerC (BYE), match2 should have playerA (BYE)
+        verify(matchRepository, times(4)).save(any(Match.class));
+
+        // Verify match1 saved with playerC
+        verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                match1Id.equals(m.getId())
+                        && playerC.equals(m.getFirstInscriptionId())
+                        && m.getSecondInscriptionId() == null
+        ));
+        // Verify match2 saved with playerA
+        verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                match2Id.equals(m.getId())
+                        && playerA.equals(m.getFirstInscriptionId())
+                        && m.getSecondInscriptionId() == null
+        ));
+        // Verify nextMatch1 propagation: playerC should be there (was playerA)
+        verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                nextMatch1Id.equals(m.getId())
+                        && playerC.equals(m.getFirstInscriptionId())
+        ));
+        // Verify nextMatch2 propagation: playerA should be there (was playerC)
+        verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                nextMatch2Id.equals(m.getId())
+                        && playerA.equals(m.getFirstInscriptionId())
+        ));
+    }
+
+    @Test
+    void should_swap_players_between_contested_matches() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID match1Id = UUID.randomUUID();
+        UUID match2Id = UUID.randomUUID();
+        UUID playerA = UUID.randomUUID();
+        UUID playerB = UUID.randomUUID();
+        UUID playerC = UUID.randomUUID();
+        UUID playerD = UUID.randomUUID();
+
+        Tournament tournament = tournament(tournamentId);
+
+        Match match1 = Match.builder()
+                .id(match1Id)
+                .firstInscription(Inscription.builder().id(playerA).build())
+                .secondInscription(Inscription.builder().id(playerB).build())
+                .roundNumber(1)
+                .bracketPosition(0)
+                .build();
+        Match match2 = Match.builder()
+                .id(match2Id)
+                .firstInscription(Inscription.builder().id(playerC).build())
+                .secondInscription(Inscription.builder().id(playerD).build())
+                .roundNumber(1)
+                .bracketPosition(1)
+                .build();
+
+        when(matchRepository.findByIdAndTournamentId(match1Id, tournamentId)).thenReturn(Optional.of(match1));
+        when(matchRepository.findByIdAndTournamentId(match2Id, tournamentId)).thenReturn(Optional.of(match2));
+        when(matchRepository.save(any(Match.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        org.mockito.Mockito.doNothing().when(tournamentService).assertTournamentAdmin(tournamentId, "organizer@example.com");
+
+        matchService.swapMatchInscriptions(tournamentId, match1Id, "first", match2Id, "first", "organizer@example.com");
+
+        // After swap: match1 should have playerC instead of playerA, match2 should have playerA instead of playerC
+        verify(matchRepository, times(2)).save(any(Match.class));
+        verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                match1Id.equals(m.getId())
+                        && playerC.equals(m.getFirstInscriptionId())
+                        && playerB.equals(m.getSecondInscriptionId())
+        ));
+        verify(matchRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                match2Id.equals(m.getId())
+                        && playerA.equals(m.getFirstInscriptionId())
+                        && playerD.equals(m.getSecondInscriptionId())
+        ));
+    }
+
     private Tournament tournament(UUID tournamentId) {
         return tournament(tournamentId, com.tfm.tennis_platform.domain.models.enums.TournamentStatus.DRAFT);
     }
