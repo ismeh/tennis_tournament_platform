@@ -18,6 +18,7 @@ import {
   ParticipantPointsUpdateRequest,
   PlayerMatchCalendarResponse,
   ReorganizeMatchPlayersRequest,
+  SwapMatchSchedulesRequest,
   ScheduleConfigRequest,
   ScheduleConfigResponse,
   TournamentCalendarFilters,
@@ -165,6 +166,10 @@ export class TournamentService {
     return this.http.post<void>(`${this.apiUrl}/${tournamentId}/matches/reorganize`, payload);
   }
 
+  swapMatchSchedules(tournamentId: string, matchId1: string, matchId2: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${tournamentId}/matches/swap-schedule`, { matchId1, matchId2 });
+  }
+
   exportTournamentPdf(tournamentId: string): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/${tournamentId}/export/pdf`, {
       responseType: 'blob',
@@ -190,9 +195,17 @@ export class TournamentService {
     return this.http.put<ScheduleConfigResponse>(`${this.apiUrl}/${tournamentId}/schedule-config`, payload);
   }
 
-  searchUmpires(query?: string): Observable<TournamentUmpireSearchResponse[]> {
-    const params = query ? `?query=${encodeURIComponent(query)}` : '';
-    return this.http.get<TournamentUmpireSearchResponse[]>(`${this.umpiresUrl}${params}`);
+  searchUmpires(query?: string, roles?: string[]): Observable<TournamentUmpireSearchResponse[]> {
+    let params = new HttpParams();
+    if (query) {
+      params = params.set('query', query);
+    }
+    if (roles && roles.length > 0) {
+      roles.forEach(role => {
+        params = params.append('roles', role);
+      });
+    }
+    return this.http.get<TournamentUmpireSearchResponse[]>(this.umpiresUrl, { params });
   }
 
   getTournamentUmpires(tournamentId: string): Observable<TournamentUmpireResponse[]> {

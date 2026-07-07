@@ -1,14 +1,26 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/interfaces/tournament.model';
 
 @Component({
   selector: 'app-matches',
   standalone: true,
-  imports: [CommonModule, DatePipe],
+  imports: [CommonModule, DatePipe, FormsModule],
   template: `
     <div class="space-y-2">
-      <h5 class="text-sm font-medium text-neutral-900">Partidos</h5>
+      <div class="flex items-center justify-between">
+        <h5 class="text-sm font-medium text-neutral-900">Partidos</h5>
+        @if (matches().length > 0) {
+          <input
+            type="search"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+            placeholder="Buscar por nombre..."
+            class="w-48 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        }
+      </div>
       
       @if (matches().length === 0) {
         <p class="text-xs text-neutral-600">Sin partidos</p>
@@ -23,10 +35,13 @@ import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/i
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Estado</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Pista</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Hora</th>
+                @if (showSwapButton) {
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Acción</th>
+                }
               </tr>
             </thead>
             <tbody>
-              @for (match of sortedMatches(); track match.id) {
+              @for (match of filteredMatches(); track match.id) {
                 <tr
                   (click)="onMatchClicked(match)"
                   class="cursor-pointer border-b border-neutral-200 hover:bg-primary-50"
@@ -37,7 +52,7 @@ import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/i
                     <div class="max-w-64">
                       <p class="flex items-center gap-2 truncate font-medium text-neutral-900">
                         <span class="truncate" [class.bracket-player-bye]="isByeSlot(match, match.firstInscriptionId, match.secondInscriptionId)">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
-                        @if (match.professionalMatch && match.firstInscriptionId) {
+                        @if (match.firstInscriptionId && (match.firstWinPoints != null || match.firstPlayerPoints)) {
                           <span [class]="getWinPointsClasses(match, match.firstInscriptionId)">
                             {{ getWinPointsLabel(match.firstWinPoints) }}
                           </span>
@@ -45,7 +60,7 @@ import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/i
                       </p>
                       <p class="mt-1 flex items-center gap-2 truncate text-neutral-600">
                         <span class="truncate" [class.bracket-player-bye]="isByeSlot(match, match.secondInscriptionId, match.firstInscriptionId)">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
-                        @if (match.professionalMatch && match.secondInscriptionId) {
+                        @if (match.secondInscriptionId && (match.secondWinPoints != null || match.secondPlayerPoints)) {
                           <span [class]="getWinPointsClasses(match, match.secondInscriptionId)">
                             {{ getWinPointsLabel(match.secondWinPoints) }}
                           </span>
@@ -106,6 +121,17 @@ import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/i
                       <span>—</span>
                     }
                   </td>
+                  @if (showSwapButton) {
+                    <td class="px-3 py-2">
+                      <button
+                        (click)="onSwapClicked(match, $event)"
+                        class="rounded bg-amber-100 px-2 py-1 text-xs text-amber-700 hover:bg-amber-200"
+                        title="Intercambiar programación"
+                      >
+                        Intercambiar
+                      </button>
+                    </td>
+                  }
                 </tr>
               }
             </tbody>
@@ -126,6 +152,7 @@ import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/i
 export class MatchesComponent {
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() participantOrderInput: Record<string, number> = {};
+  @Input() showSwapButton = false;
 
   @Input() set matchesInput(value: MatchResponse[]) {
     this._matches.set(value);
@@ -139,10 +166,31 @@ export class MatchesComponent {
       .map(entry => entry.match)
   );
 
+  searchQuery = signal('');
+
+  filteredMatches = computed(() => {
+    const query = this.searchQuery().trim().toLowerCase();
+    if (!query) {
+      return this.sortedMatches();
+    }
+
+    return this.sortedMatches().filter(match => {
+      const firstName1 = this.getParticipantName(match.firstInscriptionId).toLowerCase();
+      const firstName2 = this.getParticipantName(match.secondInscriptionId).toLowerCase();
+      return firstName1.includes(query) || firstName2.includes(query);
+    });
+  });
+
   @Output() matchSelected = new EventEmitter<MatchResponse>();
+  @Output() swapScheduleClicked = new EventEmitter<MatchResponse>();
 
   onMatchClicked(match: MatchResponse): void {
     this.matchSelected.emit(match);
+  }
+
+  onSwapClicked(match: MatchResponse, event: Event): void {
+    event.stopPropagation();
+    this.swapScheduleClicked.emit(match);
   }
 
   getMatchNumber(match: MatchResponse): number {

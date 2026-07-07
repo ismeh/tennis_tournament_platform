@@ -136,7 +136,6 @@ export class TournamentsListComponent implements OnInit {
     const labels: Record<TournamentResponse['status'], string> = {
       DRAFT: 'Borrador',
       OPEN: 'Inscripciones abiertas',
-      ACTIVE: 'Activo',
       CLOSED: 'Inscripciones cerradas',
       IN_PROGRESS: 'En juego',
       COMPLETED: 'Finalizado',

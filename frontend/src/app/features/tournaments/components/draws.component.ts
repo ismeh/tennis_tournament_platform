@@ -20,7 +20,12 @@ interface DrawDisplayItem {
   imports: [CommonModule, MatchesComponent, BracketComponent, MatchDetailModalComponent],
   template: `
     <div class="space-y-4">
-      <h4 class="font-semibold text-neutral-900">Cuadros</h4>
+      <div class="flex items-baseline gap-3">
+        <h4 class="font-semibold text-neutral-900">Cuadros</h4>
+        @if (eventNameInput) {
+          <span class="text-sm font-medium text-primary-600">{{ eventNameInput }}</span>
+        }
+      </div>
 
       @if (draws().length === 0) {
         <p class="text-sm text-neutral-600">Sin cuadros</p>
@@ -69,6 +74,7 @@ interface DrawDisplayItem {
                       [categoryNameInput]="categoryNameInput"
                       [setsPerMatch]="setsPerMatch"
                       [decisiveTiebreakPoints]="decisiveTiebreakPoints"
+                      [gamesPerSet]="gamesPerSet"
                       (matchSelected)="matchSelected.emit($event.id)"
                       (matchResultSaved)="onSaveMatchResult($event)"
                       (matchScheduleSaved)="onSaveMatchSchedule($event)"
@@ -79,7 +85,9 @@ interface DrawDisplayItem {
                       [matchesInput]="getAllMatches(item.draws)"
                       [participantNamesInput]="participantNamesInput"
                       [participantOrderInput]="participantOrderInput"
+                      [showSwapButton]="true"
                       (matchSelected)="onMatchSelected($event)"
+                      (swapScheduleClicked)="swapScheduleClicked.emit($event)"
                     ></app-matches>
                   }
                 </div>
@@ -104,6 +112,7 @@ interface DrawDisplayItem {
       [canManageInput]="canManageInput"
       [setsPerMatch]="setsPerMatch"
       [decisiveTiebreakPoints]="decisiveTiebreakPoints"
+      [gamesPerSet]="gamesPerSet"
       (saveResult)="onSaveMatchResult($event)"
       (saveSchedule)="onSaveMatchSchedule($event)"
       (close)="onModalClose()"
@@ -118,8 +127,10 @@ export class DrawsComponent {
   @Input() tournamentStatusInput: TournamentStatus = 'DRAFT';
   @Input() tournamentNameInput = '';
   @Input() categoryNameInput = '';
+  @Input() eventNameInput = '';
   @Input() setsPerMatch = 3;
   @Input() decisiveTiebreakPoints = 7;
+  @Input() gamesPerSet = 6;
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
@@ -155,6 +166,7 @@ export class DrawsComponent {
     matchId2: string;
     slot2: 'first' | 'second';
   }>();
+  @Output() swapScheduleClicked = new EventEmitter<MatchResponse>();
 
   drawViewModes = signal<Record<string, DrawViewMode>>({});
   selectedMatch = signal<MatchResponse | null>(null);

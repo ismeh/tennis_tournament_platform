@@ -156,4 +156,54 @@ describe('MatchesComponent', () => {
       expect(component.matchSelected.emit).toHaveBeenCalledWith(match);
     });
   });
+
+  describe('searchQuery and filteredMatches', () => {
+    beforeEach(() => {
+      component.participantNamesInput = {
+        'ins-1': 'Carlos Alcaraz',
+        'ins-2': 'Rafael Nadal',
+        'ins-3': 'Novak Djokovic',
+        'ins-4': 'Roger Federer'
+      };
+      component.matchesInput = [
+        { id: 'm1', roundNumber: 1, firstInscriptionId: 'ins-1', secondInscriptionId: 'ins-2' } as MatchResponse,
+        { id: 'm2', roundNumber: 1, firstInscriptionId: 'ins-3', secondInscriptionId: 'ins-4' } as MatchResponse,
+        { id: 'm3', roundNumber: 2, firstInscriptionId: 'ins-1', secondInscriptionId: 'ins-3' } as MatchResponse,
+      ];
+    });
+
+    it('returns all matches when search query is empty', () => {
+      component.searchQuery.set('');
+      expect(component.filteredMatches().length).toBe(3);
+    });
+
+    it('filters matches by first player name', () => {
+      component.searchQuery.set('carlos');
+      expect(component.filteredMatches().length).toBe(2);
+      expect(component.filteredMatches().every(m =>
+        m.firstInscriptionId === 'ins-1' || m.secondInscriptionId === 'ins-1'
+      )).toBeTrue();
+    });
+
+    it('filters matches by second player name', () => {
+      component.searchQuery.set('federer');
+      expect(component.filteredMatches().length).toBe(1);
+      expect(component.filteredMatches()[0].id).toBe('m2');
+    });
+
+    it('returns empty when no matches found', () => {
+      component.searchQuery.set('nonexistent');
+      expect(component.filteredMatches().length).toBe(0);
+    });
+
+    it('is case insensitive', () => {
+      component.searchQuery.set('CARLOS');
+      expect(component.filteredMatches().length).toBe(2);
+    });
+
+    it('trims whitespace from query', () => {
+      component.searchQuery.set('  carlos  ');
+      expect(component.filteredMatches().length).toBe(2);
+    });
+  });
 });

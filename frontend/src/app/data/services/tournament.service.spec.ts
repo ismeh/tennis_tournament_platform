@@ -343,6 +343,20 @@ describe('TournamentService', () => {
       expect(req.request.method).toBe('GET');
       req.flush([]);
     });
+
+    it('should GET umpires with roles', () => {
+      service.searchUmpires('john', ['UMPIRE', 'ORGANIZER']).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/umpires?query=john&roles=UMPIRE&roles=ORGANIZER`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+
+    it('should GET umpires with roles only', () => {
+      service.searchUmpires(undefined, ['ORGANIZER']).subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/umpires?roles=ORGANIZER`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
   });
 
   describe('getTournamentUmpires', () => {

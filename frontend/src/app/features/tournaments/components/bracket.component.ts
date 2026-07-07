@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal, computed, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, computed, ElementRef, HostListener, ViewChild, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse, TournamentStatus } from '../../../data/interfaces/tournament.model';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
@@ -114,7 +114,7 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
-                                    @if (match.professionalMatch && match.firstInscriptionId) {
+                                    @if (match.firstInscriptionId && (match.firstWinPoints != null || match.firstPlayerPoints)) {
                                       <span
                                         class="bracket-points"
                                         [class.bracket-points-winner]="isWinner(match, match.firstInscriptionId)"
@@ -143,7 +143,7 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
-                                    @if (match.professionalMatch && match.secondInscriptionId) {
+                                    @if (match.secondInscriptionId && (match.secondWinPoints != null || match.secondPlayerPoints)) {
                                       <span
                                         class="bracket-points"
                                         [class.bracket-points-winner]="isWinner(match, match.secondInscriptionId)"
@@ -286,7 +286,7 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
-                                    @if (match.professionalMatch && match.firstInscriptionId) {
+                                    @if (match.firstInscriptionId && (match.firstWinPoints != null || match.firstPlayerPoints)) {
                                       <span
                                         class="bracket-points"
                                         [class.bracket-points-winner]="isWinner(match, match.firstInscriptionId)"
@@ -315,7 +315,7 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
-                                    @if (match.professionalMatch && match.secondInscriptionId) {
+                                    @if (match.secondInscriptionId && (match.secondWinPoints != null || match.secondPlayerPoints)) {
                                       <span
                                         class="bracket-points"
                                         [class.bracket-points-winner]="isWinner(match, match.secondInscriptionId)"
@@ -453,7 +453,7 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.firstInscriptionId, match.secondInscriptionId) }}</span>
-                                    @if (match.professionalMatch && match.firstInscriptionId) {
+                                    @if (match.firstInscriptionId && (match.firstWinPoints != null || match.firstPlayerPoints)) {
                                       <span
                                         class="bracket-points"
                                         [class.bracket-points-winner]="isWinner(match, match.firstInscriptionId)"
@@ -482,7 +482,7 @@ import { BracketExportService } from '../services/bracket-export.service';
                                     (dragend)="onSlotDragEnd()"
                                   >
                                     <span class="bracket-player-name">{{ getMatchSlotLabel(match, match.secondInscriptionId, match.firstInscriptionId) }}</span>
-                                    @if (match.professionalMatch && match.secondInscriptionId) {
+                                    @if (match.secondInscriptionId && (match.secondWinPoints != null || match.secondPlayerPoints)) {
                                       <span
                                         class="bracket-points"
                                         [class.bracket-points-winner]="isWinner(match, match.secondInscriptionId)"
@@ -531,6 +531,7 @@ import { BracketExportService } from '../services/bracket-export.service';
         [canManageInput]="canManageInput"
         [setsPerMatch]="setsPerMatch"
         [decisiveTiebreakPoints]="decisiveTiebreakPoints"
+        [gamesPerSet]="gamesPerSet"
         (saveResult)="onSaveMatchResult($event)"
         (saveSchedule)="onSaveMatchSchedule($event)"
         (close)="onModalClose()"
@@ -821,7 +822,7 @@ import { BracketExportService } from '../services/bracket-export.service';
     }
   `]
 })
-export class BracketComponent {
+export class BracketComponent implements OnDestroy {
   private static readonly LOCKED_TOURNAMENT_STATUSES: TournamentStatus[] = ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
   private readonly matchHeight = 170;
   private readonly slotPitch = 200;
@@ -842,6 +843,7 @@ export class BracketComponent {
   @Input() categoryNameInput = '';
   @Input() setsPerMatch = 3;
   @Input() decisiveTiebreakPoints = 7;
+  @Input() gamesPerSet = 6;
 
   @Input() set drawsInput(value: DrawResponse[]) {
     this._draws.set(value);
@@ -861,6 +863,7 @@ export class BracketComponent {
   zoomLevel = signal(1);
   isFullscreen = signal(false);
   isExportingPdf = signal(false);
+  private wakeLock: WakeLockSentinel | null = null;
   selectedMatch = signal<MatchResponse | null>(null);
 
   @ViewChild('fullscreenRoot') fullscreenRoot?: ElementRef<HTMLElement>;
@@ -916,7 +919,56 @@ export class BracketComponent {
 
   @HostListener('document:fullscreenchange')
   onFullscreenChange(): void {
-    this.isFullscreen.set(document.fullscreenElement === this.fullscreenRoot?.nativeElement);
+    const isNowFullscreen = document.fullscreenElement === this.fullscreenRoot?.nativeElement;
+    this.isFullscreen.set(isNowFullscreen);
+
+    if (isNowFullscreen) {
+      this.requestWakeLock();
+    } else {
+      this.releaseWakeLock();
+    }
+  }
+
+  @HostListener('document:visibilitychange')
+  onVisibilityChange(): void {
+    if (document.visibilityState === 'visible' && this.isFullscreen()) {
+      this.reEnterFullscreen();
+    }
+  }
+
+  private async reEnterFullscreen(): Promise<void> {
+    const fullscreenElement = this.fullscreenRoot?.nativeElement;
+    if (!fullscreenElement || document.fullscreenElement === fullscreenElement) {
+      return;
+    }
+
+    try {
+      await fullscreenElement.requestFullscreen();
+    } catch {
+      // Ignore errors when re-entering fullscreen
+    }
+  }
+
+  private async requestWakeLock(): Promise<void> {
+    if (!('wakeLock' in navigator)) {
+      return;
+    }
+
+    try {
+      this.wakeLock = await navigator.wakeLock.request('screen');
+      this.wakeLock.addEventListener('release', () => {
+        this.wakeLock = null;
+      });
+    } catch {
+      // Wake lock not supported or denied
+    }
+  }
+
+  private releaseWakeLock(): void {
+    if (this.wakeLock) {
+      this.wakeLock.release().catch(() => undefined);
+      this.wakeLock = null;
+    }
   }
 
   onMatchClicked(match: MatchResponse) {
@@ -1214,6 +1266,7 @@ export class BracketComponent {
 
     if (document.fullscreenElement === fullscreenElement) {
       document.exitFullscreen().catch(() => undefined);
+      this.releaseWakeLock();
       return;
     }
 
@@ -1306,6 +1359,10 @@ export class BracketComponent {
   private clearDragState(): void {
     this.draggedSlot.set(null);
     this.dragOverKey.set(null);
+  }
+
+  ngOnDestroy(): void {
+    this.releaseWakeLock();
   }
 
 }

@@ -123,9 +123,12 @@ import {
                   formControlName="setsPerMatch"
                   class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
                 >
+                  <option [value]="1">1 set (al primer set)</option>
+                  <option [value]="2">2 sets (al mejor de 2)</option>
                   <option [value]="3">Al mejor de 3 sets</option>
                   <option [value]="5">Al mejor de 5 sets</option>
                 </select>
+                <p class="mt-1 text-xs text-primary-600 font-medium">{{ getFormatPreview() }}</p>
               </label>
 
               <label class="block">
@@ -139,6 +142,22 @@ import {
                 </select>
               </label>
             </div>
+
+            @if (form.value.setsPerMatch === 1 || form.value.setsPerMatch === 2) {
+              <div class="grid gap-4 md:grid-cols-2">
+                <label class="block">
+                  <span class="mb-1 block text-sm font-medium text-neutral-700">Juegos por set</span>
+                  <select
+                    formControlName="gamesPerSet"
+                    class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
+                  >
+                    <option [value]="6">Estándar (6 juegos)</option>
+                    <option [value]="5">5 juegos</option>
+                    <option [value]="4">4 juegos</option>
+                  </select>
+                </label>
+              </div>
+            }
 
             <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
               El organizador se toma del usuario autenticado. El torneo se crea como <span class="font-semibold text-neutral-900">borrador</span>. Las pruebas se configurarán después.
@@ -196,7 +215,8 @@ export class CreateTournamentComponent implements OnInit {
     locationFormattedAddress: [null as string | null],
     courtCount: [4, [Validators.required, Validators.min(0)]],
     setsPerMatch: [3, [Validators.required]],
-    decisiveTiebreakPoints: [7, [Validators.required]]
+    decisiveTiebreakPoints: [7, [Validators.required]],
+    gamesPerSet: [6, [Validators.required]]
   });
 
   constructor() {}
@@ -259,9 +279,20 @@ export class CreateTournamentComponent implements OnInit {
       locationFormattedAddress: null,
       courtCount: 4,
       setsPerMatch: 3,
-      decisiveTiebreakPoints: 7
+      decisiveTiebreakPoints: 7,
+      gamesPerSet: 6
     });
     this.errorMessage.set(null);
+  }
+
+  getFormatPreview(): string {
+    const sets = Number(this.form.value.setsPerMatch ?? 3);
+    const games = Number(this.form.value.gamesPerSet ?? 6);
+    if (sets === 1 && games !== 6) return `A ${games} juegos`;
+    if (sets === 2 && games !== 6) return `A ${sets} sets (${games} juegos)`;
+    if (sets === 1) return 'A 1 set';
+    if (sets === 2) return 'A 2 sets (mejor de 2)';
+    return `Al mejor de ${sets} sets`;
   }
 
   private buildInitialDateValues(): Pick<TournamentCreateRequest, 'playStartDate' | 'playEndDate' | 'inscriptionStartDate' | 'inscriptionEndDate'> {

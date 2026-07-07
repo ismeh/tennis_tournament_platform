@@ -605,4 +605,39 @@ describe('BracketComponent', () => {
       expect(component.isFullscreen()).toBeFalse();
     });
   });
+
+  describe('requestWakeLock', () => {
+    it('should do nothing if wakeLock API is not available', async () => {
+      const originalWakeLock = (navigator as any).wakeLock;
+      delete (navigator as any).wakeLock;
+      await (component as any).requestWakeLock();
+      expect((component as any).wakeLock).toBeNull();
+      (navigator as any).wakeLock = originalWakeLock;
+    });
+
+    it('should request screen lock when API is available', async () => {
+      const mockSentinel = { addEventListener: jasmine.createSpy('addEventListener'), release: Promise.resolve.bind(Promise) };
+      (navigator as any).wakeLock = {
+        request: jasmine.createSpy('request').and.returnValue(Promise.resolve(mockSentinel))
+      };
+      await (component as any).requestWakeLock();
+      expect((navigator as any).wakeLock.request).toHaveBeenCalledWith('screen');
+      expect((component as any).wakeLock).toBe(mockSentinel);
+    });
+  });
+
+  describe('releaseWakeLock', () => {
+    it('should release and nullify wakeLock', async () => {
+      const mockRelease = jasmine.createSpy('release').and.returnValue(Promise.resolve());
+      (component as any).wakeLock = { release: mockRelease };
+      (component as any).releaseWakeLock();
+      expect(mockRelease).toHaveBeenCalled();
+      expect((component as any).wakeLock).toBeNull();
+    });
+
+    it('should do nothing if no wakeLock', () => {
+      (component as any).wakeLock = null;
+      expect(() => (component as any).releaseWakeLock()).not.toThrow();
+    });
+  });
 });

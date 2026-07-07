@@ -4,9 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import {
-  ProfessionalRankingResponse,
   RankingGender,
-  RankingMode,
   RankingSortDirection,
   RankingTournamentResponse,
   TournamentRankingResponse
@@ -32,7 +30,7 @@ import { TournamentService } from '../../data/services/tournament.service';
             <div>
               <h1 class="text-3xl font-black text-neutral-950 sm:text-4xl">Clasificaciones</h1>
               <p class="mt-2 max-w-2xl text-sm text-neutral-600">
-                Ranking profesional y clasificación por victorias dentro de cada torneo.
+                Clasificación por victorias dentro de cada torneo.
               </p>
             </div>
 
@@ -47,48 +45,21 @@ import { TournamentService } from '../../data/services/tournament.service';
 
         <div class="mt-6 grid gap-5 lg:grid-cols-[18rem_1fr]">
           <aside class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-            <div class="grid grid-cols-2 rounded-lg bg-neutral-100 p-1">
-              <button
-                type="button"
-                class="h-10 rounded-md text-sm font-semibold transition"
-                [class.bg-white]="mode() === 'professionals'"
-                [class.text-neutral-950]="mode() === 'professionals'"
-                [class.shadow-sm]="mode() === 'professionals'"
-                [class.text-neutral-600]="mode() !== 'professionals'"
-                (click)="setMode('professionals')"
-              >
-                Pro
-              </button>
-              <button
-                type="button"
-                class="h-10 rounded-md text-sm font-semibold transition"
-                [class.bg-white]="mode() === 'tournament'"
-                [class.text-neutral-950]="mode() === 'tournament'"
-                [class.shadow-sm]="mode() === 'tournament'"
-                [class.text-neutral-600]="mode() !== 'tournament'"
-                (click)="setMode('tournament')"
-              >
-                Torneo
-              </button>
-            </div>
-
             <div class="mt-4 space-y-4">
-              @if (mode() === 'tournament') {
-                <label class="block">
-                  <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Torneo</span>
-                  <select
-                    class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
-                    [ngModel]="selectedTournamentId()"
-                    (ngModelChange)="onTournamentChange($event)"
-                    name="tournamentId"
-                  >
-                    <option value="">Seleccionar</option>
-                    @for (tournament of tournaments(); track tournament.id) {
-                      <option [value]="tournament.id">{{ tournament.formalName }}</option>
-                    }
-                  </select>
-                </label>
-              }
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Torneo</span>
+                <select
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="selectedTournamentId()"
+                  (ngModelChange)="onTournamentChange($event)"
+                  name="tournamentId"
+                >
+                  <option value="">Seleccionar</option>
+                  @for (tournament of tournaments(); track tournament.id) {
+                    <option [value]="tournament.id">{{ tournament.formalName }}</option>
+                  }
+                </select>
+              </label>
 
               <label class="block">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Género</span>
@@ -187,7 +158,7 @@ import { TournamentService } from '../../data/services/tournament.service';
                 <div class="p-6 text-sm text-neutral-600">Cargando ranking...</div>
               } @else if (errorMessage()) {
                 <div class="m-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ errorMessage() }}</div>
-              } @else if (mode() === 'tournament' && !selectedTournamentId()) {
+              } @else if (!selectedTournamentId()) {
                 <div class="p-8 text-center">
                   <p class="text-base font-semibold text-neutral-950">Selecciona un torneo</p>
                   <p class="mt-1 text-sm text-neutral-600">El ranking de torneo se calcula con las victorias registradas.</p>
@@ -196,44 +167,6 @@ import { TournamentService } from '../../data/services/tournament.service';
                 <div class="p-8 text-center">
                   <p class="text-base font-semibold text-neutral-950">Sin resultados</p>
                   <p class="mt-1 text-sm text-neutral-600">Ajusta los filtros o registra resultados de partidos.</p>
-                </div>
-              } @else if (mode() === 'professionals') {
-                <div class="overflow-x-auto">
-                  <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                    <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-widest text-neutral-500">
-                      <tr>
-                        <th class="px-5 py-3">
-                          <button type="button" class="font-semibold uppercase tracking-widest" (click)="setSort('position')">Posición {{ getSortIndicator('position') }}</button>
-                        </th>
-                        <th class="px-5 py-3">
-                          <button type="button" class="font-semibold uppercase tracking-widest" (click)="setSort('name')">Jugador {{ getSortIndicator('name') }}</button>
-                        </th>
-                        <th class="px-5 py-3">
-                          <button type="button" class="font-semibold uppercase tracking-widest" (click)="setSort('gender')">Género {{ getSortIndicator('gender') }}</button>
-                        </th>
-                        <th class="px-5 py-3">
-                          <button type="button" class="font-semibold uppercase tracking-widest" (click)="setSort('category')">Categoría {{ getSortIndicator('category') }}</button>
-                        </th>
-                        <th class="px-5 py-3 text-right">
-                          <button type="button" class="font-semibold uppercase tracking-widest" (click)="setSort('points')">Puntos {{ getSortIndicator('points') }}</button>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-neutral-100">
-                      @for (player of professionalRows(); track player.playerId) {
-                        <tr class="hover:bg-primary-50/50">
-                          <td class="whitespace-nowrap px-5 py-4 text-base font-black text-neutral-950">#{{ player.position || '-' }}</td>
-                          <td class="px-5 py-4">
-                            <p class="font-semibold text-neutral-950">{{ player.fullName }}</p>
-                            <p class="mt-1 text-xs text-neutral-500">{{ player.license || 'Sin licencia' }} · {{ player.clubName || 'Sin club' }}</p>
-                          </td>
-                          <td class="whitespace-nowrap px-5 py-4 text-neutral-700">{{ getGenderLabel(player.gender) }}</td>
-                          <td class="whitespace-nowrap px-5 py-4 text-neutral-700">{{ player.category || '-' }}</td>
-                          <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-neutral-950">{{ formatNumber(player.points) }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
                 </div>
               } @else {
                 <div class="overflow-x-auto">
@@ -282,7 +215,6 @@ export class RankingComponent implements OnInit {
   private readonly tournamentService = inject(TournamentService);
 
   readonly pageSizeOptions = [10, 25, 50, 100];
-  readonly mode = signal<RankingMode>('professionals');
   readonly selectedGender = signal<RankingGender | null>(null);
   readonly selectedCategoryId = signal('');
   readonly selectedTournamentId = signal('');
@@ -290,21 +222,16 @@ export class RankingComponent implements OnInit {
   readonly pageSize = signal(10);
   readonly totalItems = signal(0);
   readonly totalPages = signal(0);
-  readonly sortBy = signal('position');
-  readonly sortDirection = signal<RankingSortDirection>('asc');
+  readonly sortBy = signal('victories');
+  readonly sortDirection = signal<RankingSortDirection>('desc');
   readonly categories = signal<TournamentEventCatalogItem[]>([]);
   readonly tournaments = signal<RankingTournamentResponse[]>([]);
-  readonly professionalRows = signal<ProfessionalRankingResponse[]>([]);
   readonly tournamentRows = signal<TournamentRankingResponse[]>([]);
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
-  readonly genderOptions = computed<RankingGender[]>(() =>
-    this.mode() === 'professionals' ? ['MALE', 'FEMALE'] : ['MALE', 'FEMALE', 'MIXED']
-  );
-  readonly rowCount = computed(() =>
-    this.mode() === 'professionals' ? this.professionalRows().length : this.tournamentRows().length
-  );
+  readonly genderOptions = computed<RankingGender[]>(() => ['MALE', 'FEMALE', 'MIXED']);
+  readonly rowCount = computed(() => this.tournamentRows().length);
   readonly currentPageLabel = computed(() => this.totalItems() === 0 ? 0 : this.page() + 1);
   readonly totalPagesLabel = computed(() => this.totalPages());
   readonly canGoPrevious = computed(() => this.page() > 0);
@@ -318,14 +245,8 @@ export class RankingComponent implements OnInit {
     const last = Math.min(first + this.rowCount() - 1, this.totalItems());
     return `${first}-${last}`;
   });
-  readonly rankingTitle = computed(() =>
-    this.mode() === 'professionals' ? 'Ranking profesional' : 'Ranking del torneo'
-  );
+  readonly rankingTitle = computed(() => 'Ranking del torneo');
   readonly rankingSubtitle = computed(() => {
-    if (this.mode() === 'professionals') {
-      return 'Ordenado por posición oficial y filtrado por género o categoría.';
-    }
-
     const tournament = this.tournaments().find(item => item.id === this.selectedTournamentId());
     return tournament
       ? `${tournament.formalName} · solo victorias registradas`
@@ -334,36 +255,9 @@ export class RankingComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCatalogs();
-    this.loadProfessionalRanking();
-  }
-
-  setMode(nextMode: RankingMode): void {
-    if (this.mode() === nextMode) {
-      return;
-    }
-
-    this.mode.set(nextMode);
-    if (nextMode === 'professionals' && this.selectedGender() === 'MIXED') {
-      this.selectedGender.set(null);
-    }
-    this.page.set(0);
-    this.applyDefaultSort(nextMode);
-
-    if (nextMode === 'tournament') {
-      this.ensureSelectedTournament();
-      this.loadTournamentRanking();
-      return;
-    }
-
-    this.loadProfessionalRanking();
   }
 
   applyFilters(): void {
-    if (this.mode() === 'professionals') {
-      this.loadProfessionalRanking();
-      return;
-    }
-
     this.loadTournamentRanking();
   }
 
@@ -470,33 +364,6 @@ export class RankingComponent implements OnInit {
     });
   }
 
-  private loadProfessionalRanking(): void {
-    this.isLoading.set(true);
-    this.errorMessage.set(null);
-    const selectedCategory = this.getSelectedCategory();
-
-    this.rankingService
-      .getProfessionalRanking({
-        gender: this.selectedGender(),
-        category: selectedCategory?.category ?? null,
-        page: this.page(),
-        size: this.pageSize(),
-        sortBy: this.sortBy(),
-        sortDirection: this.sortDirection()
-      })
-      .subscribe({
-        next: response => {
-          this.professionalRows.set(response.items);
-          this.applyPageMetadata(response.page, response.size, response.totalItems, response.totalPages);
-          this.isLoading.set(false);
-        },
-        error: error => {
-          this.errorMessage.set(getApiErrorMessage(error, 'No se pudo cargar el ranking profesional.'));
-          this.isLoading.set(false);
-        }
-      });
-  }
-
   private loadTournamentRanking(): void {
     const tournamentId = this.selectedTournamentId();
     if (!tournamentId) {
@@ -544,17 +411,6 @@ export class RankingComponent implements OnInit {
     this.applyFilters();
   }
 
-  private applyDefaultSort(mode: RankingMode): void {
-    if (mode === 'professionals') {
-      this.sortBy.set('position');
-      this.sortDirection.set('asc');
-      return;
-    }
-
-    this.sortBy.set('victories');
-    this.sortDirection.set('desc');
-  }
-
   private applyPageMetadata(page: number, size: number, totalItems: number, totalPages: number): void {
     this.page.set(page);
     this.pageSize.set(size);
@@ -563,15 +419,12 @@ export class RankingComponent implements OnInit {
   }
 
   private isSortFieldAvailable(field: string): boolean {
-    const professionalFields = ['position', 'name', 'gender', 'category', 'points'];
     const tournamentFields = ['position', 'name', 'gender', 'victories'];
-    return this.mode() === 'professionals'
-      ? professionalFields.includes(field)
-      : tournamentFields.includes(field);
+    return tournamentFields.includes(field);
   }
 
   private getDefaultSortDirection(field: string): RankingSortDirection {
-    return field === 'points' || field === 'victories' ? 'desc' : 'asc';
+    return field === 'victories' ? 'desc' : 'asc';
   }
 
   private getSelectedCategory(): TournamentEventCatalogItem | null {
