@@ -2,6 +2,7 @@ package com.tfm.tennis_platform.application.service;
 
 import com.tfm.tennis_platform.application.services.MatchService;
 import com.tfm.tennis_platform.application.services.TournamentService;
+import com.tfm.tennis_platform.application.services.PointsCalculationService;
 import com.tfm.tennis_platform.infrastructure.controller.dto.SetScoreRequest;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
@@ -10,8 +11,11 @@ import com.tfm.tennis_platform.domain.models.Tournament;
 import com.tfm.tennis_platform.domain.models.enums.MatchStatus;
 import com.tfm.tennis_platform.domain.models.enums.ScheduleTimeType;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
+import com.tfm.tennis_platform.domain.port.out.DrawRepository;
+import com.tfm.tennis_platform.domain.port.out.InscriptionRepository;
 import com.tfm.tennis_platform.domain.port.out.MatchRepository;
 import com.tfm.tennis_platform.domain.port.out.ScheduleConfigRepository;
+import com.tfm.tennis_platform.domain.port.out.StageRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentUpdatePublisher;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,6 +74,18 @@ class MatchServiceTest {
     @Mock
     private TournamentService tournamentService;
 
+    @Mock
+    private PointsCalculationService pointsCalculationService;
+
+    @Mock
+    private DrawRepository drawRepository;
+
+    @Mock
+    private StageRepository stageRepository;
+
+    @Mock
+    private InscriptionRepository inscriptionRepository;
+
     private MatchService matchService;
 
     @BeforeEach
@@ -78,7 +95,8 @@ class MatchServiceTest {
             return callback.doInTransaction(null);
         });
         when(matchRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository, scheduleConfigRepository, tournamentUpdatePublisher, transactionTemplate, tournamentService);
+        when(pointsCalculationService.calculate(any(), any(), anyInt())).thenReturn(new PointsCalculationService.PointsResult(100, 30));
+        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository, scheduleConfigRepository, tournamentUpdatePublisher, transactionTemplate, tournamentService, pointsCalculationService, drawRepository, stageRepository, inscriptionRepository);
     }
 
     @Test

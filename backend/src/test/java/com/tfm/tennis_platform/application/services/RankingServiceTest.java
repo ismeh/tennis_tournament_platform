@@ -31,9 +31,9 @@ class RankingServiceTest {
     void findTournamentRankingShouldAssignSamePositionForEqualVictories() {
         UUID tournamentId = UUID.randomUUID();
         List<TournamentRankingEntry> repositoryEntries = List.of(
-                entry(3L),
-                entry(3L),
-                entry(1L)
+                entry(3L, 50L),
+                entry(3L, 50L),
+                entry(1L, 20L)
         );
         when(rankingRepository.findTournamentRanking(tournamentId, "MALE", 7)).thenReturn(repositoryEntries);
 
@@ -73,8 +73,8 @@ class RankingServiceTest {
     void findTournamentRankingWithSortByName() {
         UUID tournamentId = UUID.randomUUID();
         List<TournamentRankingEntry> entries = List.of(
-                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Alice", null, "MALE", 5L),
-                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Bob", null, "MALE", 3L)
+                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Alice", null, "MALE", null, 5L),
+                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Bob", null, "MALE", null, 3L)
         );
         when(rankingRepository.findTournamentRanking(tournamentId, "MALE", 7)).thenReturn(entries);
 
@@ -87,8 +87,8 @@ class RankingServiceTest {
     void findTournamentRankingWithSortByGender() {
         UUID tournamentId = UUID.randomUUID();
         List<TournamentRankingEntry> entries = List.of(
-                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Alice", null, "FEMALE", 5L),
-                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Bob", null, "MALE", 3L)
+                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Alice", null, "FEMALE", null, 5L),
+                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Bob", null, "MALE", null, 3L)
         );
         when(rankingRepository.findTournamentRanking(tournamentId, "MALE", 7)).thenReturn(entries);
 
@@ -101,8 +101,8 @@ class RankingServiceTest {
     void findTournamentRankingWithSortByPosition() {
         UUID tournamentId = UUID.randomUUID();
         List<TournamentRankingEntry> entries = List.of(
-                new TournamentRankingEntry(1, UUID.randomUUID(), null, "Alice", null, "MALE", 5L),
-                new TournamentRankingEntry(2, UUID.randomUUID(), null, "Bob", null, "MALE", 3L)
+                new TournamentRankingEntry(1, UUID.randomUUID(), null, "Alice", null, "MALE", null, 5L),
+                new TournamentRankingEntry(2, UUID.randomUUID(), null, "Bob", null, "MALE", null, 3L)
         );
         when(rankingRepository.findTournamentRanking(tournamentId, "MALE", 7)).thenReturn(entries);
 
@@ -172,7 +172,60 @@ class RankingServiceTest {
         assertEquals(1, result.totalItems());
     }
 
-    private TournamentRankingEntry entry(Long victories) {
-        return new TournamentRankingEntry(null, UUID.randomUUID(), null, "Player", null, "MALE", victories);
+    @Test
+    void findTournamentRankingSortsByPointsDescending() {
+        UUID tournamentId = UUID.randomUUID();
+        List<TournamentRankingEntry> entries = List.of(
+                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Low", null, "MALE", 10L, null),
+                new TournamentRankingEntry(null, UUID.randomUUID(), null, "High", null, "MALE", 50L, null),
+                new TournamentRankingEntry(null, UUID.randomUUID(), null, "Mid", null, "MALE", 30L, null)
+        );
+        when(rankingRepository.findTournamentRanking(tournamentId, "MALE", 7)).thenReturn(entries);
+
+        RankingPage<TournamentRankingEntry> result = rankingService.findTournamentRanking(tournamentId, "MALE", 7, 0, 10, null, null);
+
+        assertEquals(50L, result.items().get(0).points());
+        assertEquals(30L, result.items().get(1).points());
+        assertEquals(10L, result.items().get(2).points());
+    }
+
+    @Test
+    void findTournamentRankingAssignsSamePositionForEqualPoints() {
+        UUID tournamentId = UUID.randomUUID();
+        List<TournamentRankingEntry> entries = List.of(
+                entry(50L),
+                entry(50L),
+                entry(20L)
+        );
+        when(rankingRepository.findTournamentRanking(tournamentId, "MALE", 7)).thenReturn(entries);
+
+        RankingPage<TournamentRankingEntry> result = rankingService.findTournamentRanking(tournamentId, "MALE", 7, 0, 10, null, null);
+
+        assertEquals(1, result.items().get(0).position());
+        assertEquals(1, result.items().get(1).position());
+        assertEquals(3, result.items().get(2).position());
+    }
+
+    @Test
+    void findTournamentRankingWithPointsAndSortByPosition() {
+        UUID tournamentId = UUID.randomUUID();
+        List<TournamentRankingEntry> entries = List.of(
+                new TournamentRankingEntry(1, UUID.randomUUID(), null, "Alice", null, "MALE", 100L, null),
+                new TournamentRankingEntry(2, UUID.randomUUID(), null, "Bob", null, "MALE", 80L, null)
+        );
+        when(rankingRepository.findTournamentRanking(tournamentId, "MALE", 7)).thenReturn(entries);
+
+        RankingPage<TournamentRankingEntry> result = rankingService.findTournamentRanking(tournamentId, "MALE", 7, 0, 10, "position", "ASC");
+
+        assertEquals(100L, result.items().get(0).points());
+        assertEquals(80L, result.items().get(1).points());
+    }
+
+    private TournamentRankingEntry entry(Long points) {
+        return new TournamentRankingEntry(null, UUID.randomUUID(), null, "Player", null, "MALE", points, null);
+    }
+
+    private TournamentRankingEntry entry(Long victories, Long points) {
+        return new TournamentRankingEntry(null, UUID.randomUUID(), null, "Player", null, "MALE", points, victories);
     }
 }

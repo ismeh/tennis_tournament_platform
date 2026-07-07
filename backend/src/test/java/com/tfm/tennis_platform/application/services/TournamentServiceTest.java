@@ -793,7 +793,7 @@ class TournamentServiceTest {
     }
 
     @Test
-    void should_throw_on_invalid_status_transition() {
+    void should_allow_any_status_transition_for_corrections() {
         UUID tournamentId = UUID.randomUUID();
         UUID creatorId = UUID.randomUUID();
         Tournament tournament = Tournament.builder()
@@ -809,23 +809,25 @@ class TournamentServiceTest {
                 .createdBy(Member.builder().id(creatorId).email("admin@example.com").build())
                 .events(List.of())
                 .build();
+        Tournament savedTournament = tournament.toBuilder()
+                .state(TournamentStatus.COMPLETED)
+                .build();
 
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
         when(memberRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(Member.builder()
                 .id(creatorId)
                 .email("admin@example.com")
                 .build()));
+        when(tournamentRepository.save(any(Tournament.class))).thenReturn(savedTournament);
 
-        InvalidArgumentException exception = assertThrows(
-                InvalidArgumentException.class,
-                () -> tournamentService.updateStatus(tournamentId, TournamentStatus.COMPLETED, "admin@example.com")
-        );
+        Tournament result = tournamentService.updateStatus(tournamentId, TournamentStatus.COMPLETED, "admin@example.com");
 
-        assertTrue(exception.getMessage().contains("No se puede cambiar el torneo de"));
+        assertEquals(TournamentStatus.COMPLETED, result.getState());
+        verify(tournamentRepository).save(any(Tournament.class));
     }
 
     @Test
-    void should_throw_on_invalid_status_transition_open_to_draft() {
+    void should_allow_reverse_transition_open_to_draft() {
         UUID tournamentId = UUID.randomUUID();
         UUID creatorId = UUID.randomUUID();
         Tournament tournament = Tournament.builder()
@@ -841,17 +843,21 @@ class TournamentServiceTest {
                 .createdBy(Member.builder().id(creatorId).email("admin@example.com").build())
                 .events(List.of())
                 .build();
+        Tournament savedTournament = tournament.toBuilder()
+                .state(TournamentStatus.DRAFT)
+                .build();
 
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
         when(memberRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(Member.builder()
                 .id(creatorId)
                 .email("admin@example.com")
                 .build()));
+        when(tournamentRepository.save(any(Tournament.class))).thenReturn(savedTournament);
 
-        assertThrows(
-                InvalidArgumentException.class,
-                () -> tournamentService.updateStatus(tournamentId, TournamentStatus.DRAFT, "admin@example.com")
-        );
+        Tournament result = tournamentService.updateStatus(tournamentId, TournamentStatus.DRAFT, "admin@example.com");
+
+        assertEquals(TournamentStatus.DRAFT, result.getState());
+        verify(tournamentRepository).save(any(Tournament.class));
     }
 
     @Test

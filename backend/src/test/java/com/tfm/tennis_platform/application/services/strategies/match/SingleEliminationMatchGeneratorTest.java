@@ -207,13 +207,13 @@ class SingleEliminationMatchGeneratorTest {
                 .build();
     }
 
-    private Inscription professionalInscription(Integer rankingPosition) {
+    private Inscription professionalInscription(Integer rankingPoints) {
         return Inscription.builder()
                 .id(UUID.randomUUID())
                 .eventId(UUID.randomUUID())
                 .participantId(UUID.randomUUID())
                 .participantSource(ParticipantSource.PROFESSIONAL)
-                .professionalRankingPosition(rankingPosition)
+                .points(rankingPoints)
                 .registeredAt(LocalDateTime.now())
                 .build();
     }

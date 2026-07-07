@@ -7,6 +7,7 @@ import com.tfm.tennis_platform.domain.models.TournamentUmpire;
 import com.tfm.tennis_platform.domain.models.UmpireSearchResult;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentUmpireRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,10 +75,32 @@ class UmpireControllerTest {
                 .build();
         when(tournamentUmpireService.searchUmpires("test")).thenReturn(List.of(result));
 
-        ResponseEntity<?> response = controller.searchUmpires("test");
+        ResponseEntity<?> response = controller.searchUmpires("test", null);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("searchUmpires with roles filters by multiple roles")
+    void searchUmpiresWithRoles() {
+        UmpireSearchResult result = UmpireSearchResult.builder()
+                .id(UUID.randomUUID())
+                .email("organizer@test.com")
+                .firstName("Test")
+                .lastName("Organizer")
+                .build();
+        when(tournamentUmpireService.searchByRoles(
+                java.util.List.of(UserRole.UMPIRE, UserRole.ORGANIZER), "test"))
+                .thenReturn(List.of(result));
+
+        ResponseEntity<?> response = controller.searchUmpires("test",
+                java.util.List.of("UMPIRE", "ORGANIZER"));
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        verify(tournamentUmpireService).searchByRoles(
+                java.util.List.of(UserRole.UMPIRE, UserRole.ORGANIZER), "test");
     }
 
     @Test

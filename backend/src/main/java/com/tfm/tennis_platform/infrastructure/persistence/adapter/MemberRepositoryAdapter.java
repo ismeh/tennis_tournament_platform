@@ -119,4 +119,27 @@ public class MemberRepositoryAdapter implements MemberRepository {
                         .build())
                 .toList();
     }
+
+    @Override
+    public List<UmpireSearchResult> searchByRolesWithPersonData(List<UserRole> roles, String query) {
+        List<String> roleNames = roles.stream().map(UserRole::name).toList();
+        if (query == null || query.trim().isEmpty()) {
+            return memberRepository.findAllByRolesWithPersonData(roleNames).stream()
+                    .map(p -> UmpireSearchResult.builder()
+                            .id(p.getId())
+                            .email(p.getEmail())
+                            .firstName(p.getFirstName())
+                            .lastName(p.getLastName())
+                            .build())
+                    .toList();
+        }
+        return memberRepository.searchByRolesAndQuery(roleNames, query.trim()).stream()
+                .map(p -> UmpireSearchResult.builder()
+                        .id(p.getId())
+                        .email(p.getEmail())
+                        .firstName(p.getFirstName())
+                        .lastName(p.getLastName())
+                        .build())
+                .toList();
+    }
 }
