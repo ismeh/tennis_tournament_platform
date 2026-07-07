@@ -97,3 +97,75 @@ For a simple demo, you can run it from `cron` once per day.
 ## Ports and Exposure
 
 Nginx exposes `80` and `443`. The base `compose.yaml` also exposes the frontend and backend to make development easier. For a more locked-down public demo, remove or restrict the direct `frontend`, `backend`, and `postgres` ports on the server.
+
+## AWS EC2 Production Deployment
+
+To deploy this application to an AWS EC2 instance (such as a `t3.small` or `t3.medium` instance), you will need to run Nginx as a reverse proxy, enable HTTPS using Let's Encrypt, and apply memory limits to prevent Out-Of-Memory (OOM) crashes.
+
+### Docker Compose Architecture for EC2
+
+When deploying, we combine multiple Docker Compose files to layer configurations cleanly:
+1. **`compose.yaml`**: Defines base services (PostgreSQL, Spring Boot backend, Angular frontend).
+2. **`compose.prod.yaml`**: Configures the production Nginx reverse proxy with gzip, caching, and logs.
+3. **`compose.demo.yaml`**: Links Nginx to the Let's Encrypt certificates and sets up the Certbot auto-renewal container.
+4. **`compose.override.ec2.yaml`**: Restricts RAM and CPU usage per container to fit within the VM limits (highly recommended for `t3.small` instances with 2GB of RAM).
+
+### Step-by-Step Deployment on AWS EC2
+
+#### 1. Setup the Server
+- Launch an EC2 instance (Ubuntu/Amazon Linux 2023).
+- Open ports `80` (HTTP) and `443` (HTTPS) in the Security Group.
+- Install Docker and Docker Compose.
+
+#### 2. Configure Environment Variables
+Create a `.env` file in the root folder of the project on EC2:
+```bash
+# Domain configuration
+PUBLIC_DOMAIN=yourdomain.com
+LOCAL_SERVER_NAME=yourdomain.com
+
+# Ports
+HTTPS_HTTP_PORT=80
+HTTPS_PORT=443
+
+# API and URLs
+FRONTEND_API_URL=https://yourdomain.com/api
+FRONTEND_CONFIRMATION_URL=https://yourdomain.com/confirmar-email
+
+# Database Credentials
+DB_NAME=demo-tfm
+DB_USER=postgres-tfm
+DB_PASSWORD=your_secure_password
+```
+
+#### 3. Initialize Let's Encrypt Certificates
+Before Nginx can run on port 443 with HTTPS, you must obtain certificates using the helper script:
+```bash
+# Run the script with your domain and email
+sh infra/scripts/init-letsencrypt.sh yourdomain.com admin@yourdomain.com
+```
+*Note: This script uses a temporary certificate to boot Nginx on port 80, requests the real certificates from Let's Encrypt via Certbot, and then reloads Nginx.*
+
+#### 4. Run the Production Stack
+Run the following command to start all services, applying production optimizations and EC2 memory constraints:
+```bash
+docker compose \
+  -f compose.yaml \
+  -f compose.prod.yaml \
+  -f compose.demo.yaml \
+  -f compose.override.ec2.yaml \
+  up -d --remove-orphans
+```
+
+#### 5. Verify the Services
+Verify the status of the containers:
+```bash
+docker compose ps
+docker compose logs nginx
+```
+If you make changes to files or update images, you can pull and restart safely with:
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml -f compose.demo.yaml -f compose.override.ec2.yaml down
+docker compose -f compose.yaml -f compose.prod.yaml -f compose.demo.yaml -f compose.override.ec2.yaml up -d --remove-orphans
+```
+

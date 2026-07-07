@@ -54,4 +54,4 @@ jobs:
             export DOCKER_USERNAME="${DOCKER_USERNAME}"
 
             docker compose pull
-            docker compose -f compose.yaml -f compose.prod.yaml -f compose.override.ec2.yaml up -d --remove-orphans
+            docker compose -f compose.yaml -f compose.prod.yaml -f compose.demo.yaml -f compose.override.ec2.yaml up -d --remove-orphans
