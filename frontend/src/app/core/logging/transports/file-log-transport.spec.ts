@@ -38,7 +38,7 @@ class MockIDBTransaction {
 }
 
 class MockIDBDatabase {
-  private storeNames = new Set<string>(['logs']);
+  public storeNames = new Set<string>();
 
   objectStoreNames = {
     contains: (name: string) => this.storeNames.has(name)
@@ -161,15 +161,13 @@ describe('FileLogTransport', () => {
       await transport.initialize();
       (transport as any).maxLogs = 1;
       
-      const transaction = mockDb.transaction(['logs'], 'readwrite');
-      const store = transaction.objectStore('logs');
-      spyOn(store, 'count').and.callFake(() => {
+      spyOn(MockIDBObjectStore.prototype, 'count').and.callFake(() => {
         const req = { result: 5 } as any;
         setTimeout(() => req.onsuccess?.());
         return req;
       });
       
-      const deleteSpy = spyOn(store, 'delete').and.callThrough();
+      const deleteSpy = spyOn(MockIDBObjectStore.prototype, 'delete').and.callThrough();
       await (transport as any).cleanupOldLogs();
       
       // wait for onsuccess setTimeout
@@ -235,9 +233,7 @@ describe('FileLogTransport', () => {
 
     it('should filter by level', async () => {
       await transport.initialize();
-      const transaction = mockDb.transaction(['logs'], 'readonly');
-      const store = transaction.objectStore('logs');
-      spyOn(store, 'getAll').and.callFake(() => {
+      spyOn(MockIDBObjectStore.prototype, 'getAll').and.callFake(() => {
         const req = {
           result: [
             { level: LogLevel.INFO, isRequest: false },
@@ -255,9 +251,7 @@ describe('FileLogTransport', () => {
 
     it('should filter by isRequest', async () => {
       await transport.initialize();
-      const transaction = mockDb.transaction(['logs'], 'readonly');
-      const store = transaction.objectStore('logs');
-      spyOn(store, 'getAll').and.callFake(() => {
+      spyOn(MockIDBObjectStore.prototype, 'getAll').and.callFake(() => {
         const req = {
           result: [
             { level: LogLevel.INFO, isRequest: false },
@@ -275,9 +269,7 @@ describe('FileLogTransport', () => {
 
     it('should limit results', async () => {
       await transport.initialize();
-      const transaction = mockDb.transaction(['logs'], 'readonly');
-      const store = transaction.objectStore('logs');
-      spyOn(store, 'getAll').and.callFake(() => {
+      spyOn(MockIDBObjectStore.prototype, 'getAll').and.callFake(() => {
         const req = {
           result: [
             { level: LogLevel.INFO, isRequest: false },
@@ -295,9 +287,7 @@ describe('FileLogTransport', () => {
 
     it('should handle getLogs transaction error', async () => {
       await transport.initialize();
-      const transaction = mockDb.transaction(['logs'], 'readonly');
-      const store = transaction.objectStore('logs');
-      spyOn(store, 'getAll').and.callFake(() => {
+      spyOn(MockIDBObjectStore.prototype, 'getAll').and.callFake(() => {
         const req = { onerror: null as any } as any;
         setTimeout(() => req.onerror?.());
         return req;
@@ -317,9 +307,7 @@ describe('FileLogTransport', () => {
 
     it('should call clear on objectStore', async () => {
       await transport.initialize();
-      const transaction = mockDb.transaction(['logs'], 'readwrite');
-      const store = transaction.objectStore('logs');
-      const spy = spyOn(store, 'clear').and.callThrough();
+      const spy = spyOn(MockIDBObjectStore.prototype, 'clear').and.callThrough();
       await transport.clearLogs();
       expect(spy).toHaveBeenCalled();
     });

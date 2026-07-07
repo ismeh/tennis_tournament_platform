@@ -145,6 +145,7 @@ describe('HomeComponent', () => {
 
   describe('in browser', () => {
     beforeEach(async () => {
+      TestBed.resetTestingModule();
       roleSubject = new BehaviorSubject<UserRole | null>(null);
       authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUserEmail', 'logout'], {
         role$: roleSubject.asObservable()
@@ -180,7 +181,7 @@ describe('HomeComponent', () => {
 
     it('should wrap around slide and reset progress when timer completes', () => {
       component.progress = 99.9;
-      component.nextSlide = jasmine.createSpy('nextSlide');
+      spyOn(component, 'nextSlide').and.callThrough();
       // simulate tick execution (directly calling autoplay logic or trigger manually)
       component['startAutoplay']();
       // wait a bit for interval

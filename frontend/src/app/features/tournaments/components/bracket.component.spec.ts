@@ -608,21 +608,40 @@ describe('BracketComponent', () => {
 
   describe('requestWakeLock', () => {
     it('should do nothing if wakeLock API is not available', async () => {
-      const originalWakeLock = (navigator as any).wakeLock;
-      delete (navigator as any).wakeLock;
+      const originalWakeLock = navigator.wakeLock;
+      Object.defineProperty(navigator, 'wakeLock', {
+        value: undefined,
+        configurable: true,
+        writable: true
+      });
       await (component as any).requestWakeLock();
       expect((component as any).wakeLock).toBeNull();
-      (navigator as any).wakeLock = originalWakeLock;
+      Object.defineProperty(navigator, 'wakeLock', {
+        value: originalWakeLock,
+        configurable: true,
+        writable: true
+      });
     });
 
     it('should request screen lock when API is available', async () => {
+      const originalWakeLock = navigator.wakeLock;
       const mockSentinel = { addEventListener: jasmine.createSpy('addEventListener'), release: Promise.resolve.bind(Promise) };
-      (navigator as any).wakeLock = {
+      const mockWakeLock = {
         request: jasmine.createSpy('request').and.returnValue(Promise.resolve(mockSentinel))
       };
+      Object.defineProperty(navigator, 'wakeLock', {
+        value: mockWakeLock,
+        configurable: true,
+        writable: true
+      });
       await (component as any).requestWakeLock();
-      expect((navigator as any).wakeLock.request).toHaveBeenCalledWith('screen');
+      expect(mockWakeLock.request).toHaveBeenCalledWith('screen');
       expect((component as any).wakeLock).toBe(mockSentinel);
+      Object.defineProperty(navigator, 'wakeLock', {
+        value: originalWakeLock,
+        configurable: true,
+        writable: true
+      });
     });
   });
 

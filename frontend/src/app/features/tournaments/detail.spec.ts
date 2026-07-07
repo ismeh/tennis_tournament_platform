@@ -10,6 +10,7 @@ import { TournamentLiveUpdatesService } from '../../data/services/tournament-liv
 import { TournamentService } from '../../data/services/tournament.service';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
 import { ClubService } from '../../data/services/club.service';
+import { InvitationService } from '../../core/services/invitation.service';
 import { TournamentDetailComponent } from './detail';
 
 describe('TournamentDetailComponent', () => {
@@ -22,6 +23,7 @@ describe('TournamentDetailComponent', () => {
   let proPlayerServiceSpy: jasmine.SpyObj<ProPlayerService>;
   let referenceDataServiceSpy: jasmine.SpyObj<ReferenceDataService>;
   let clubServiceSpy: jasmine.SpyObj<ClubService>;
+  let invitationServiceSpy: jasmine.SpyObj<InvitationService>;
   let tournamentLiveUpdatesServiceSpy: jasmine.SpyObj<TournamentLiveUpdatesService>;
   let liveUpdatesSubject: Subject<TournamentUpdateEvent>;
 
@@ -59,6 +61,15 @@ describe('TournamentDetailComponent', () => {
     referenceDataServiceSpy = jasmine.createSpyObj<ReferenceDataService>('ReferenceDataService', ['getNationalities']);
     clubServiceSpy = jasmine.createSpyObj<ClubService>('ClubService', ['searchClubs']);
     clubServiceSpy.searchClubs.and.returnValue(of([]));
+    invitationServiceSpy = jasmine.createSpyObj<InvitationService>('InvitationService', [
+      'previewInvitation',
+      'generateInvitation',
+      'claimInvitation',
+      'storePendingToken',
+      'consumePendingToken',
+      'hasPendingToken'
+    ]);
+    invitationServiceSpy.generateInvitation.and.returnValue(of({ invitationUrl: 'http://test-url' }));
     tournamentLiveUpdatesServiceSpy = jasmine.createSpyObj<TournamentLiveUpdatesService>('TournamentLiveUpdatesService', ['watchTournament']);
     liveUpdatesSubject = new Subject<TournamentUpdateEvent>();
     tournamentLiveUpdatesServiceSpy.watchTournament.and.returnValue(liveUpdatesSubject.asObservable());
@@ -371,6 +382,7 @@ describe('TournamentDetailComponent', () => {
         { provide: ProPlayerService, useValue: proPlayerServiceSpy },
         { provide: ReferenceDataService, useValue: referenceDataServiceSpy },
         { provide: ClubService, useValue: clubServiceSpy },
+        { provide: InvitationService, useValue: invitationServiceSpy },
         { provide: TournamentLiveUpdatesService, useValue: tournamentLiveUpdatesServiceSpy },
         {
           provide: ActivatedRoute,

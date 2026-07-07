@@ -360,15 +360,20 @@ class InscriptionManagementRepositoryAdapterTest {
                             null, null, null, null),
                     "admin@test.com"))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Indica al menos el nombre y el género");
+                    .hasMessageContaining("Indica al menos el nombre del jugador");
         }
 
         @Test
         @DisplayName("Should reject manual participant with blank gender")
         void shouldRejectBlankGender() {
             openTournament.setCreatedBy(member);
+            EventEntity eventWithNullGender = EventEntity.builder()
+                    .id(eventId)
+                    .tournament(openTournament)
+                    .gender(null)
+                    .build();
             when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(openTournament));
-            when(eventRepository.findByIdAndTournament_Id(eventId, tournamentId)).thenReturn(Optional.of(event));
+            when(eventRepository.findByIdAndTournament_Id(eventId, tournamentId)).thenReturn(Optional.of(eventWithNullGender));
             when(memberRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(member));
 
             assertThatThrownBy(() -> adapter.registerManual(tournamentId, eventId,
@@ -376,7 +381,7 @@ class InscriptionManagementRepositoryAdapterTest {
                             null, null, null, null),
                     "admin@test.com"))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Indica al menos el nombre y el género");
+                    .hasMessageContaining("Indica el género del jugador");
         }
 
         @Test
