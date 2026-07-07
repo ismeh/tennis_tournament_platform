@@ -9,9 +9,10 @@ public record TournamentRankingEntry(
         String firstName,
         String lastName,
         String gender,
+        Long points,
         Long victories
 ) {
     public TournamentRankingEntry withPosition(Integer newPosition) {
-        return new TournamentRankingEntry(newPosition, participantId, license, firstName, lastName, gender, victories);
+        return new TournamentRankingEntry(newPosition, participantId, license, firstName, lastName, gender, points, victories);
     }
 }
