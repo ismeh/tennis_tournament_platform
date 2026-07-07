@@ -230,3 +230,7 @@ docs/*
 .gitignore
 AGENTS*
 memoria/* 
+wsl*
+.history*
+instruc*
+GIT_*
