@@ -38,6 +38,7 @@ public interface TournamentWebMapper {
     @Mapping(target = "surface", source = "surfaceCategory")
     @Mapping(target = "setsPerMatch", source = "setsPerMatch")
     @Mapping(target = "decisiveTiebreakPoints", source = "decisiveTiebreakPoints")
+    @Mapping(target = "gamesPerSet", source = "gamesPerSet")
     Tournament toDomain(TournamentRequest request);
 
     @Mapping(target = "formalName", source = "name")
@@ -53,6 +54,7 @@ public interface TournamentWebMapper {
     @Mapping(target = "professionalTournament", expression = "java(Boolean.FALSE)")
     @Mapping(target = "setsPerMatch", source = "setsPerMatch")
     @Mapping(target = "decisiveTiebreakPoints", source = "decisiveTiebreakPoints")
+    @Mapping(target = "gamesPerSet", source = "gamesPerSet")
     TournamentResponse toResponse(Tournament domain);
 
     @Mapping(target = "events", ignore = true)
@@ -91,6 +93,7 @@ public interface TournamentWebMapper {
                 .state(t.getState())
                 .setsPerMatch(t.getSetsPerMatch())
                 .decisiveTiebreakPoints(t.getDecisiveTiebreakPoints())
+                .gamesPerSet(t.getGamesPerSet())
                 .createdBy(t.getCreatedBy())
                 .events(events)
                 .build();
@@ -182,7 +185,7 @@ public interface TournamentWebMapper {
                     match.getResult(),
                     mapScoreToSetsResponse(match),
                     match.getNotes(),
-                    match.isProfessionalMatch(),
+                    null,
                     match.getFirstWinPoints(),
                     match.getSecondWinPoints(),
                     match.getFirstPlayerPoints(),

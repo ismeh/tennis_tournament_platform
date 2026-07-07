@@ -9,12 +9,6 @@ public enum TournamentStatus {
     CANCELLED;
 
     public boolean canTransitionTo(TournamentStatus next) {
-        return switch (this) {
-            case DRAFT       -> next == OPEN || next == CANCELLED;
-            case OPEN        -> next == CLOSED || next == CANCELLED;
-            case CLOSED      -> next == IN_PROGRESS || next == CANCELLED;
-            case IN_PROGRESS -> next == COMPLETED || next == CANCELLED;
-            default          -> false;
-        };
+        return this != next;
     }
 }

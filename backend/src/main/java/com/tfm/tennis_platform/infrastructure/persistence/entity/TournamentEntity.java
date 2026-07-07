@@ -75,6 +75,9 @@ public class TournamentEntity {
     @Column(name = "decisive_tiebreak_points")
     private Integer decisiveTiebreakPoints;
 
+    @Column(name = "games_per_set")
+    private Integer gamesPerSet;
+
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<EventEntity> events = new ArrayList<>();
