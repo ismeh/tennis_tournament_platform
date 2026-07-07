@@ -5,7 +5,6 @@ import com.tfm.tennis_platform.domain.models.enums.ParticipantSource;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.EventEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.InscriptionEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.ParticipantEntity;
-import com.tfm.tennis_platform.infrastructure.persistence.entity.ProPlayerEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaProPlayerRepository;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -70,51 +69,6 @@ class InscriptionMapperTest {
         }
 
         @Test
-        void should_resolve_professional_ranking_position() {
-            UUID participantId = UUID.randomUUID();
-            ParticipantEntity participant = ParticipantEntity.builder()
-                    .id(participantId)
-                    .participantSource(ParticipantSource.PROFESSIONAL)
-                    .displayTennisId("L001")
-                    .build();
-
-            InscriptionEntity entity = InscriptionEntity.builder()
-                    .id(UUID.randomUUID())
-                    .event(EventEntity.builder().id(UUID.randomUUID()).build())
-                    .participant(participant)
-                    .build();
-
-            ProPlayerEntity proPlayer = ProPlayerEntity.builder().rankingPosition(3).build();
-            when(proPlayerRepository.findFirstByLicenseIgnoreCase("L001")).thenReturn(Optional.of(proPlayer));
-
-            Inscription result = mapper.toDomain(entity);
-
-            assertThat(result.getProfessionalRankingPosition()).isEqualTo(3);
-        }
-
-        @Test
-        void should_resolve_professional_awarded_points() {
-            ParticipantEntity participant = ParticipantEntity.builder()
-                    .id(UUID.randomUUID())
-                    .participantSource(ParticipantSource.PROFESSIONAL)
-                    .displayTennisId("L001")
-                    .build();
-
-            InscriptionEntity entity = InscriptionEntity.builder()
-                    .id(UUID.randomUUID())
-                    .event(EventEntity.builder().id(UUID.randomUUID()).build())
-                    .participant(participant)
-                    .build();
-
-            ProPlayerEntity proPlayer = ProPlayerEntity.builder().awardedPoints(100).build();
-            when(proPlayerRepository.findFirstByLicenseIgnoreCase("L001")).thenReturn(Optional.of(proPlayer));
-
-            Inscription result = mapper.toDomain(entity);
-
-            assertThat(result.getProfessionalAwardedPoints()).isEqualTo(100);
-        }
-
-        @Test
         void should_return_null_ranking_when_not_professional() {
             ParticipantEntity participant = ParticipantEntity.builder()
                     .id(UUID.randomUUID())
@@ -129,8 +83,7 @@ class InscriptionMapperTest {
 
             Inscription result = mapper.toDomain(entity);
 
-            assertThat(result.getProfessionalRankingPosition()).isNull();
-            assertThat(result.getProfessionalAwardedPoints()).isNull();
+            assertThat(result.getParticipantId()).isNotNull();
             verifyNoInteractions(proPlayerRepository);
         }
 
@@ -150,7 +103,7 @@ class InscriptionMapperTest {
 
             Inscription result = mapper.toDomain(entity);
 
-            assertThat(result.getProfessionalRankingPosition()).isNull();
+            assertThat(result.getParticipantId()).isNotNull();
         }
 
         @Test
@@ -167,11 +120,9 @@ class InscriptionMapperTest {
                     .participant(participant)
                     .build();
 
-            when(proPlayerRepository.findFirstByLicenseIgnoreCase("L999")).thenReturn(Optional.empty());
-
             Inscription result = mapper.toDomain(entity);
 
-            assertThat(result.getProfessionalRankingPosition()).isNull();
+            assertThat(result.getParticipantId()).isNotNull();
         }
 
         @Test

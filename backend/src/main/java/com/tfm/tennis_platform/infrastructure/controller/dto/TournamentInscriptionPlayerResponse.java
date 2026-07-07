@@ -19,6 +19,7 @@ public record TournamentInscriptionPlayerResponse(
         Integer points,
         Integer seed,
         String club,
-        String entryStatus
+        String entryStatus,
+        String paymentStatus
 ) {
 }

@@ -127,15 +127,15 @@ class InscriptionManagementRepositoryAdapterTest {
         }
 
         @Test
-        @DisplayName("Should reject when tournament status is not OPEN")
-        void shouldRejectWhenTournamentNotOpen() {
-            openTournament.setStatus(TournamentStatus.DRAFT);
+        @DisplayName("Should reject when tournament status is CANCELLED")
+        void shouldRejectWhenTournamentCancelled() {
+            openTournament.setStatus(TournamentStatus.CANCELLED);
             when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(openTournament));
 
             assertThatThrownBy(() -> adapter.register(tournamentId, eventId,
                     new EventInscriptionCommand(8, null), "test@test.com"))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("solo están permitidas cuando el torneo está abierto");
+                    .hasMessageContaining("solo están permitidas cuando el torneo está en modo borrador o abierto");
         }
 
         @Test
@@ -147,7 +147,7 @@ class InscriptionManagementRepositoryAdapterTest {
             assertThatThrownBy(() -> adapter.register(tournamentId, eventId,
                     new EventInscriptionCommand(8, null), "test@test.com"))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("solo están permitidas cuando el torneo está abierto");
+                    .hasMessageContaining("solo están permitidas cuando el torneo está en modo borrador o abierto");
         }
 
         @Test
@@ -159,7 +159,7 @@ class InscriptionManagementRepositoryAdapterTest {
             assertThatThrownBy(() -> adapter.register(tournamentId, eventId,
                     new EventInscriptionCommand(8, null), "test@test.com"))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("solo están permitidas cuando el torneo está abierto");
+                    .hasMessageContaining("solo están permitidas cuando el torneo está en modo borrador o abierto");
         }
 
         @Test
@@ -297,9 +297,9 @@ class InscriptionManagementRepositoryAdapterTest {
         }
 
         @Test
-        @DisplayName("Should reject when tournament is not OPEN")
+        @DisplayName("Should reject when tournament is not OPEN or DRAFT")
         void shouldRejectWhenTournamentNotOpen() {
-            openTournament.setStatus(TournamentStatus.DRAFT);
+            openTournament.setStatus(TournamentStatus.CANCELLED);
             when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(openTournament));
 
             assertThatThrownBy(() -> adapter.registerManual(tournamentId, eventId,
@@ -307,7 +307,7 @@ class InscriptionManagementRepositoryAdapterTest {
                             null, null, null, null),
                     "admin@test.com"))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("solo están permitidas cuando el torneo está abierto");
+                    .hasMessageContaining("solo están permitidas cuando el torneo está en modo borrador o abierto");
         }
 
         @Test

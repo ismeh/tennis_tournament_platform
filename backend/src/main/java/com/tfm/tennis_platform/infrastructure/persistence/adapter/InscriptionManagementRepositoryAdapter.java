@@ -63,8 +63,8 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
         TournamentEntity tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new IllegalArgumentException("No se encontró el torneo solicitado."));
 
-        if (tournament.getStatus() != TournamentStatus.OPEN) {
-            throw new IllegalArgumentException("Las inscripciones solo están permitidas cuando el torneo está abierto.");
+        if (tournament.getStatus() != TournamentStatus.OPEN && tournament.getStatus() != TournamentStatus.DRAFT) {
+            throw new IllegalArgumentException("Las inscripciones solo están permitidas cuando el torneo está en modo borrador o abierto.");
         }
 
         EventEntity event = eventRepository.findByIdAndTournament_Id(eventId, tournamentId)
@@ -101,7 +101,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                 .event(event)
                 .participant(participant)
                 .status("PENDING")
-                .paymentStatus("UNPAID")
+                .paymentStatus("PENDING")
                 .build();
 
         InscriptionEntity saved = inscriptionRepository.save(inscription);
@@ -114,8 +114,8 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
         TournamentEntity tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new IllegalArgumentException("No se encontró el torneo solicitado."));
 
-        if (tournament.getStatus() != TournamentStatus.OPEN) {
-            throw new IllegalArgumentException("Las inscripciones solo están permitidas cuando el torneo está abierto.");
+        if (tournament.getStatus() != TournamentStatus.OPEN && tournament.getStatus() != TournamentStatus.DRAFT) {
+            throw new IllegalArgumentException("Las inscripciones solo están permitidas cuando el torneo está en modo borrador o abierto.");
         }
 
         EventEntity event = eventRepository.findByIdAndTournament_Id(eventId, tournamentId)
@@ -126,7 +126,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
 
         validateTournamentOwner(tournament, requester);
 
-        ParticipantEntity participant = resolveManualParticipant(tournament, request);
+        ParticipantEntity participant = resolveManualParticipant(tournament, event, request);
 
         if (inscriptionRepository.existsByEvent_IdAndParticipant_Id(eventId, participant.getId())) {
             throw new IllegalStateException("Este participante ya está inscrito en el evento.");
@@ -136,7 +136,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                 .event(event)
                 .participant(participant)
                 .status("PENDING")
-                .paymentStatus("UNPAID")
+                .paymentStatus("PENDING")
                 .build();
 
         InscriptionEntity saved = inscriptionRepository.save(inscription);
@@ -235,7 +235,8 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                         participant != null ? participant.getPoints() : null,
                         participant != null ? participant.getSeed() : null,
                         participant != null ? participant.getDisplayClub() : null,
-                        participant != null && participant.getEntryStatus() != null ? participant.getEntryStatus().name() : null
+                        participant != null && participant.getEntryStatus() != null ? participant.getEntryStatus().name() : null,
+                        inscription.getPaymentStatus()
                 ))
                 .toList();
     }
@@ -283,7 +284,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
         return ParticipantSource.MANUAL;
     }
 
-    private ParticipantEntity resolveManualParticipant(TournamentEntity tournament, ManualEventInscriptionCommand request) {
+    private ParticipantEntity resolveManualParticipant(TournamentEntity tournament, EventEntity event, ManualEventInscriptionCommand request) {
         ParticipantSource participantSource = request.playerSource();
         if (participantSource == null) {
             throw new IllegalArgumentException("Indica el origen del jugador.");
@@ -291,7 +292,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
 
         return switch (participantSource) {
             case EXISTING_PERSON -> resolveExistingPersonParticipant(tournament, request.personId());
-            case MANUAL -> resolveManualSnapshotParticipant(tournament, request);
+            case MANUAL -> resolveManualSnapshotParticipant(tournament, event, request);
             case PROFESSIONAL -> resolveProfessionalParticipant(tournament, request);
         };
     }
@@ -307,17 +308,24 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
         return getOrCreateIndividualParticipant(tournament, person, ParticipantSource.EXISTING_PERSON);
     }
 
-    private ParticipantEntity resolveManualSnapshotParticipant(TournamentEntity tournament, ManualEventInscriptionCommand request) {
-        if (isBlank(request.firstName()) || isBlank(request.gender())) {
-            throw new IllegalArgumentException("Indica al menos el nombre y el género del jugador.");
+    private ParticipantEntity resolveManualSnapshotParticipant(TournamentEntity tournament, EventEntity event, ManualEventInscriptionCommand request) {
+        if (isBlank(request.firstName())) {
+            throw new IllegalArgumentException("Indica al menos el nombre del jugador.");
         }
+
+        String gender = isBlank(request.gender()) && event != null ? event.getGender() : request.gender();
+        if (isBlank(gender)) {
+            throw new IllegalArgumentException("Indica el género del jugador.");
+        }
+
+        String normalizedGender = gender.trim().toUpperCase(Locale.ROOT);
 
         return participantRepository.findByTournamentId(tournament.getId()).stream()
                 .filter(participant -> participant.getParticipantType() == ParticipantType.INDIVIDUAL)
                 .filter(participant -> participant.getParticipantSource() == request.playerSource())
                 .filter(participant -> equalsNormalized(participant.getDisplayFirstName(), request.firstName()))
                 .filter(participant -> equalsNormalized(participant.getDisplayLastName(), request.lastName()))
-                .filter(participant -> equalsNormalized(participant.getDisplayGender(), request.gender()))
+                .filter(participant -> equalsNormalized(participant.getDisplayGender(), normalizedGender))
                 .filter(participant -> equalsNormalized(participant.getDisplayTennisId(), request.tennisId()))
                 .findFirst()
                 .orElseGet(() -> participantRepository.save(ParticipantEntity.builder()
@@ -327,7 +335,7 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
                         .entryStatus(EntryStatus.DIRECT_ACCEPTANCE)
                         .displayFirstName(request.firstName().trim())
                         .displayLastName(normalizeNullable(request.lastName()))
-                        .displayGender(request.gender().trim().toUpperCase(Locale.ROOT))
+                        .displayGender(normalizedGender)
                         .displayBirthDate(request.birthDate())
                         .displayNationality(normalizeNullable(request.nationality()))
                         .displayTennisId(normalizeNullable(request.tennisId()))
@@ -598,14 +606,22 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
     @Override
     @Transactional
     public void updateParticipantDetails(UUID tournamentId, ParticipantDetailUpdateCommand update) {
-        List<ParticipantEntity> participants = participantRepository.findByTournamentIdAndIdIn(
-                tournamentId, List.of(update.participantId()));
+        InscriptionEntity inscription = resolveInscriptionForUpdate(tournamentId, update);
 
-        if (participants.isEmpty()) {
-            throw new IllegalArgumentException("No se encontró el participante en el torneo.");
+        ParticipantEntity participant = inscription.getParticipant();
+
+        if (participant.getParticipantSource() == ParticipantSource.MANUAL) {
+            if (!isBlank(update.firstName())) {
+                participant.setDisplayFirstName(update.firstName().trim());
+            }
+            if (update.lastName() != null) {
+                String trimmed = update.lastName().trim();
+                participant.setDisplayLastName(trimmed.isEmpty() ? null : trimmed);
+            }
+            if (!isBlank(update.gender())) {
+                participant.setDisplayGender(update.gender().trim().toUpperCase(Locale.ROOT));
+            }
         }
-
-        ParticipantEntity participant = participants.getFirst();
 
         if (update.entryStatus() != null) {
             String trimmed = update.entryStatus().trim();
@@ -622,6 +638,40 @@ public class InscriptionManagementRepositoryAdapter implements InscriptionManage
             }
         }
 
+        if (update.paymentStatus() != null) {
+            String trimmed = update.paymentStatus().trim();
+            inscription.setPaymentStatus(trimmed.isEmpty() ? null : trimmed.toUpperCase(Locale.ROOT));
+        }
+
+        if (update.eventId() != null && !update.eventId().equals(inscription.getEvent().getId())) {
+            EventEntity targetEvent = eventRepository.findByIdAndTournament_Id(update.eventId(), tournamentId)
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró la prueba destino en el torneo."));
+
+            if (inscriptionRepository.existsByEvent_IdAndParticipant_Id(update.eventId(), participant.getId())) {
+                throw new IllegalStateException("El participante ya está inscrito en la prueba destino.");
+            }
+
+            inscription.setEvent(targetEvent);
+        }
+
         participantRepository.save(participant);
+        inscriptionRepository.save(inscription);
+    }
+
+    private InscriptionEntity resolveInscriptionForUpdate(UUID tournamentId, ParticipantDetailUpdateCommand update) {
+        if (update.inscriptionId() != null) {
+            return inscriptionRepository.findById(update.inscriptionId())
+                    .filter(i -> i.getEvent().getTournament().getId().equals(tournamentId))
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró la inscripción en el torneo."));
+        }
+
+        if (update.participantId() != null) {
+            return inscriptionRepository.findByParticipant_Id(update.participantId()).stream()
+                    .filter(i -> i.getEvent().getTournament().getId().equals(tournamentId))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("No se encontró una inscripción para el participante en el torneo."));
+        }
+
+        throw new IllegalArgumentException("Se requiere inscriptionId o participantId para actualizar.");
     }
 }
