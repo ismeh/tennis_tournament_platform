@@ -1285,8 +1285,6 @@ class TournamentEntityMapperTest {
             assertThat(result.getId()).isEqualTo(id);
             assertThat(result.getParticipantSource()).isNull();
             assertThat(result.getSeed()).isNull();
-            assertThat(result.getProfessionalRankingPosition()).isNull();
-            assertThat(result.getProfessionalAwardedPoints()).isNull();
         }
     }
 

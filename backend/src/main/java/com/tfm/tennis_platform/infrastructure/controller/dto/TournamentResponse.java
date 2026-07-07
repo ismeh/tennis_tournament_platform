@@ -29,5 +29,6 @@ public record TournamentResponse(
     List<TournamentEventResponse> events,
     Boolean professionalTournament,
     Integer setsPerMatch,
-    Integer decisiveTiebreakPoints
+    Integer decisiveTiebreakPoints,
+    Integer gamesPerSet
 ) {}

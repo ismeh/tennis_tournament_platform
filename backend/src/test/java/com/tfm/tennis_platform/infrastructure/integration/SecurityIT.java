@@ -19,7 +19,7 @@ class SecurityIT extends IntegrationTestBase {
         mockMvc.perform(get("/api/tournaments"))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/rankings/professionals"))
+        mockMvc.perform(get("/api/rankings/tournaments"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/age-categories"))

@@ -5,6 +5,7 @@ import com.tfm.tennis_platform.application.services.TournamentUmpireService;
 import com.tfm.tennis_platform.domain.models.TournamentUmpire;
 import com.tfm.tennis_platform.domain.models.TournamentSummary;
 import com.tfm.tennis_platform.domain.models.UmpireSearchResult;
+import com.tfm.tennis_platform.domain.models.enums.UserRole;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentUmpireRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentUmpireResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentUmpireSearchResponse;
@@ -49,9 +50,29 @@ public class UmpireController {
 
     @GetMapping("/umpires")
     public ResponseEntity<List<TournamentUmpireSearchResponse>> searchUmpires(
-            @RequestParam(required = false) String query
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) List<String> roles
     ) {
-        List<UmpireSearchResult> umpires = tournamentUmpireService.searchUmpires(query);
+        List<UmpireSearchResult> umpires;
+        if (roles != null && !roles.isEmpty()) {
+            List<UserRole> userRoles = roles.stream()
+                    .map(r -> {
+                        try {
+                            return UserRole.valueOf(r.toUpperCase());
+                        } catch (IllegalArgumentException e) {
+                            return null;
+                        }
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (!userRoles.isEmpty()) {
+                umpires = tournamentUmpireService.searchByRoles(userRoles, query);
+            } else {
+                umpires = tournamentUmpireService.searchUmpires(query);
+            }
+        } else {
+            umpires = tournamentUmpireService.searchUmpires(query);
+        }
         return ResponseEntity.ok(umpires.stream()
                 .map(umpire -> new TournamentUmpireSearchResponse(
                         umpire.getId(),

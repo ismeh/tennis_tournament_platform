@@ -190,6 +190,7 @@ class RankingRepositoryAdapterTest {
                 @Override public String getFirstName() { return "Carlos"; }
                 @Override public String getLastName() { return "Pablo"; }
                 @Override public String getGender() { return "MALE"; }
+                @Override public Long getPoints() { return 0L; }
                 @Override public Long getVictories() { return 5L; }
             };
 

@@ -1,22 +1,6 @@
-export type RankingMode = 'professionals' | 'tournament';
-
 export type RankingGender = 'MALE' | 'FEMALE' | 'MIXED';
 
 export type RankingSortDirection = 'asc' | 'desc';
-
-export interface ProfessionalRankingResponse {
-  position: number | null;
-  playerId: number;
-  license: string | null;
-  fullName: string;
-  firstName: string;
-  lastName: string | null;
-  gender: string | null;
-  category: string | null;
-  clubName: string | null;
-  birthDate: string | null;
-  points: number | null;
-}
 
 export interface TournamentRankingResponse {
   position: number;
@@ -25,6 +9,7 @@ export interface TournamentRankingResponse {
   firstName: string;
   lastName: string | null;
   gender: string | null;
+  points: number;
   victories: number;
 }
 

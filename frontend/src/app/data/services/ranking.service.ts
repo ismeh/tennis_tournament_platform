@@ -3,7 +3,6 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AppSettings } from '../../shared/constants';
 import {
-  ProfessionalRankingResponse,
   RankingFilters,
   RankingPageResponse,
   RankingTournamentResponse,
@@ -15,12 +14,6 @@ import {
 })
 export class RankingService {
   private readonly http = inject(HttpClient);
-
-  getProfessionalRanking(filters: RankingFilters = {}): Observable<RankingPageResponse<ProfessionalRankingResponse>> {
-    return this.http.get<RankingPageResponse<ProfessionalRankingResponse>>(`${this.apiUrl}/professionals`, {
-      params: this.toProfessionalParams(filters)
-    });
-  }
 
   getRankingTournaments(): Observable<RankingTournamentResponse[]> {
     return this.http.get<RankingTournamentResponse[]>(`${this.apiUrl}/tournaments`);
@@ -37,20 +30,6 @@ export class RankingService {
 
   private get apiUrl(): string {
     return `${AppSettings.API_URL}/rankings`;
-  }
-
-  private toProfessionalParams(filters: RankingFilters): HttpParams {
-    let params = new HttpParams();
-
-    if (filters.gender) {
-      params = params.set('gender', filters.gender);
-    }
-    if (filters.category?.trim()) {
-      params = params.set('category', filters.category.trim());
-    }
-    params = this.appendPageParams(params, filters);
-
-    return params;
   }
 
   private toTournamentParams(filters: RankingFilters): HttpParams {

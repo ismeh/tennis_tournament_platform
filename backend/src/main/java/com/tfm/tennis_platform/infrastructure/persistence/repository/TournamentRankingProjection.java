@@ -8,5 +8,6 @@ public interface TournamentRankingProjection {
     String getFirstName();
     String getLastName();
     String getGender();
+    Long getPoints();
     Long getVictories();
 }

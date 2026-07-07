@@ -93,24 +93,26 @@ type TournamentCalendarGroup = {
                       @for (tournament of group.tournaments; track tournament.id) {
                         <a
                           [routerLink]="['/torneos', tournament.id]"
-                          class="surface-card-bg block rounded-lg px-5 py-4 transition hover:brightness-110"
+                          class="surface-card-bg flex items-end justify-between gap-3 rounded-lg px-5 py-4 transition hover:brightness-110"
                           [style.backgroundImage]="'url(' + getSurfaceImage(tournament.surfaceCategory) + ')'"
                         >
-                          <div class="flex items-center justify-between gap-3">
-                            <div class="flex flex-wrap items-center gap-2">
-                              <span class="rounded-full px-3 py-1 text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">{{ getStatusLabel(tournament.status) }}</span>
+                          <div class="min-w-0">
+                            <h4 class="text-lg font-bold text-white drop-shadow-md">{{ tournament.formalName }}</h4>
+                            <p class="mt-1 text-sm text-white/85 drop-shadow-sm">{{ tournament.location }}</p>
+                          </div>
+                          <div class="flex shrink-0 flex-col items-end gap-1">
+                            <div class="text-xs text-white/80">
+                              <span class="font-semibold text-white drop-shadow-sm">{{ tournament.playStartDate | date: 'dd/MM' }} - {{ tournament.playEndDate | date: 'dd/MM' }}</span>
+                              <span class="mx-1.5 text-white/40">|</span>
+                              <span class="font-semibold text-white drop-shadow-sm">{{ tournament.tournamentStartTime?.substring(0, 5) || 'Por definir' }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                              <span class="rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm {{ getStatusColorClasses(tournament.status) }}">{{ getStatusLabel(tournament.status) }}</span>
                               @if (tournament.professionalTournament) {
                                 <span class="rounded-full bg-white/25 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">PRO</span>
                               }
                             </div>
-                            <div class="shrink-0 text-right text-xs text-white/80">
-                              <span class="font-semibold text-white drop-shadow-sm">{{ tournament.playStartDate | date: 'dd/MM' }} - {{ tournament.playEndDate | date: 'dd/MM' }}</span>
-                              <span class="mx-1.5 text-white/40">|</span>
-                              <span class="font-semibold text-white drop-shadow-sm">{{ tournament.tournamentStartTime || 'Por definir' }}</span>
-                            </div>
                           </div>
-                          <h4 class="mt-2 text-lg font-bold text-white drop-shadow-md">{{ tournament.formalName }}</h4>
-                          <p class="mt-1 text-sm text-white/85 drop-shadow-sm">{{ tournament.location }}</p>
                         </a>
                       }
                     </div>
@@ -190,24 +192,26 @@ type TournamentCalendarGroup = {
                     @for (tournament of (isOrganizer() ? paginatedSidebarTournaments() : paginatedSidebarUmpireTournaments()); track tournament.id) {
                       <a
                         [routerLink]="['/torneos', tournament.id]"
-                        class="surface-card-bg block rounded-lg px-4 py-4 transition hover:brightness-110"
+                        class="surface-card-bg flex items-end justify-between gap-3 rounded-lg px-4 py-4 transition hover:brightness-110"
                         [style.backgroundImage]="'url(' + getSurfaceImage(tournament.surfaceCategory) + ')'"
                       >
-                        <div class="flex items-center justify-between gap-3">
-                          <div class="flex flex-wrap items-center gap-2">
-                            <span class="rounded-full px-3 py-1 text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">{{ getStatusLabel(tournament.status) }}</span>
+                        <div class="min-w-0">
+                          <h4 class="text-lg font-bold text-white drop-shadow-md">{{ tournament.formalName }}</h4>
+                          <p class="mt-1 text-sm text-white/85 drop-shadow-sm">{{ tournament.location }}</p>
+                        </div>
+                        <div class="flex shrink-0 flex-col items-end gap-1">
+                          <div class="text-xs text-white/80">
+                            <span class="font-semibold text-white drop-shadow-sm">{{ tournament.playStartDate | date: 'dd/MM' }} - {{ tournament.playEndDate | date: 'dd/MM' }}</span>
+                            <span class="mx-1.5 text-white/40">|</span>
+                            <span class="font-semibold text-white drop-shadow-sm">{{ tournament.tournamentStartTime?.substring(0, 5) || 'Por definir' }}</span>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <span class="rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm {{ getStatusColorClasses(tournament.status) }}">{{ getStatusLabel(tournament.status) }}</span>
                             @if (tournament.professionalTournament) {
                               <span class="rounded-full bg-white/25 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">PRO</span>
                             }
                           </div>
-                          <div class="shrink-0 text-right text-xs text-white/80">
-                            <span class="font-semibold text-white drop-shadow-sm">{{ tournament.playStartDate | date: 'dd/MM' }} - {{ tournament.playEndDate | date: 'dd/MM' }}</span>
-                            <span class="mx-1.5 text-white/40">|</span>
-                            <span class="font-semibold text-white drop-shadow-sm">{{ tournament.tournamentStartTime || 'Por definir' }}</span>
-                          </div>
                         </div>
-                        <h4 class="mt-2 text-lg font-bold text-white drop-shadow-md">{{ tournament.formalName }}</h4>
-                        <p class="mt-1 text-sm text-white/85 drop-shadow-sm">{{ tournament.location }}</p>
                       </a>
                     }
                   } @else {
@@ -657,7 +661,6 @@ export class CalendarComponent implements OnInit {
     const labels: Record<string, string> = {
       DRAFT: 'Borrador',
       OPEN: 'Inscripciones abiertas',
-      ACTIVE: 'Activo',
       CLOSED: 'Inscripciones cerradas',
       IN_PROGRESS: 'En juego',
       COMPLETED: 'Finalizado',
@@ -668,15 +671,14 @@ export class CalendarComponent implements OnInit {
 
   getStatusColorClasses(status: string): string {
     const colors: Record<string, string> = {
-      DRAFT: 'bg-neutral-100 text-neutral-600',
-      OPEN: 'bg-blue-100 text-blue-700',
-      ACTIVE: 'bg-green-100 text-green-700',
-      CLOSED: 'bg-amber-100 text-amber-700',
-      IN_PROGRESS: 'bg-sky-100 text-sky-700',
-      COMPLETED: 'bg-emerald-100 text-emerald-700',
-      CANCELLED: 'bg-red-100 text-red-700'
+      DRAFT: 'bg-neutral-400/30 text-neutral-100 border border-neutral-300/30',
+      OPEN: 'bg-blue-500/30 text-blue-100 border border-blue-400/30',
+      CLOSED: 'bg-amber-500/30 text-amber-100 border border-amber-400/30',
+      IN_PROGRESS: 'bg-sky-500/30 text-sky-100 border border-sky-400/30',
+      COMPLETED: 'bg-emerald-500/30 text-emerald-100 border border-emerald-400/30',
+      CANCELLED: 'bg-red-500/30 text-red-100 border border-red-400/30'
     };
-    return colors[status] ?? 'bg-primary-50 text-primary-700';
+    return colors[status] ?? 'bg-primary-500/30 text-primary-100 border border-primary-400/30';
   }
 
   getSchedulePrefix(scheduleTimeType: string | null | undefined): string {

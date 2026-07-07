@@ -21,7 +21,8 @@ public record TournamentRequest(
     String locationFormattedAddress,
     Integer courtCount,
     Integer setsPerMatch,
-    Integer decisiveTiebreakPoints
+    Integer decisiveTiebreakPoints,
+    Integer gamesPerSet
 ) {
     public TournamentRequest(
         String formalName,
@@ -41,6 +42,6 @@ public record TournamentRequest(
     ) {
         this(formalName, playStartDate, playEndDate, tournamentStartTime, inscriptionStartDate, inscriptionEndDate,
              surfaceCategory, maxPlayers, location, locationLatitude, locationLongitude, locationPlaceId,
-             locationFormattedAddress, courtCount, null, null);
+             locationFormattedAddress, courtCount, null, null, null);
     }
 }

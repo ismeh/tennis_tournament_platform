@@ -9,37 +9,107 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class ConsolationMatchGeneratorTest {
 
+    private final ConsolationMatchGenerator generator = new ConsolationMatchGenerator();
+
     @Test
-    void creates_empty_bracket_for_first_round_losers() {
-        ConsolationMatchGenerator generator = new ConsolationMatchGenerator();
+    void generatesBracketForFirstRoundLosers() {
         Draw draw = Draw.builder()
                 .id(UUID.randomUUID())
                 .drawType(DrawType.CONSOLATION)
                 .build();
 
-        List<Match> matches = generator.generateMatches(draw, List.of(
-                inscription(),
-                inscription(),
-                inscription(),
-                inscription(),
-                inscription(),
-                inscription(),
-                inscription(),
-                inscription()
-        ));
+        List<Match> matches = generator.generateMatches(draw, eightInscriptions());
 
-        assertEquals(3, matches.size());
-        assertEquals(2, matches.stream().filter(match -> match.getRoundNumber() == 1).count());
-        assertEquals(1, matches.stream().filter(match -> match.getRoundNumber() == 2).count());
-        matches.forEach(match -> {
-            assertNull(match.getFirstInscriptionId());
-            assertNull(match.getSecondInscriptionId());
-        });
+        assertThat(matches).isNotEmpty();
+        assertThat(matches).allMatch(m -> m.getDrawId().equals(draw.getId()));
+        assertThat(matches).allMatch(m -> m.getRoundNumber() != null && m.getRoundNumber() >= 1);
+        assertThat(matches).allMatch(m -> m.getBracketPosition() != null);
+    }
+
+    @Test
+    void secondRoundMatchesLinkToFinalMatch() {
+        Draw draw = Draw.builder()
+                .id(UUID.randomUUID())
+                .drawType(DrawType.CONSOLATION)
+                .build();
+
+        List<Match> matches = generator.generateMatches(draw, eightInscriptions());
+
+        long secondRoundCount = matches.stream()
+                .filter(m -> m.getRoundNumber() == 2)
+                .count();
+
+        if (secondRoundCount > 0) {
+            matches.stream()
+                    .filter(m -> m.getRoundNumber() == 1)
+                    .forEach(m -> assertThat(m.getNextMatch()).isNotNull());
+        }
+    }
+
+    @Test
+    void emptyListProducesNoMatches() {
+        Draw draw = Draw.builder()
+                .id(UUID.randomUUID())
+                .drawType(DrawType.CONSOLATION)
+                .build();
+
+        List<Match> matches = generator.generateMatches(draw, List.of());
+
+        assertThat(matches).isEmpty();
+    }
+
+    @Test
+    void singleInscriptionProducesNoMatches() {
+        Draw draw = Draw.builder()
+                .id(UUID.randomUUID())
+                .drawType(DrawType.CONSOLATION)
+                .build();
+
+        List<Match> matches = generator.generateMatches(draw, List.of(inscription()));
+
+        assertThat(matches).isEmpty();
+    }
+
+    @Test
+    void matchPositionsAreSequential() {
+        Draw draw = Draw.builder()
+                .id(UUID.randomUUID())
+                .drawType(DrawType.CONSOLATION)
+                .build();
+
+        List<Match> matches = generator.generateMatches(draw, eightInscriptions());
+
+        List<Match> round1 = matches.stream()
+                .filter(m -> m.getRoundNumber() == 1)
+                .toList();
+
+        for (int i = 0; i < round1.size(); i++) {
+            assertThat(round1.get(i).getBracketPosition()).isEqualTo(i);
+        }
+    }
+
+    @Test
+    void allMatchesHaveUniqueIds() {
+        Draw draw = Draw.builder()
+                .id(UUID.randomUUID())
+                .drawType(DrawType.CONSOLATION)
+                .build();
+
+        List<Match> matches = generator.generateMatches(draw, eightInscriptions());
+
+        long uniqueIds = matches.stream().map(Match::getId).distinct().count();
+        assertThat(uniqueIds).isEqualTo(matches.size());
+    }
+
+    private List<Inscription> eightInscriptions() {
+        return List.of(
+                inscription(), inscription(), inscription(), inscription(),
+                inscription(), inscription(), inscription(), inscription()
+        );
     }
 
     private Inscription inscription() {

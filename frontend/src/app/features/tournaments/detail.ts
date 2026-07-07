@@ -8,6 +8,7 @@ import {
   computed,
   inject,
   signal,
+  ViewChild,
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -57,11 +58,13 @@ import {
 import { MemberService } from '../../data/services/member.service';
 import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
 import { TournamentService } from '../../data/services/tournament.service';
+import { InvitationService } from '../../core/services/invitation.service';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
 import { ClubAutocompleteComponent } from '../../components/club-autocomplete';
 import { LocationInputComponent } from '../../components/location-input';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { StagesComponent } from './components/stages.component';
+import { MatchDetailModalComponent } from './components/match-detail-modal.component';
 
 type TournamentDetailSection = 'overview' | 'setup' | 'inscriptions' | 'stages';
 
@@ -104,7 +107,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-tournament-detail-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe, FormsModule, ReactiveFormsModule, StagesComponent, LocationInputComponent, ClubAutocompleteComponent],
+  imports: [CommonModule, RouterLink, DatePipe, FormsModule, ReactiveFormsModule, StagesComponent, LocationInputComponent, ClubAutocompleteComponent, MatchDetailModalComponent],
   template: `
     <section class="relative overflow-hidden bg-gradient-to-b from-neutral-50 via-white to-white py-10 sm:py-14">
       <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -348,6 +351,8 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         formControlName="setsPerMatch"
                         class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
                       >
+                        <option [value]="1">1 set (al primer set)</option>
+                        <option [value]="2">2 sets (al mejor de 2)</option>
                         <option [value]="3">Al mejor de 3 sets</option>
                         <option [value]="5">Al mejor de 5 sets</option>
                       </select>
@@ -364,6 +369,22 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       </select>
                     </label>
                   </div>
+
+                  @if (generalInfoForm.value.setsPerMatch === 1 || generalInfoForm.value.setsPerMatch === 2) {
+                    <div class="grid gap-4 sm:grid-cols-2">
+                      <label class="block">
+                        <span class="mb-1 block text-sm font-medium text-neutral-700">Juegos por set</span>
+                        <select
+                          formControlName="gamesPerSet"
+                          class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white"
+                        >
+                          <option [value]="6">Estándar (6 juegos)</option>
+                          <option [value]="5">5 juegos</option>
+                          <option [value]="4">4 juegos</option>
+                        </select>
+                      </label>
+                    </div>
+                  }
 
                   @if (generalInfoError()) {
                     <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -412,7 +433,19 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   </div>
                   <div class="rounded-2xl border border-neutral-200 p-4">
                     <p class="text-xs uppercase tracking-widest text-neutral-500">Formato de partido</p>
-                    <p class="mt-1 font-semibold text-neutral-900">Al mejor de {{ tournament()!.setsPerMatch ?? 3 }} sets</p>
+                    <p class="mt-1 font-semibold text-neutral-900">
+                      @if (tournament()!.setsPerMatch === 1 && (tournament()!.gamesPerSet ?? 6) !== 6) {
+                        A {{ tournament()!.gamesPerSet }} juegos
+                      } @else if (tournament()!.setsPerMatch === 1) {
+                        A 1 set
+                      } @else if (tournament()!.setsPerMatch === 2 && (tournament()!.gamesPerSet ?? 6) !== 6) {
+                        A 2 sets ({{ tournament()!.gamesPerSet }} juegos)
+                      } @else if (tournament()!.setsPerMatch === 2) {
+                        A 2 sets (mejor de 2)
+                      } @else {
+                        Al mejor de {{ tournament()!.setsPerMatch ?? 3 }} sets
+                      }
+                    </p>
                   </div>
                   <div class="rounded-2xl border border-neutral-200 p-4">
                     <p class="text-xs uppercase tracking-widest text-neutral-500">Tiebreak set decisivo</p>
@@ -1267,24 +1300,79 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       }
 
                       <div class="mt-4 rounded-2xl border border-neutral-200 bg-white">
-                        <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] gap-3 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500 rounded-t-2xl">
+                        <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] gap-3 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500 rounded-t-2xl">
                           <span>Nombre</span>
                           <span>Prueba</span>
                           <span title="Club al que pertenece el jugador" class="cursor-help">Club</span>
                           <span title="DA = Aceptación Directa · WC = Wildcard · Q = Clasificado · LL = Perdedor Afortunado" class="cursor-help">Tipo Acceso</span>
                           <span class="text-right">Puntos</span>
+                          <span class="text-center">Pago</span>
                         </div>
 
                         <div class="divide-y divide-neutral-100 bg-white rounded-b-2xl">
                           @for (player of tournamentInscriptionPlayers(); track player.inscriptionId + player.firstName + player.lastName) {
-                            <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] items-center gap-3 px-4 py-2 text-sm last:rounded-b-2xl">
+                            <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] items-center gap-3 px-4 py-2 text-sm last:rounded-b-2xl">
                               <div class="min-w-0">
-                                <p class="truncate font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
-                                <p class="truncate text-xs text-neutral-500">{{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}</p>
+                                @if (isTournamentAdmin() && player.playerSource === 'MANUAL') {
+                                  <div class="flex flex-col gap-1">
+                                    <input
+                                      type="text"
+                                      class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                      [ngModel]="getEditedFirstName(player)"
+                                      (ngModelChange)="setEditedFirstName(player, $event)"
+                                      placeholder="Nombre"
+                                    />
+                                    <input
+                                      type="text"
+                                      class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                      [ngModel]="getEditedLastName(player)"
+                                      (ngModelChange)="setEditedLastName(player, $event)"
+                                      placeholder="Apellido"
+                                    />
+                                    <div class="mt-1 flex items-center gap-1.5 flex-wrap">
+                                      <button
+                                        type="button"
+                                        (click)="generateInvitation(player)"
+                                        [disabled]="isGeneratingInvitation(player.inscriptionId)"
+                                        class="inline-flex items-center gap-1 rounded bg-neutral-100 hover:bg-neutral-200 text-[10px] font-semibold text-neutral-700 px-2 py-0.5 transition-colors disabled:opacity-50"
+                                        [title]="'Generar enlace de invitación para que el jugador se registre en la plataforma'"
+                                      >
+                                        @if (isGeneratingInvitation(player.inscriptionId)) {
+                                          <span>Generando...</span>
+                                        } @else if (getInvitationUrl(player.inscriptionId)) {
+                                          <svg class="h-3 w-3 text-emerald-600 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                          </svg>
+                                          <span class="text-emerald-700">¡Copiado! Recopiar</span>
+                                        } @else {
+                                          <svg class="h-3 w-3 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                          </svg>
+                                          <span>Invitar</span>
+                                        }
+                                      </button>
+                                    </div>
+                                  </div>
+                                } @else {
+                                  <p class="truncate font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
+                                  <p class="truncate text-xs text-neutral-500">{{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}</p>
+                                }
                               </div>
                               <div class="min-w-0">
-                                <p class="truncate text-xs text-neutral-700">{{ player.eventName }}</p>
-                                <p class="truncate text-xs text-neutral-400">{{ player.category }}</p>
+                                @if (isTournamentAdmin()) {
+                                  <select
+                                    class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                    [ngModel]="getEditedEventId(player)"
+                                    (ngModelChange)="setEditedEventId(player, $event)"
+                                  >
+                                    @for (event of manualPlayerEventOptions(); track event.eventId) {
+                                      <option [value]="event.eventId">{{ event.eventName }}</option>
+                                    }
+                                  </select>
+                                } @else {
+                                  <p class="truncate text-xs text-neutral-700">{{ player.eventName }}</p>
+                                  <p class="truncate text-xs text-neutral-400">{{ player.category }}</p>
+                                }
                               </div>
                               @if (isTournamentAdmin()) {
                                 <div class="min-w-0">
@@ -1326,6 +1414,26 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                   }
                                 </div>
                               }
+                              <div class="text-center">
+                                @if (isTournamentAdmin()) {
+                                  <select
+                                    class="w-full rounded-lg border border-neutral-300 bg-white px-1 py-0.5 text-[11px] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                    [ngModel]="getEditedPaymentStatus(player)"
+                                    (ngModelChange)="setEditedPaymentStatus(player, $event)"
+                                  >
+                                    <option value="PENDING">Pendiente</option>
+                                    <option value="PAID">Pagado</option>
+                                  </select>
+                                } @else {
+                                  @if (player.paymentStatus === 'PAID') {
+                                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Pagado</span>
+                                  } @else if (player.paymentStatus === 'PENDING') {
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Pendiente</span>
+                                  } @else {
+                                    <span class="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-500">-</span>
+                                  }
+                                }
+                              </div>
                             </div>
                           }
                         </div>
@@ -1360,6 +1468,19 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         />
                         <p class="mt-2 text-xs text-neutral-500">Escribe al menos 2 caracteres para buscar, o el email exacto del árbitro.</p>
                       </label>
+                      <label class="block sm:w-48">
+                        <span class="mb-1 block text-sm font-medium text-neutral-700">Rol</span>
+                        <select
+                          class="w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                          [ngModel]="umpireSearchRoleFilter()"
+                          (ngModelChange)="onUmpireRoleFilterChange($event)"
+                          name="umpireRoleFilter"
+                        >
+                          <option value="ALL">Todos (Árbitros y Organizadores)</option>
+                          <option value="UMPIRE">Solo Árbitros</option>
+                          <option value="ORGANIZER">Solo Organizadores</option>
+                        </select>
+                      </label>
                     </div>
 
                     @if (isSearchingUmpires()) {
@@ -1392,7 +1513,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       </div>
                     } @else if (!isSearchingUmpires() && umpireSearchQuery().trim().length >= 2 && !umpireSearchError()) {
                       <div class="mt-4 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-                        No se han encontrado árbitros con ese criterio. Prueba con otro nombre, apellido o email exacto.
+                        No se han encontrado usuarios con ese criterio. Prueba con otro nombre, apellido o email exacto.
                       </div>
                     }
 
@@ -1621,7 +1742,19 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     Genera cuadros para ver aquí los partidos programables.
                   </div>
                 } @else if (isMatchSchedulePanelExpanded()) {
-                  <div class="mt-4 grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.8fr_0.9fr_1fr_0.8fr_auto]">
+                  <div class="mt-4 grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-2 lg:grid-cols-[1.5fr_1.2fr_0.8fr_0.9fr_1fr_0.8fr_auto]">
+                    <label class="text-xs font-semibold uppercase tracking-widest text-neutral-600">
+                      Jugador
+                      <input
+                        type="text"
+                        class="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-neutral-800 focus:border-primary-500 focus:outline-none"
+                        [ngModel]="matchSchedulePlayerFilter()"
+                        (ngModelChange)="matchSchedulePlayerFilter.set($event)"
+                        name="matchSchedulePlayerFilter"
+                        placeholder="Buscar jugador..."
+                      />
+                    </label>
+
                     <label class="text-xs font-semibold uppercase tracking-widest text-neutral-600">
                       Prueba
                       <select
@@ -1739,21 +1872,22 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             </button>
                           </th>
                           <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Cascada</th>
-                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Acción</th>
+                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Programar</th>
+                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Intercambiar</th>
                         </tr>
                       </thead>
                       <tbody>
                         @for (row of filteredTournamentMatchScheduleRows(); track row.match.id) {
-                          <tr class="border-b border-neutral-200 align-top">
-                            <td class="px-3 py-3">
+                          <tr class="border-b border-neutral-200 align-top hover:bg-neutral-50/80 cursor-pointer transition-colors" (click)="onMatchSelected(row.match)">
+                            <td class="px-3 py-3" title="Hacer clic para ver detalles o registrar resultados">
                               <p class="font-medium text-neutral-900">{{ row.eventLabel }}</p>
                               <p class="mt-1 text-xs text-neutral-500">{{ row.drawLabel }}</p>
                             </td>
-                            <td class="px-3 py-3">
+                            <td class="px-3 py-3" title="Hacer clic para ver detalles o registrar resultados">
                               <p class="font-medium text-neutral-900">Ronda {{ row.match.roundNumber }}</p>
-                              <p class="mt-1 text-xs text-neutral-600">{{ row.firstPlayerName }} vs {{ row.secondPlayerName }}</p>
+                              <p class="mt-1 text-xs text-neutral-600 font-semibold text-primary-700">{{ row.firstPlayerName }} vs {{ row.secondPlayerName }}</p>
                             </td>
-                            <td class="px-3 py-3">
+                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
                               <select
                                 class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
                                 [ngModel]="getMatchScheduleDraft(row.match).scheduleTimeType"
@@ -1764,7 +1898,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 <option value="NOT_BEFORE">No antes de</option>
                               </select>
                             </td>
-                            <td class="px-3 py-3">
+                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
                               <input
                                 type="datetime-local"
                                 class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
@@ -1773,7 +1907,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 [name]="'scheduledAt-' + row.match.id"
                               />
                             </td>
-                            <td class="px-3 py-3">
+                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
                               <select
                                 class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
                                 [ngModel]="getMatchScheduleDraft(row.match).courtId"
@@ -1786,7 +1920,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 }
                               </select>
                             </td>
-                            <td class="px-3 py-3">
+                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
                               <label class="inline-flex items-center gap-2 text-xs font-semibold text-neutral-700">
                                 <input
                                   type="checkbox"
@@ -1798,7 +1932,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 Replanificar siguientes
                               </label>
                             </td>
-                            <td class="px-3 py-3">
+                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
                               <button
                                 type="button"
                                 class="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
@@ -1806,6 +1940,16 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 (click)="saveMatchSchedule(row.match)"
                               >
                                 {{ savingScheduleMatchId() === row.match.id ? 'Guardando...' : 'Guardar' }}
+                              </button>
+                            </td>
+                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
+                              <button
+                                type="button"
+                                class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400"
+                                [disabled]="!canSaveMatchSchedule(row.match)"
+                                (click)="openSwapScheduleModal(row.match)"
+                              >
+                                Intercambiar
                               </button>
                             </td>
                           </tr>
@@ -1876,11 +2020,13 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             [drawGenerationFeedbackInput]="drawGenerationFeedbackByStageId()"
                             [setsPerMatch]="tournament()!.setsPerMatch ?? 3"
                             [decisiveTiebreakPoints]="tournament()!.decisiveTiebreakPoints ?? 7"
+                            [gamesPerSet]="tournament()!.gamesPerSet ?? 6"
                             (generateDraws)="onGenerateDraws($event, event.eventId!)"
                             (matchSelected)="onMatchSelected($event)"
                             (matchResultSaved)="onMatchResultSaved($event)"
                             (matchScheduleSaved)="onMatchScheduleSaved($event)"
                             (playersSwapped)="onPlayersSwapped($event)"
+                            (swapScheduleClicked)="openSwapScheduleModal($event)"
                           ></app-stages>
                         } @else {
                           <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
@@ -1903,11 +2049,66 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
         }
       </div>
     </section>
+
+    @if (swapModalOpen()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" (click)="closeSwapModal()">
+        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-neutral-900">Intercambiar programación</h3>
+            <button (click)="closeSwapModal()" class="text-neutral-400 hover:text-neutral-600">&times;</button>
+          </div>
+          @if (swapModalError()) {
+            <p class="mt-2 text-sm text-red-600">{{ swapModalError() }}</p>
+          }
+          <p class="mt-2 text-sm text-neutral-600">
+            Partido seleccionado: <strong>{{ swapModalSourceLabel() }}</strong>
+          </p>
+          <input
+            type="search"
+            [ngModel]="swapModalSearch()"
+            (ngModelChange)="swapModalSearch.set($event)"
+            placeholder="Buscar por nombre o categoría..."
+            class="mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+          />
+          <div class="mt-4 max-h-72 overflow-y-auto">
+            @for (row of swapModalFilteredMatches(); track row.match.id) {
+              <div
+                class="flex cursor-pointer items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-primary-50"
+                (click)="selectSwapTarget(row)"
+              >
+                <div>
+                  <p class="text-sm font-medium text-neutral-900">{{ row.firstPlayerName }} vs {{ row.secondPlayerName }}</p>
+                  <p class="text-xs text-neutral-500">{{ row.eventLabel }} - {{ row.drawLabel }}</p>
+                </div>
+                <span class="text-xs text-neutral-400">Ronda {{ row.match.roundNumber }}</span>
+              </div>
+            } @empty {
+              <p class="text-sm text-neutral-500">No se encontraron partidos.</p>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <app-match-detail-modal
+      #matchModal
+      [matchInput]="selectedMatch()"
+      [participantNamesInput]="participantNamesByInscriptionId()"
+      [courtsInput]="courts()"
+      [canManageInput]="canManageMatches()"
+      [setsPerMatch]="tournament()?.setsPerMatch ?? 3"
+      [decisiveTiebreakPoints]="tournament()?.decisiveTiebreakPoints ?? 7"
+      [gamesPerSet]="tournament()?.gamesPerSet ?? 6"
+      (saveResult)="onMatchResultSaved($event)"
+      (saveSchedule)="onMatchScheduleSaved($event)"
+      (close)="onModalClose()"
+    ></app-match-detail-modal>
   `
 })
 export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewInit {
   private readonly route = inject(ActivatedRoute);
   private readonly tournamentService = inject(TournamentService);
+  private readonly invitationService = inject(InvitationService);
   private readonly tournamentLiveUpdatesService = inject(TournamentLiveUpdatesService);
   private readonly memberService = inject(MemberService);
   private readonly authService = inject(AuthService);
@@ -1915,6 +2116,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   private readonly proPlayerService = inject(ProPlayerService);
   private readonly referenceDataService = inject(ReferenceDataService);
   private readonly fb = inject(FormBuilder);
+
+  readonly isGeneratingInvitationMap = signal<Record<string, boolean>>({});
+  readonly invitationUrlMap = signal<Record<string, string>>({});
 
   @HostListener('document:click')
   onDocumentClick(): void {
@@ -2019,8 +2223,34 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly matchScheduleDateFilter = signal('');
   readonly matchScheduleCourtFilter = signal('');
   readonly matchScheduleProfessionalFilter = signal('');
+  readonly matchSchedulePlayerFilter = signal('');
   readonly matchScheduleSortField = signal<MatchScheduleSortField>('scheduledAt');
   readonly matchScheduleSortDirection = signal<MatchScheduleSortDirection>('asc');
+
+  readonly selectedMatch = signal<MatchResponse | null>(null);
+  @ViewChild('matchModal') matchModal!: MatchDetailModalComponent;
+
+  readonly swapModalOpen = signal(false);
+  readonly swapModalSourceMatch = signal<MatchResponse | null>(null);
+  readonly swapModalSourceLabel = signal('');
+  readonly swapModalSearch = signal('');
+  readonly swapModalError = signal<string | null>(null);
+  readonly swapModalCandidateMatches = signal<TournamentMatchScheduleRow[]>([]);
+
+  readonly swapModalFilteredMatches = computed(() => {
+    const query = this.swapModalSearch().toLowerCase().trim();
+    const sourceId = this.swapModalSourceMatch()?.id;
+    return this.swapModalCandidateMatches().filter(row => {
+      if (row.match.id === sourceId) return false;
+      if (!query) return true;
+      return (
+        row.firstPlayerName.toLowerCase().includes(query) ||
+        row.secondPlayerName.toLowerCase().includes(query) ||
+        row.eventLabel.toLowerCase().includes(query) ||
+        row.drawLabel.toLowerCase().includes(query)
+      );
+    });
+  });
 
   readonly scheduleConfigDraft = signal<{ timeSlots: Array<{ startTime: string; endTime: string }>; matchDurationMinutes: number }>({
     timeSlots: [],
@@ -2034,6 +2264,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly editedPointsMap = signal<Record<string, number | null>>({});
   readonly editedClubMap = signal<Record<string, string>>({});
   readonly editedEntryStatusMap = signal<Record<string, string>>({});
+  readonly editedPaymentStatusMap = signal<Record<string, string>>({});
+  readonly editedEventIdMap = signal<Record<string, string>>({});
+  readonly editedFirstNameMap = signal<Record<string, string>>({});
+  readonly editedLastNameMap = signal<Record<string, string>>({});
   readonly isSavingPoints = signal(false);
   readonly isSavingDetails = signal(false);
   readonly manualPlayerSourceOptions: Array<{ value: ManualParticipantSource; label: string; description: string }> = [
@@ -2060,6 +2294,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly isSearchingUmpires = signal(false);
   readonly umpireSearchError = signal<string | null>(null);
   readonly isAddingUmpire = signal(false);
+  readonly umpireSearchRoleFilter = signal<string>('ALL');
   readonly isRemovingUmpireId = signal<string | null>(null);
   readonly tournamentUmpires = signal<TournamentUmpireResponse[]>([]);
   readonly isLoadingTournamentUmpires = signal(false);
@@ -2118,7 +2353,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     locationPlaceId: [null as string | null],
     locationFormattedAddress: [null as string | null],
     setsPerMatch: [3, Validators.required],
-    decisiveTiebreakPoints: [7, Validators.required]
+    decisiveTiebreakPoints: [7, Validators.required],
+    gamesPerSet: [6, Validators.required]
   });
 
   readonly canRequestInscription = computed(() => {
@@ -2184,23 +2420,17 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     return matchedEvent?.eventId ?? null;
   });
 
+  private static readonly ALL_STATUSES: TournamentStatus[] = [
+    'DRAFT', 'OPEN', 'CLOSED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'
+  ];
+
   readonly allowedStatusTransitions = computed<TournamentStatus[]>(() => {
     const currentTournament = this.tournament();
     if (!currentTournament) {
       return [];
     }
 
-    const transitionsByStatus: Record<TournamentStatus, TournamentStatus[]> = {
-      DRAFT: ['OPEN', 'CANCELLED'],
-      OPEN: ['CLOSED', 'CANCELLED'],
-      ACTIVE: ['CLOSED', 'CANCELLED'],
-      CLOSED: ['IN_PROGRESS', 'CANCELLED'],
-      IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
-      COMPLETED: [],
-      CANCELLED: []
-    };
-
-    return transitionsByStatus[currentTournament.status] ?? [];
+    return TournamentDetailComponent.ALL_STATUSES.filter(s => s !== currentTournament.status);
   });
 
   readonly tournamentInscriptionEvents = computed<TournamentInscriptionEvent[]>(() => this.tournamentInscriptions()?.events ?? []);
@@ -2293,6 +2523,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     const dateFilter = this.matchScheduleDateFilter();
     const courtFilter = this.matchScheduleCourtFilter();
     const professionalFilter = this.matchScheduleProfessionalFilter();
+    const playerFilter = this.matchSchedulePlayerFilter().toLowerCase().trim();
 
     const rows = this.tournamentMatchScheduleRows().filter(row => {
       if (eventFilter && row.eventLabel !== eventFilter) {
@@ -2315,6 +2546,14 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         return false;
       }
 
+      if (playerFilter) {
+        const first = row.firstPlayerName.toLowerCase();
+        const second = row.secondPlayerName.toLowerCase();
+        if (!first.includes(playerFilter) && !second.includes(playerFilter)) {
+          return false;
+        }
+      }
+
       return true;
     });
 
@@ -2324,6 +2563,16 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly getSurfaceLabel = getTournamentSurfaceCategoryLabel;
   readonly getGenderLabel = getTournamentEventGenderLabel;
   readonly getStageLabel = getTournamentStageTypeLabel;
+
+  getGamesPerSetLabel(gamesPerSet: number | null | undefined): string {
+    const value = gamesPerSet ?? 6;
+    const labels: Record<number, string> = {
+      4: '4 juegos',
+      5: '5 juegos',
+      6: '6 juegos (estándar)'
+    };
+    return labels[value] ?? `${value} juegos`;
+  }
 
   constructor() {
     this.loadEventCatalog();
@@ -2413,7 +2662,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       locationPlaceId: tournament.locationPlaceId ?? null,
       locationFormattedAddress: tournament.locationFormattedAddress ?? null,
       setsPerMatch: tournament.setsPerMatch ?? 3,
-      decisiveTiebreakPoints: tournament.decisiveTiebreakPoints ?? 7
+      decisiveTiebreakPoints: tournament.decisiveTiebreakPoints ?? 7,
+      gamesPerSet: tournament.gamesPerSet ?? 6
     });
 
     this.generalInfoError.set(null);
@@ -2494,6 +2744,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     }
     if (formValue.decisiveTiebreakPoints !== (currentTournament.decisiveTiebreakPoints ?? 7)) {
       payload.decisiveTiebreakPoints = Number(formValue.decisiveTiebreakPoints);
+    }
+    if (formValue.gamesPerSet !== (currentTournament.gamesPerSet ?? 6)) {
+      payload.gamesPerSet = Number(formValue.gamesPerSet);
     }
 
     if (Object.keys(payload).length === 0) {
@@ -2842,11 +3095,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
     const currentTournament = this.tournament();
     if (!currentTournament || !nextStatus) {
-      return;
-    }
-
-    if (!this.allowedStatusTransitions().includes(nextStatus)) {
-      this.actionError.set('No se puede realizar la transición de estado seleccionada.');
       return;
     }
 
@@ -3271,11 +3519,27 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     }, 300);
   }
 
+  onUmpireRoleFilterChange(role: string): void {
+    this.umpireSearchRoleFilter.set(role);
+    const query = this.umpireSearchQuery();
+    if (query.trim().length >= 2) {
+      if (this.umpireSearchDebounceHandle) {
+        clearTimeout(this.umpireSearchDebounceHandle);
+      }
+      this.umpireSearchDebounceHandle = setTimeout(() => {
+        this.searchUmpires(query);
+      }, 150);
+    }
+  }
+
   private searchUmpires(query: string): void {
     this.isSearchingUmpires.set(true);
     this.umpireSearchError.set(null);
 
-    this.tournamentService.searchUmpires(query).subscribe({
+    const roleFilter = this.umpireSearchRoleFilter();
+    const roles = roleFilter === 'ALL' ? ['UMPIRE', 'ORGANIZER'] : [roleFilter];
+
+    this.tournamentService.searchUmpires(query, roles).subscribe({
       next: results => {
         const assignedIds = new Set(this.tournamentUmpires().map(u => u.umpireId));
         this.umpireSearchResults.set(results.filter(r => !assignedIds.has(r.id)));
@@ -3449,6 +3713,54 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.editedEntryStatusMap.update(map => ({ ...map, [player.inscriptionId]: value }));
   }
 
+  getEditedPaymentStatus(player: TournamentInscriptionPlayer): string {
+    const map = this.editedPaymentStatusMap();
+    if (player.inscriptionId in map) {
+      return map[player.inscriptionId];
+    }
+    return player.paymentStatus ?? '';
+  }
+
+  setEditedPaymentStatus(player: TournamentInscriptionPlayer, value: string): void {
+    this.editedPaymentStatusMap.update(map => ({ ...map, [player.inscriptionId]: value }));
+  }
+
+  getEditedEventId(player: TournamentInscriptionPlayer): string {
+    const map = this.editedEventIdMap();
+    if (player.inscriptionId in map) {
+      return map[player.inscriptionId];
+    }
+    return player.eventId ?? '';
+  }
+
+  setEditedEventId(player: TournamentInscriptionPlayer, value: string): void {
+    this.editedEventIdMap.update(map => ({ ...map, [player.inscriptionId]: value }));
+  }
+
+  getEditedFirstName(player: TournamentInscriptionPlayer): string {
+    const map = this.editedFirstNameMap();
+    if (player.inscriptionId in map) {
+      return map[player.inscriptionId];
+    }
+    return player.firstName ?? '';
+  }
+
+  setEditedFirstName(player: TournamentInscriptionPlayer, value: string): void {
+    this.editedFirstNameMap.update(map => ({ ...map, [player.inscriptionId]: value }));
+  }
+
+  getEditedLastName(player: TournamentInscriptionPlayer): string {
+    const map = this.editedLastNameMap();
+    if (player.inscriptionId in map) {
+      return map[player.inscriptionId];
+    }
+    return player.lastName ?? '';
+  }
+
+  setEditedLastName(player: TournamentInscriptionPlayer, value: string): void {
+    this.editedLastNameMap.update(map => ({ ...map, [player.inscriptionId]: value }));
+  }
+
   getEntryStatusLabel(status: string | null | undefined): string {
     if (!status) return '-';
     const labels: Record<string, string> = {
@@ -3463,17 +3775,31 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   hasDetailChanges(): boolean {
     const clubMap = this.editedClubMap();
     const entryStatusMap = this.editedEntryStatusMap();
+    const paymentStatusMap = this.editedPaymentStatusMap();
+    const eventIdMap = this.editedEventIdMap();
+    const firstNameMap = this.editedFirstNameMap();
+    const lastNameMap = this.editedLastNameMap();
     const players = this.tournamentInscriptionPlayers();
     return players.some(p => {
       const editedClub = clubMap[p.inscriptionId];
-      const originalClub = p.club ?? '';
-      const clubChanged = editedClub !== undefined && editedClub !== originalClub;
+      const clubChanged = editedClub !== undefined && editedClub !== (p.club ?? '');
 
       const editedStatus = entryStatusMap[p.inscriptionId];
-      const originalStatus = p.entryStatus ?? '';
-      const statusChanged = editedStatus !== undefined && editedStatus !== originalStatus;
+      const statusChanged = editedStatus !== undefined && editedStatus !== (p.entryStatus ?? '');
 
-      return clubChanged || statusChanged;
+      const editedPayment = paymentStatusMap[p.inscriptionId];
+      const paymentChanged = editedPayment !== undefined && editedPayment !== (p.paymentStatus ?? '');
+
+      const editedEventId = eventIdMap[p.inscriptionId];
+      const eventChanged = editedEventId !== undefined && editedEventId !== (p.eventId ?? '');
+
+      const editedFirstName = firstNameMap[p.inscriptionId];
+      const firstNameChanged = editedFirstName !== undefined && editedFirstName !== (p.firstName ?? '');
+
+      const editedLastName = lastNameMap[p.inscriptionId];
+      const lastNameChanged = editedLastName !== undefined && editedLastName !== (p.lastName ?? '');
+
+      return clubChanged || statusChanged || paymentChanged || eventChanged || firstNameChanged || lastNameChanged;
     });
   }
 
@@ -3483,6 +3809,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
     const clubMap = this.editedClubMap();
     const entryStatusMap = this.editedEntryStatusMap();
+    const paymentStatusMap = this.editedPaymentStatusMap();
+    const eventIdMap = this.editedEventIdMap();
+    const firstNameMap = this.editedFirstNameMap();
+    const lastNameMap = this.editedLastNameMap();
     const players = this.tournamentInscriptionPlayers();
 
     const detailUpdates = players.filter(p => {
@@ -3490,11 +3820,24 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       const clubChanged = clubEdited !== undefined && clubEdited !== (p.club ?? '');
       const statusEdited = entryStatusMap[p.inscriptionId];
       const statusChanged = statusEdited !== undefined && statusEdited !== (p.entryStatus ?? '');
-      return clubChanged || statusChanged;
+      const paymentEdited = paymentStatusMap[p.inscriptionId];
+      const paymentChanged = paymentEdited !== undefined && paymentEdited !== (p.paymentStatus ?? '');
+      const eventEdited = eventIdMap[p.inscriptionId];
+      const eventChanged = eventEdited !== undefined && eventEdited !== (p.eventId ?? '');
+      const firstNameEdited = firstNameMap[p.inscriptionId];
+      const firstNameChanged = firstNameEdited !== undefined && firstNameEdited !== (p.firstName ?? '');
+      const lastNameEdited = lastNameMap[p.inscriptionId];
+      const lastNameChanged = lastNameEdited !== undefined && lastNameEdited !== (p.lastName ?? '');
+      return clubChanged || statusChanged || paymentChanged || eventChanged || firstNameChanged || lastNameChanged;
     }).map(p => ({
+      inscriptionId: p.inscriptionId,
       participantId: p.participantId,
       clubName: clubMap[p.inscriptionId] !== undefined ? (clubMap[p.inscriptionId] || null) : null,
-      entryStatus: entryStatusMap[p.inscriptionId] !== undefined ? (entryStatusMap[p.inscriptionId] || null) : null
+      entryStatus: entryStatusMap[p.inscriptionId] !== undefined ? (entryStatusMap[p.inscriptionId] || null) : null,
+      paymentStatus: paymentStatusMap[p.inscriptionId] !== undefined ? (paymentStatusMap[p.inscriptionId] || null) : null,
+      eventId: eventIdMap[p.inscriptionId] !== undefined ? (eventIdMap[p.inscriptionId] || null) : null,
+      firstName: firstNameMap[p.inscriptionId] !== undefined ? (firstNameMap[p.inscriptionId] || null) : null,
+      lastName: lastNameMap[p.inscriptionId] !== undefined ? (lastNameMap[p.inscriptionId] || null) : null
     }));
 
     const pointUpdates = players.filter(p => {
@@ -3521,6 +3864,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
           this.editedPointsMap.set({});
           this.editedClubMap.set({});
           this.editedEntryStatusMap.set({});
+          this.editedPaymentStatusMap.set({});
+          this.editedEventIdMap.set({});
+          this.editedFirstNameMap.set({});
+          this.editedLastNameMap.set({});
           this.isSavingDetails.set(false);
           this.actionMessage.set(successMsg);
         },
@@ -3593,6 +3940,48 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.editedPointsMap.set({});
     this.editedClubMap.set({});
     this.editedEntryStatusMap.set({});
+    this.editedPaymentStatusMap.set({});
+    this.editedEventIdMap.set({});
+    this.editedFirstNameMap.set({});
+    this.editedLastNameMap.set({});
+  }
+
+  isGeneratingInvitation(inscriptionId: string): boolean {
+    return !!this.isGeneratingInvitationMap()[inscriptionId];
+  }
+
+  getInvitationUrl(inscriptionId: string): string | null {
+    return this.invitationUrlMap()[inscriptionId] || null;
+  }
+
+  generateInvitation(player: TournamentInscriptionPlayer): void {
+    const tournamentId = this.tournament()?.id;
+    if (!tournamentId || !player.participantId) return;
+
+    this.isGeneratingInvitationMap.update(map => ({ ...map, [player.inscriptionId]: true }));
+    this.invitationService.generateInvitation(tournamentId, player.participantId).subscribe({
+      next: (res) => {
+        this.invitationUrlMap.update(map => ({ ...map, [player.inscriptionId]: res.invitationUrl }));
+        this.isGeneratingInvitationMap.update(map => ({ ...map, [player.inscriptionId]: false }));
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          navigator.clipboard.writeText(res.invitationUrl).then(() => {
+            this.actionMessage.set(`Enlace de invitación copiado para ${player.firstName} ${player.lastName}`);
+            setTimeout(() => this.actionMessage.set(null), 4000);
+          }).catch(() => {
+            this.actionMessage.set(`Enlace de invitación generado para ${player.firstName} ${player.lastName}`);
+            setTimeout(() => this.actionMessage.set(null), 4000);
+          });
+        } else {
+          this.actionMessage.set(`Enlace de invitación generado para ${player.firstName} ${player.lastName}`);
+          setTimeout(() => this.actionMessage.set(null), 4000);
+        }
+      },
+      error: (err) => {
+        this.isGeneratingInvitationMap.update(map => ({ ...map, [player.inscriptionId]: false }));
+        this.actionError.set(getApiErrorMessage(err, 'No se pudo generar la invitación.'));
+        setTimeout(() => this.actionError.set(null), 4000);
+      }
+    });
   }
 
   toggleEventsDrawsPanel(): void {
@@ -3612,6 +4001,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.matchScheduleDateFilter.set('');
     this.matchScheduleCourtFilter.set('');
     this.matchScheduleProfessionalFilter.set('');
+    this.matchSchedulePlayerFilter.set('');
   }
 
   setMatchScheduleSort(field: MatchScheduleSortField): void {
@@ -4275,9 +4665,45 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     }
   }
 
-  onMatchSelected(matchId: string): void {
-    // Placeholder para futuras acciones al seleccionar un match
-    console.log('Match selected:', matchId);
+  onMatchSelected(matchOrId: MatchResponse | string): void {
+    let matchToSelect: MatchResponse | null = null;
+    if (typeof matchOrId === 'string') {
+      const tournamentVal = this.tournament();
+      if (tournamentVal && tournamentVal.events) {
+        for (const ev of tournamentVal.events) {
+          if (ev.stages) {
+            for (const st of ev.stages) {
+              if (st.draws) {
+                for (const dr of st.draws) {
+                  if (dr.matches) {
+                    const found = dr.matches.find(m => m.id === matchOrId);
+                    if (found) {
+                      matchToSelect = found;
+                      break;
+                    }
+                  }
+                }
+              }
+              if (matchToSelect) break;
+            }
+          }
+          if (matchToSelect) break;
+        }
+      }
+    } else {
+      matchToSelect = matchOrId;
+    }
+
+    if (matchToSelect) {
+      this.selectedMatch.set(matchToSelect);
+      if (this.matchModal) {
+        this.matchModal.open();
+      }
+    }
+  }
+
+  onModalClose(): void {
+    this.selectedMatch.set(null);
   }
 
   onMatchResultSaved(event: {
@@ -4484,6 +4910,49 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       scheduledAt: draft.scheduledAt,
       scheduleTimeType: draft.scheduleTimeType,
       cascade: draft.cascade
+    });
+  }
+
+  openSwapScheduleModal(match: MatchResponse): void {
+    if (!this.isTournamentAdmin()) {
+      return;
+    }
+
+    const row = this.tournamentMatchScheduleRows().find(r => r.match.id === match.id);
+    if (!row) return;
+
+    const label = `${row.firstPlayerName} vs ${row.secondPlayerName}`;
+    this.swapModalSourceMatch.set(match);
+    this.swapModalSourceLabel.set(label);
+    this.swapModalSearch.set('');
+    this.swapModalError.set(null);
+    this.swapModalCandidateMatches.set(this.tournamentMatchScheduleRows());
+    this.swapModalOpen.set(true);
+  }
+
+  closeSwapModal(): void {
+    this.swapModalOpen.set(false);
+    this.swapModalSourceMatch.set(null);
+    this.swapModalError.set(null);
+  }
+
+  selectSwapTarget(targetRow: TournamentMatchScheduleRow): void {
+    const source = this.swapModalSourceMatch();
+    if (!source || !targetRow) return;
+
+    const tournamentId = this.tournament()?.id;
+    if (!tournamentId) return;
+
+    this.swapModalError.set(null);
+    this.tournamentService.swapMatchSchedules(tournamentId, source.id, targetRow.match.id).subscribe({
+      next: () => {
+        this.closeSwapModal();
+        this.actionMessage.set('Programación intercambiada correctamente.');
+        this.loadTournament(tournamentId);
+      },
+      error: (error) => {
+        this.swapModalError.set(getApiErrorMessage(error, 'No se pudo intercambiar la programación.'));
+      }
     });
   }
 
@@ -5087,7 +5556,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     const labels: Record<TournamentStatus, string> = {
       DRAFT: 'Borrador',
       OPEN: 'Inscripciones abiertas',
-      ACTIVE: 'Activo',
       CLOSED: 'Inscripciones cerradas',
       IN_PROGRESS: 'En juego',
       COMPLETED: 'Finalizado',
@@ -5101,7 +5569,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     const colors: Record<TournamentStatus, string> = {
       DRAFT: 'border-neutral-200 bg-neutral-100 text-neutral-600',
       OPEN: 'border-blue-200 bg-blue-100 text-blue-700',
-      ACTIVE: 'border-green-200 bg-green-100 text-green-700',
       CLOSED: 'border-amber-200 bg-amber-100 text-amber-700',
       IN_PROGRESS: 'border-sky-200 bg-sky-100 text-sky-700',
       COMPLETED: 'border-emerald-200 bg-emerald-100 text-emerald-700',

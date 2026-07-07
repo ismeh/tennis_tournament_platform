@@ -121,7 +121,27 @@ class TournamentUmpireServiceTest {
 
         InvalidArgumentException ex = assertThrows(InvalidArgumentException.class,
                 () -> tournamentUmpireService.addUmpire(tournamentId, memberId, "admin@test.com"));
-        assertTrue(ex.getMessage().contains("rol de árbitro"));
+        assertTrue(ex.getMessage().contains("rol válido para ser árbitro"));
+    }
+
+    @Test
+    void should_add_organizer_as_umpire_to_tournament() {
+        UUID tournamentId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        Tournament tournament = buildTournament(tournamentId, UUID.randomUUID());
+        Member organizer = Member.builder().id(organizerId).email("organizer@test.com").role(UserRole.ORGANIZER).build();
+
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        when(memberRepository.findById(organizerId)).thenReturn(Optional.of(organizer));
+        when(tournamentUmpireRepository.existsByTournamentIdAndUmpireId(tournamentId, organizerId)).thenReturn(false);
+        when(tournamentUmpireRepository.save(any(TournamentUmpire.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TournamentUmpire result = tournamentUmpireService.addUmpire(tournamentId, organizerId, "admin@test.com");
+
+        assertNotNull(result);
+        assertEquals(tournamentId, result.getTournamentId());
+        assertEquals(organizerId, result.getUmpireId());
+        verify(tournamentUmpireRepository).save(any(TournamentUmpire.class));
     }
 
     @Test
@@ -211,5 +231,29 @@ class TournamentUmpireServiceTest {
 
         assertEquals(1, umpires.size());
         assertEquals("umpire@test.com", umpires.getFirst().getEmail());
+    }
+
+    @Test
+    void should_search_by_multiple_roles() {
+        String query = "test";
+        List<UserRole> roles = List.of(UserRole.UMPIRE, UserRole.ORGANIZER);
+        UmpireSearchResult umpireResult = UmpireSearchResult.builder()
+                .id(UUID.randomUUID())
+                .email("umpire@test.com")
+                .firstName("Test")
+                .lastName("Umpire")
+                .build();
+        UmpireSearchResult organizerResult = UmpireSearchResult.builder()
+                .id(UUID.randomUUID())
+                .email("organizer@test.com")
+                .firstName("Test")
+                .lastName("Organizer")
+                .build();
+
+        when(memberRepository.searchByRolesWithPersonData(roles, query)).thenReturn(List.of(umpireResult, organizerResult));
+
+        List<UmpireSearchResult> results = tournamentUmpireService.searchByRoles(roles, query);
+
+        assertEquals(2, results.size());
     }
 }

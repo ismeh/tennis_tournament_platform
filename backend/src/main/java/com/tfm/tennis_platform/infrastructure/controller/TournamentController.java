@@ -28,7 +28,9 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.CourtResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.EventInscriptionResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ManualEventInscriptionRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.DynamicMatchRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchScheduleRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ScheduleMatchResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentSummaryResponse;
@@ -36,6 +38,7 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.EventRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResultRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ReorganizeMatchesRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.SwapMatchSchedulesRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionCategoryCountResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionEventResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentInscriptionGenderCountResponse;
@@ -161,6 +164,7 @@ public class TournamentController {
                 request.locationFormattedAddress(),
                 request.setsPerMatch(),
                 request.decisiveTiebreakPoints(),
+                request.gamesPerSet(),
                 principal.getName()
         );
         return ResponseEntity.ok(toTournamentResponse(updatedTournament));
@@ -307,7 +311,16 @@ public class TournamentController {
     ) {
         tournamentService.assertTournamentAdmin(tournamentId, principal.getName());
         inscriptionService.updateParticipantDetails(tournamentId,
-                new ParticipantDetailUpdateCommand(update.participantId(), update.clubName(), update.entryStatus()));
+                new ParticipantDetailUpdateCommand(
+                        update.inscriptionId(),
+                        update.participantId(),
+                        update.clubName(),
+                        update.entryStatus(),
+                        update.paymentStatus(),
+                        update.firstName(),
+                        update.lastName(),
+                        update.gender(),
+                        update.eventId()));
         return ResponseEntity.noContent().build();
     }
 
@@ -334,16 +347,34 @@ public class TournamentController {
         }
 
         @PatchMapping("/{tournamentId}/matches/{matchId}/schedule")
-        public ResponseEntity<MatchResponse> scheduleMatch(
+        public ResponseEntity<ScheduleMatchResponse> scheduleMatch(
             @PathVariable UUID tournamentId,
             @PathVariable UUID matchId,
             @RequestBody MatchScheduleRequest request,
             Principal principal
         ) {
-        return ResponseEntity.ok(matchWebMapper.toResponse(
-            matchService.schedule(tournamentId, matchId, request.courtId(), request.scheduledAt(), request.scheduleTimeType(), Boolean.TRUE.equals(request.cascade()), principal.getName())
-        ));
+        MatchService.ScheduleResult result = matchService.scheduleWithWarnings(tournamentId, matchId, request.courtId(), request.scheduledAt(), request.scheduleTimeType(), Boolean.TRUE.equals(request.cascade()), principal.getName());
+        return ResponseEntity.ok(ScheduleMatchResponse.of(matchWebMapper.toResponse(result.match()), result.warnings()));
         }
+
+    @PostMapping("/{tournamentId}/matches/dynamic")
+    public ResponseEntity<MatchResponse> createDynamicMatch(
+            @PathVariable UUID tournamentId,
+            @RequestBody DynamicMatchRequest request,
+            Principal principal
+    ) {
+        Match created = matchService.createDynamicMatch(
+                tournamentId,
+                request.drawId(),
+                request.firstInscriptionId(),
+                request.secondInscriptionId(),
+                request.scheduledAt(),
+                request.courtId(),
+                request.roundNumber(),
+                principal.getName()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(matchWebMapper.toResponse(created));
+    }
 
     @PostMapping("/{tournamentId}/matches/reorganize")
     public ResponseEntity<Void> reorganizeMatches(
@@ -357,6 +388,21 @@ public class TournamentController {
                 request.slot1(),
                 request.matchId2(),
                 request.slot2(),
+                principal.getName()
+        );
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{tournamentId}/matches/swap-schedule")
+    public ResponseEntity<Void> swapMatchSchedules(
+            @PathVariable UUID tournamentId,
+            @RequestBody SwapMatchSchedulesRequest request,
+            Principal principal
+    ) {
+        matchService.swapMatchSchedules(
+                tournamentId,
+                request.matchId1(),
+                request.matchId2(),
                 principal.getName()
         );
         return ResponseEntity.noContent().build();
@@ -427,7 +473,8 @@ public class TournamentController {
                 response.events(),
                 professionalTournament,
                 response.setsPerMatch(),
-                response.decisiveTiebreakPoints()
+                response.decisiveTiebreakPoints(),
+                response.gamesPerSet()
         );
     }
 
@@ -508,7 +555,8 @@ public class TournamentController {
                 player.points(),
                 player.seed(),
                 player.club(),
-                player.entryStatus()
+                player.entryStatus(),
+                player.paymentStatus()
         );
     }
 

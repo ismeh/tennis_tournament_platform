@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse, TournamentStatus } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, StageResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse, TournamentStatus } from '../../../data/interfaces/tournament.model';
 import { DrawsComponent } from './draws.component';
 
 type DrawGenerationFeedback = {
@@ -69,10 +69,12 @@ type DrawGenerationFeedback = {
                     [categoryNameInput]="categoryNameInput"
                     [setsPerMatch]="setsPerMatch"
                     [decisiveTiebreakPoints]="decisiveTiebreakPoints"
+                    [gamesPerSet]="gamesPerSet"
                     (matchSelected)="onMatchSelected($event)"
                     (matchResultSaved)="onMatchResultSaved($event)"
                     (matchScheduleSaved)="onMatchScheduleSaved($event)"
                     (playersSwapped)="onPlayersSwapped($event)"
+                    (swapScheduleClicked)="swapScheduleClicked.emit($event)"
                   ></app-draws>
                 </div>
               }
@@ -94,6 +96,43 @@ type DrawGenerationFeedback = {
         </div>
       }
     </div>
+
+    @if (confirmModalOpen()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" (click)="cancelRegenerate()">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+          <div class="flex items-start gap-4">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <svg class="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-neutral-900">Regenerar cuadros</h3>
+              <p class="mt-2 text-sm text-neutral-600">
+                Se borrarán los resultados de este cuadro y se generarán nuevos emparejamientos.
+              </p>
+              <p class="mt-1 text-sm font-medium text-red-600">¿Estás seguro de que quieres continuar?</p>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              (click)="cancelRegenerate()"
+              class="rounded-xl border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              (click)="confirmRegenerate()"
+              class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+            >
+              Regenerar
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `
 })
 export class StagesComponent {
@@ -106,6 +145,7 @@ export class StagesComponent {
   @Input() categoryNameInput = '';
   @Input() setsPerMatch = 3;
   @Input() decisiveTiebreakPoints = 7;
+  @Input() gamesPerSet = 6;
 
   @Input() set stagesInput(value: StageResponse[]) {
     this._stages.set(value);
@@ -148,8 +188,12 @@ export class StagesComponent {
     matchId2: string;
     slot2: 'first' | 'second';
   }>();
+  @Output() swapScheduleClicked = new EventEmitter<MatchResponse>();
 
   expandedStageId = signal<string | null>(null);
+
+  confirmModalOpen = signal(false);
+  confirmModalStage = signal<StageResponse | null>(null);
 
   @Input() set generatingDrawsForStageIdInput(value: string | null) {
     this._generatingDrawsForStageId.set(value);
@@ -183,6 +227,31 @@ export class StagesComponent {
       return;
     }
 
+    const hasExistingDraws = (stage.draws || []).length > 0;
+    if (hasExistingDraws) {
+      this.confirmModalStage.set(stage);
+      this.confirmModalOpen.set(true);
+      return;
+    }
+
+    this.doGenerateDraws(stage);
+  }
+
+  cancelRegenerate() {
+    this.confirmModalOpen.set(false);
+    this.confirmModalStage.set(null);
+  }
+
+  confirmRegenerate() {
+    const stage = this.confirmModalStage();
+    this.confirmModalOpen.set(false);
+    this.confirmModalStage.set(null);
+    if (stage) {
+      this.doGenerateDraws(stage);
+    }
+  }
+
+  private doGenerateDraws(stage: StageResponse) {
     const prevExpandedId = this.expandedStageId();
     this.expandedStageId.set(stage.id);
 

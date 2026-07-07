@@ -89,6 +89,7 @@ public class RankingRepositoryAdapter implements RankingRepository {
                 projection.getFirstName(),
                 projection.getLastName(),
                 projection.getGender(),
+                projection.getPoints(),
                 projection.getVictories()
         );
     }

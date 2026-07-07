@@ -34,8 +34,6 @@ class MatchDomainMapperTest {
     private JpaMatchRepository matchRepository;
     @Mock
     private JpaCourtRepository courtRepository;
-    @Mock
-    private JpaProPlayerRepository proPlayerRepository;
     @InjectMocks
     private MatchDomainMapper mapper;
 
@@ -93,16 +91,14 @@ class MatchDomainMapperTest {
             assertThat(result.getCourt()).isEqualTo("Court 1");
             assertThat(result.getResult()).isEqualTo("6-3 7-5");
             assertThat(result.getStatus()).isEqualTo(MatchStatus.COMPLETED);
-            verifyNoInteractions(proPlayerRepository);
         }
 
         @Test
         void should_enrich_professional_participant_with_pro_data() {
-            String license = "  ABC123  ";
             ParticipantEntity proParticipant = ParticipantEntity.builder()
                     .id(UUID.randomUUID())
                     .participantSource(ParticipantSource.PROFESSIONAL)
-                    .displayTennisId(license)
+                    .displayTennisId("ABC123")
                     .seed(5)
                     .build();
             InscriptionEntity inscriptionEntity = InscriptionEntity.builder()
@@ -112,16 +108,6 @@ class MatchDomainMapperTest {
                     .paymentStatus("PAID")
                     .registeredAt(LocalDateTime.of(2026, 6, 1, 12, 0))
                     .build();
-
-            ProPlayerEntity proPlayer = ProPlayerEntity.builder()
-                    .id(1)
-                    .license("abc123")
-                    .rankingPosition(10)
-                    .awardedPoints(25)
-                    .build();
-
-            when(proPlayerRepository.findByNormalizedLicenses(any()))
-                    .thenReturn(List.of(proPlayer));
 
             MatchEntity entity = MatchEntity.builder()
                     .id(matchId)
@@ -135,8 +121,6 @@ class MatchDomainMapperTest {
             assertThat(result.getFirstInscription().getId()).isEqualTo(firstInscriptionId);
             assertThat(result.getFirstInscription().getParticipantSource()).isEqualTo(ParticipantSource.PROFESSIONAL);
             assertThat(result.getFirstInscription().getSeed()).isEqualTo(5);
-            assertThat(result.getFirstInscription().getProfessionalRankingPosition()).isEqualTo(10);
-            assertThat(result.getFirstInscription().getProfessionalAwardedPoints()).isEqualTo(25);
         }
 
         @Test
@@ -163,9 +147,7 @@ class MatchDomainMapperTest {
 
             assertThat(result.getFirstInscription()).isNotNull();
             assertThat(result.getFirstInscription().getParticipantSource()).isEqualTo(ParticipantSource.MANUAL);
-            assertThat(result.getFirstInscription().getProfessionalRankingPosition()).isNull();
-            assertThat(result.getFirstInscription().getProfessionalAwardedPoints()).isNull();
-            verifyNoInteractions(proPlayerRepository);
+            assertThat(result.getFirstInscription().getSeed()).isEqualTo(3);
         }
 
         @Test
@@ -460,20 +442,9 @@ class MatchDomainMapperTest {
                     .roundNumber(2)
                     .build();
 
-            ProPlayerEntity pp1 = ProPlayerEntity.builder().license("lic001").rankingPosition(5).awardedPoints(10).build();
-            ProPlayerEntity pp2 = ProPlayerEntity.builder().license("lic002").rankingPosition(8).awardedPoints(15).build();
-            when(proPlayerRepository.findByNormalizedLicenses(any()))
-                    .thenReturn(List.of(pp1, pp2));
-
             List<Match> results = mapper.toDomainList(List.of(e1, e2));
 
             assertThat(results).hasSize(2);
-            verify(proPlayerRepository, times(1)).findByNormalizedLicenses(any());
-
-            assertThat(results.get(0).getFirstInscription().getProfessionalRankingPosition()).isEqualTo(5);
-            assertThat(results.get(0).getFirstInscription().getProfessionalAwardedPoints()).isEqualTo(10);
-            assertThat(results.get(1).getSecondInscription().getProfessionalRankingPosition()).isEqualTo(8);
-            assertThat(results.get(1).getSecondInscription().getProfessionalAwardedPoints()).isEqualTo(15);
         }
 
         @Test
@@ -497,7 +468,6 @@ class MatchDomainMapperTest {
             assertThat(results).hasSize(1);
             assertThat(results.getFirst().getFirstInscription().getParticipantSource())
                     .isEqualTo(ParticipantSource.MANUAL);
-            verifyNoInteractions(proPlayerRepository);
         }
     }
 
@@ -524,9 +494,7 @@ class MatchDomainMapperTest {
             Match result = mapper.toDomain(entity);
 
             assertThat(result.getFirstInscription()).isNotNull();
-            assertThat(result.getFirstInscription().getProfessionalRankingPosition()).isNull();
-            assertThat(result.getFirstInscription().getProfessionalAwardedPoints()).isNull();
-            verifyNoInteractions(proPlayerRepository);
+            assertThat(result.getFirstInscription().getParticipantSource()).isEqualTo(ParticipantSource.PROFESSIONAL);
         }
 
         @Test
@@ -549,9 +517,7 @@ class MatchDomainMapperTest {
             Match result = mapper.toDomain(entity);
 
             assertThat(result.getFirstInscription()).isNotNull();
-            assertThat(result.getFirstInscription().getProfessionalRankingPosition()).isNull();
-            assertThat(result.getFirstInscription().getProfessionalAwardedPoints()).isNull();
-            verifyNoInteractions(proPlayerRepository);
+            assertThat(result.getFirstInscription().getParticipantSource()).isEqualTo(ParticipantSource.PROFESSIONAL);
         }
 
         @Test
@@ -571,21 +537,10 @@ class MatchDomainMapperTest {
                     .roundNumber(1)
                     .build();
 
-            ProPlayerEntity proPlayer = ProPlayerEntity.builder()
-                    .license("mylicense123")
-                    .rankingPosition(3)
-                    .awardedPoints(20)
-                    .build();
-            when(proPlayerRepository.findByNormalizedLicenses(any())).thenReturn(List.of(proPlayer));
-
             Match result = mapper.toDomain(entity);
 
-            assertThat(result.getFirstInscription().getProfessionalRankingPosition()).isEqualTo(3);
-            assertThat(result.getFirstInscription().getProfessionalAwardedPoints()).isEqualTo(20);
-
-            verify(proPlayerRepository).findByNormalizedLicenses(argThat(licenses ->
-                    licenses.contains("mylicense123")
-            ));
+            assertThat(result.getFirstInscription()).isNotNull();
+            assertThat(result.getFirstInscription().getParticipantSource()).isEqualTo(ParticipantSource.PROFESSIONAL);
         }
     }
 }

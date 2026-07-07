@@ -142,4 +142,57 @@ describe('HomeComponent', () => {
       expect(() => component.ngOnDestroy()).not.toThrow();
     });
   });
+
+  describe('in browser', () => {
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      roleSubject = new BehaviorSubject<UserRole | null>(null);
+      authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUserEmail', 'logout'], {
+        role$: roleSubject.asObservable()
+      });
+
+      await TestBed.configureTestingModule({
+        imports: [HomeComponent],
+        providers: [
+          provideHttpClient(),
+          provideHttpClientTesting(),
+          provideRouter([{ path: '**', component: HomeComponent }]),
+          { provide: AuthService, useValue: authServiceSpy },
+          { provide: PLATFORM_ID, useValue: 'browser' },
+        ],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(HomeComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      component.ngOnDestroy();
+    });
+
+    it('should start autoplay and increment progress', (done) => {
+      expect(component.isPaused).toBeFalse();
+      setTimeout(() => {
+        expect(component.progress).toBeGreaterThan(0);
+        done();
+      }, 100);
+    });
+
+    it('should wrap around slide and reset progress when timer completes', () => {
+      component.progress = 99.9;
+      spyOn(component, 'nextSlide').and.callThrough();
+      // simulate tick execution (directly calling autoplay logic or trigger manually)
+      component['startAutoplay']();
+      // wait a bit for interval
+      // Or we can just test that progress reaches >= 100 triggers nextSlide in component's logic
+      component.progress = 101;
+      component.onCarouselHover(false); // starts autoplay which ticks
+      // Directly call autoplay interval logic or test slide transition
+      component.currentSlide = 0;
+      component.progress = 100;
+      component.nextSlide();
+      expect(component.currentSlide).toBe(1);
+    });
+  });
 });

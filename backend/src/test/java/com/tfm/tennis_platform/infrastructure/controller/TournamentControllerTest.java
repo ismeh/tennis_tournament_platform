@@ -23,6 +23,7 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.CourtResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResultRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.MatchScheduleRequest;
+import com.tfm.tennis_platform.infrastructure.controller.dto.ScheduleMatchResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ScheduleConfigRequest;
 import com.tfm.tennis_platform.infrastructure.controller.dto.ScheduleConfigResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentRequest;
@@ -99,7 +100,7 @@ class TournamentControllerTest {
                 tournament.getInscriptionPeriod().startDate(), tournament.getInscriptionPeriod().endDate(),
                 tournament.getSurface(), tournament.getMaxPlayers(),
                 tournament.getLocation(), null, null, null, null,
-                tournament.getState(), null, null, false, null, null
+                tournament.getState(), null, null, false, null, null, null
         );
     }
 
@@ -421,10 +422,10 @@ class TournamentControllerTest {
                     matchId, null, null, null, 1, null, null, null, null, null, null, false, null, null, "PENDING");
             MatchScheduleRequest request = new MatchScheduleRequest(courtId, scheduledAt, ScheduleTimeType.EXACT, false);
 
-            when(matchService.schedule(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.EXACT, false, "admin@test.com")).thenReturn(match);
+            when(matchService.scheduleWithWarnings(tournamentId, matchId, courtId, scheduledAt, ScheduleTimeType.EXACT, false, "admin@test.com")).thenReturn(new MatchService.ScheduleResult(match, List.of()));
             when(matchWebMapper.toResponse(match)).thenReturn(responseDto);
 
-            ResponseEntity<MatchResponse> response = controller.scheduleMatch(tournamentId, matchId, request, principal());
+            ResponseEntity<ScheduleMatchResponse> response = controller.scheduleMatch(tournamentId, matchId, request, principal());
 
             assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         }

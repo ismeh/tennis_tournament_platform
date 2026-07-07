@@ -13,32 +13,36 @@ public class SetScore {
     private final Integer secondPlayerTiebreak;
 
     public boolean isComplete(boolean isDecisiveSet, int decisiveTiebreakPoints) {
-        // Standard sets win at 6 games with a difference of at least 2 games (6-0 to 6-4)
-        if (firstPlayerGames == 6 && secondPlayerGames <= 4) {
+        return isComplete(isDecisiveSet, decisiveTiebreakPoints, 6);
+    }
+
+    public boolean isComplete(boolean isDecisiveSet, int decisiveTiebreakPoints, int gamesPerSet) {
+        int gamesToWin = gamesPerSet;
+        int maxLoss = gamesToWin - 2;
+
+        if (firstPlayerGames == gamesToWin && secondPlayerGames <= maxLoss) {
             return true;
         }
-        if (secondPlayerGames == 6 && firstPlayerGames <= 4) {
+        if (secondPlayerGames == gamesToWin && firstPlayerGames <= maxLoss) {
             return true;
         }
 
-        // Win at 7-5
-        if (firstPlayerGames == 7 && secondPlayerGames == 5) {
+        if (firstPlayerGames == gamesToWin + 1 && secondPlayerGames == gamesToWin - 1) {
             return true;
         }
-        if (secondPlayerGames == 7 && firstPlayerGames == 5) {
+        if (secondPlayerGames == gamesToWin + 1 && firstPlayerGames == gamesToWin - 1) {
             return true;
         }
 
-        // Tiebreak set (7-6 or 6-7)
-        if ((firstPlayerGames == 7 && secondPlayerGames == 6) || (firstPlayerGames == 6 && secondPlayerGames == 7)) {
+        if ((firstPlayerGames == gamesToWin + 1 && secondPlayerGames == gamesToWin)
+            || (firstPlayerGames == gamesToWin && secondPlayerGames == gamesToWin + 1)) {
             if (firstPlayerTiebreak == null || secondPlayerTiebreak == null) {
-                return false; // Tiebreak points must be filled
+                return false;
             }
 
             int targetPoints = isDecisiveSet ? decisiveTiebreakPoints : 7;
-            
-            // Check tiebreak winner conditions (at least targetPoints and difference >= 2)
-            if (firstPlayerGames == 7) {
+
+            if (firstPlayerGames == gamesToWin + 1) {
                 return firstPlayerTiebreak >= targetPoints && (firstPlayerTiebreak - secondPlayerTiebreak) >= 2;
             } else {
                 return secondPlayerTiebreak >= targetPoints && (secondPlayerTiebreak - firstPlayerTiebreak) >= 2;
@@ -49,7 +53,11 @@ public class SetScore {
     }
 
     public Integer getWinnerSide(boolean isDecisiveSet, int decisiveTiebreakPoints) {
-        if (!isComplete(isDecisiveSet, decisiveTiebreakPoints)) {
+        return getWinnerSide(isDecisiveSet, decisiveTiebreakPoints, 6);
+    }
+
+    public Integer getWinnerSide(boolean isDecisiveSet, int decisiveTiebreakPoints, int gamesPerSet) {
+        if (!isComplete(isDecisiveSet, decisiveTiebreakPoints, gamesPerSet)) {
             return null;
         }
         if (firstPlayerGames > secondPlayerGames) {
@@ -61,6 +69,12 @@ public class SetScore {
     }
 
     public boolean isTiebreak() {
-        return (firstPlayerGames == 7 && secondPlayerGames == 6) || (firstPlayerGames == 6 && secondPlayerGames == 7);
+        return isTiebreak(6);
+    }
+
+    public boolean isTiebreak(int gamesPerSet) {
+        int gamesToWin = gamesPerSet;
+        return (firstPlayerGames == gamesToWin + 1 && secondPlayerGames == gamesToWin)
+            || (firstPlayerGames == gamesToWin && secondPlayerGames == gamesToWin + 1);
     }
 }

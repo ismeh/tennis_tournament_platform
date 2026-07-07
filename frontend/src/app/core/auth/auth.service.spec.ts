@@ -384,4 +384,78 @@ describe('AuthService', () => {
       expect(resolved).toBe('noatsymbol');
     });
   });
+
+  describe('additional branch coverage tests', () => {
+    it('clears session when verifyTokensOnStartup throws error', () => {
+      spyOn(service as any, 'shouldRefreshToken').and.callFake(() => {
+        throw new Error('Verification crash');
+      });
+      localStorage.setItem(AppSettings.TOKEN_KEY, 'some-token');
+      localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'refresh');
+      (service as any).verifyTokensOnStartup();
+      expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+    });
+
+    it('returns null for invalid stored roles', () => {
+      localStorage.setItem(AppSettings.USER_ROLE_KEY, 'SUPERADMIN');
+      const role = (service as any).getStoredRole();
+      expect(role).toBeNull();
+    });
+
+    it('returns null for decodeJwtPayload with invalid token formats', () => {
+      expect((service as any).decodeJwtPayload('one.two.three.four')).toBeNull();
+      expect((service as any).decodeJwtPayload('one.two')).toBeNull();
+      expect((service as any).decodeJwtPayload('one.notbase64!.three')).toBeNull();
+    });
+
+    it('logs out and throws error when getAccessTokenForRequest token is close to expiry and refresh token is missing', (done) => {
+      const nearExpiryToken = createJwt({ exp: Math.floor(Date.now() / 1000) + 100 });
+      localStorage.setItem(AppSettings.TOKEN_KEY, nearExpiryToken);
+      localStorage.removeItem(AppSettings.REFRESH_TOKEN_KEY);
+
+      service.getAccessTokenForRequest().subscribe({
+        error: (err) => {
+          expect(err.message).toContain('No refresh token available');
+          expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+          done();
+        }
+      });
+    });
+
+    it('logs out and propagates error when getAccessTokenForRequest refresh fails', (done) => {
+      const nearExpiryToken = createJwt({ exp: Math.floor(Date.now() / 1000) + 100 });
+      localStorage.setItem(AppSettings.TOKEN_KEY, nearExpiryToken);
+      localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'my-refresh-token');
+
+      service.getAccessTokenForRequest().subscribe({
+        error: (err) => {
+          expect(err.status).toBe(400);
+          expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+          done();
+        }
+      });
+
+      const refreshReq = httpMock.expectOne(`${AppSettings.API_URL}/auth/refresh`);
+      refreshReq.flush('Bad request', { status: 400, statusText: 'Bad Request' });
+
+      const logoutReq = httpMock.expectOne(`${AppSettings.API_URL}/auth/logout`);
+      logoutReq.flush(null);
+    });
+
+    it('returns empty observable when loadDisplayNameFromProfile is called on server', (done) => {
+      (service as any).platformId = 'server';
+      service.loadDisplayNameFromProfile().subscribe(() => {
+        done();
+      });
+    });
+
+    it('removes displayName and nationality when set to null', () => {
+      localStorage.setItem(AppSettings.USER_NAME_KEY, 'Test User');
+      localStorage.setItem(AppSettings.USER_NATIONALITY_KEY, 'ES');
+      service.setDisplayName(null);
+      service.setNationality(null);
+      expect(localStorage.getItem(AppSettings.USER_NAME_KEY)).toBeNull();
+      expect(localStorage.getItem(AppSettings.USER_NATIONALITY_KEY)).toBeNull();
+    });
+  });
 });

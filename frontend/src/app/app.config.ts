@@ -19,6 +19,7 @@ import { environment } from '../environments/environment';
 import { AuthService } from './core/auth/auth.service';
 import { firstValueFrom } from 'rxjs';
 import { AppConfigService } from './core/config/app-config.service';
+import { AppReadyService } from './core/app-ready.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -57,6 +58,14 @@ export const appConfig: ApplicationConfig = {
       useFactory: (authService: AuthService, appConfigService: AppConfigService) => () =>
         appConfigService.load().then(() => firstValueFrom(authService.loadDisplayNameFromProfile())),
       deps: [AuthService, AppConfigService],
+      multi: true
+    },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (appReady: AppReadyService) => () => {
+        appReady.markReady();
+      },
+      deps: [AppReadyService],
       multi: true
     }
   ]

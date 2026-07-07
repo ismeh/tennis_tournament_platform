@@ -1,0 +1,60 @@
+# EC2 memory limits override — t3.small (1.9 GB usable RAM)
+#
+# Usage (production on EC2):
+#   docker compose -f compose.yaml -f compose.https-local.yaml -f compose.override.ec2.yaml up -d --remove-orphans
+#
+# RAM budget:
+#   postgres:  256 MB
+#   backend:   640 MB -> JVM heap ≈ 416 MB (MaxRAMPercentage=65) -> Off-Heap ≈ 224 MB
+#   frontend:  256 MB -> Node.js heap ≈ 192 MB
+#   nginx:      64 MB
+#   Total:    ~1.2 GB -> ~700 MB libres para SO + buffers del kernel
+#
+# Upgrading instance? Adjust the 'memory' values and NODE_OPTIONS/JAVA_TOOL_OPTIONS accordingly.
+# t3.medium (4 GB): postgres=512M, backend=1024M, frontend=512M, nginx=64M
+
+services:
+  postgres:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=20
+      -c effective_cache_size=128MB
+      -c wal_buffers=4MB
+      -c checkpoint_completion_target=0.9
+
+  backend:
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+        reservations:
+          memory: 320M
+    environment:
+      - JAVA_TOOL_OPTIONS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=50.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError -Xss512k
+
+  frontend:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=192
+
+  nginx:
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M

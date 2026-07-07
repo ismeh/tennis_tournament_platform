@@ -96,6 +96,7 @@ describe('CreateTournamentComponent', () => {
       locationFormattedAddress: null,
       courtCount: 4,
       setsPerMatch: 3,
+      gamesPerSet: 6,
       decisiveTiebreakPoints: 7
     });
 
@@ -117,6 +118,7 @@ describe('CreateTournamentComponent', () => {
       locationFormattedAddress: null,
       courtCount: 4,
       setsPerMatch: 3,
+      gamesPerSet: 6,
       decisiveTiebreakPoints: 7
     });
     expect(component.errorMessage()).toBeNull();
@@ -142,6 +144,7 @@ describe('CreateTournamentComponent', () => {
       locationFormattedAddress: null,
       courtCount: 4,
       setsPerMatch: 3,
+      gamesPerSet: 6,
       decisiveTiebreakPoints: 7
     });
 
@@ -202,5 +205,32 @@ describe('CreateTournamentComponent', () => {
     expect(component.form.controls.locationLongitude.value).toBe(-3.7037);
     expect(component.form.controls.locationPlaceId.value).toBe('madrid-place-id');
     expect(component.form.controls.locationFormattedAddress.value).toBe('Madrid, España');
+  });
+
+  describe('getFormatPreview branches', () => {
+    it('returns A {games} juegos when sets is 1 and games is not 6', () => {
+      component.form.patchValue({ setsPerMatch: 1, gamesPerSet: 4 });
+      expect(component.getFormatPreview()).toBe('A 4 juegos');
+    });
+
+    it('returns A {sets} sets ({games} juegos) when sets is 2 and games is not 6', () => {
+      component.form.patchValue({ setsPerMatch: 2, gamesPerSet: 4 });
+      expect(component.getFormatPreview()).toBe('A 2 sets (4 juegos)');
+    });
+
+    it('returns A 1 set when sets is 1 and games is 6', () => {
+      component.form.patchValue({ setsPerMatch: 1, gamesPerSet: 6 });
+      expect(component.getFormatPreview()).toBe('A 1 set');
+    });
+
+    it('returns A 2 sets (mejor de 2) when sets is 2 and games is 6', () => {
+      component.form.patchValue({ setsPerMatch: 2, gamesPerSet: 6 });
+      expect(component.getFormatPreview()).toBe('A 2 sets (mejor de 2)');
+    });
+
+    it('returns Al mejor de {sets} sets when sets is greater than 2', () => {
+      component.form.patchValue({ setsPerMatch: 3, gamesPerSet: 6 });
+      expect(component.getFormatPreview()).toBe('Al mejor de 3 sets');
+    });
   });
 });

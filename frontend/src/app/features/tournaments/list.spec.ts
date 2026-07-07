@@ -66,7 +66,6 @@ describe('TournamentsListComponent', () => {
     it('returns correct labels for all statuses', () => {
       expect(component.getStatusLabel('DRAFT')).toBe('Borrador');
       expect(component.getStatusLabel('OPEN')).toBe('Inscripciones abiertas');
-      expect(component.getStatusLabel('ACTIVE')).toBe('Activo');
       expect(component.getStatusLabel('CLOSED')).toBe('Inscripciones cerradas');
       expect(component.getStatusLabel('IN_PROGRESS')).toBe('En juego');
       expect(component.getStatusLabel('COMPLETED')).toBe('Finalizado');

@@ -9,5 +9,6 @@ public record TournamentRankingResponse(
         String firstName,
         String lastName,
         String gender,
+        Long points,
         Long victories
 ) {}

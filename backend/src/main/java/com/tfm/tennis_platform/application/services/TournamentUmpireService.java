@@ -36,8 +36,8 @@ public class TournamentUmpireService {
         Member umpire = memberRepository.findById(umpireId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member", umpireId));
 
-        if (umpire.getRole() != UserRole.UMPIRE) {
-            throw new InvalidArgumentException("El usuario seleccionado no tiene rol de árbitro.");
+        if (umpire.getRole() != UserRole.UMPIRE && umpire.getRole() != UserRole.ORGANIZER) {
+            throw new InvalidArgumentException("El usuario seleccionado no tiene un rol válido para ser árbitro (debe ser Árbitro u Organizador).");
         }
 
         if (tournamentUmpireRepository.existsByTournamentIdAndUmpireId(tournamentId, umpireId)) {
@@ -77,5 +77,9 @@ public class TournamentUmpireService {
 
     public List<UmpireSearchResult> searchUmpires(String query) {
         return memberRepository.searchUmpiresWithPersonData(query);
+    }
+
+    public List<UmpireSearchResult> searchByRoles(List<UserRole> roles, String query) {
+        return memberRepository.searchByRolesWithPersonData(roles, query);
     }
 }

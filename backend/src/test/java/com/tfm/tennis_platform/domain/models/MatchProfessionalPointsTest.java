@@ -10,42 +10,43 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MatchProfessionalPointsTest {
 
     @Test
-    void shouldExposeWinPointsWhenBothPlayersAreProfessional() {
-        Inscription firstInscription = professionalInscription(120);
-        Inscription secondInscription = professionalInscription(250);
+    void shouldExposeWinPointsFromFirstPlayerPoints() {
+        Inscription firstInscription = Inscription.builder()
+                .id(UUID.randomUUID())
+                .participantSource(ParticipantSource.PROFESSIONAL)
+                .build();
+        Inscription secondInscription = Inscription.builder()
+                .id(UUID.randomUUID())
+                .participantSource(ParticipantSource.PROFESSIONAL)
+                .build();
 
         Match match = Match.builder()
                 .id(UUID.randomUUID())
                 .firstInscription(firstInscription)
                 .secondInscription(secondInscription)
+                .firstPlayerPoints("250")
+                .secondPlayerPoints("120")
                 .build();
 
-        assertThat(match.isProfessionalMatch()).isTrue();
         assertThat(match.getFirstWinPoints()).isEqualTo(250);
         assertThat(match.getSecondWinPoints()).isEqualTo(120);
     }
 
     @Test
-    void shouldNotExposeWinPointsWhenAnyPlayerIsNotProfessional() {
+    void shouldReturnNullWinPointsWhenNotSet() {
         Match match = Match.builder()
                 .id(UUID.randomUUID())
-                .firstInscription(professionalInscription(120))
-                .secondInscription(Inscription.builder()
+                .firstInscription(Inscription.builder()
                         .id(UUID.randomUUID())
                         .participantSource(ParticipantSource.EXISTING_PERSON)
                         .build())
+                .secondInscription(Inscription.builder()
+                        .id(UUID.randomUUID())
+                        .participantSource(ParticipantSource.PROFESSIONAL)
+                        .build())
                 .build();
 
-        assertThat(match.isProfessionalMatch()).isFalse();
         assertThat(match.getFirstWinPoints()).isNull();
         assertThat(match.getSecondWinPoints()).isNull();
-    }
-
-    private Inscription professionalInscription(Integer awardedPoints) {
-        return Inscription.builder()
-                .id(UUID.randomUUID())
-                .participantSource(ParticipantSource.PROFESSIONAL)
-                .professionalAwardedPoints(awardedPoints)
-                .build();
     }
 }

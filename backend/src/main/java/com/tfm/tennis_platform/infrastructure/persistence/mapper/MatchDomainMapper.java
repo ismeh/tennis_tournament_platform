@@ -3,29 +3,22 @@ package com.tfm.tennis_platform.infrastructure.persistence.mapper;
 import com.tfm.tennis_platform.domain.models.Inscription;
 import com.tfm.tennis_platform.domain.models.Match;
 import com.tfm.tennis_platform.domain.models.MatchScore;
-import com.tfm.tennis_platform.domain.models.enums.ParticipantSource;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.DrawEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.InscriptionEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MatchEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.MatchSetEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.CourtEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.entity.ParticipantEntity;
-import com.tfm.tennis_platform.infrastructure.persistence.entity.ProPlayerEntity;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaMatchRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaDrawRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaInscriptionRepository;
 import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaCourtRepository;
-import com.tfm.tennis_platform.infrastructure.persistence.repository.JpaProPlayerRepository;
 import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -35,24 +28,21 @@ public class MatchDomainMapper {
     private final JpaInscriptionRepository inscriptionRepository;
     private final JpaMatchRepository matchRepository;
     private final JpaCourtRepository courtRepository;
-    private final JpaProPlayerRepository proPlayerRepository;
 
     public Match toDomain(MatchEntity entity) {
         if (entity == null) {
             return null;
         }
-
-        Map<String, ProPlayerData> professionalDataByLicense = loadProfessionalData(List.of(entity));
-        return toDomain(entity, professionalDataByLicense);
+        return toDomainInternal(entity);
     }
 
-    private Match toDomain(MatchEntity entity, Map<String, ProPlayerData> professionalDataByLicense) {
+    private Match toDomainInternal(MatchEntity entity) {
         return Match.builder()
                 .id(entity.getId())
                 .drawId(entity.getDraw() != null ? entity.getDraw().getId() : null)
-                .firstInscription(mapInscriptionDomain(entity.getFirstInscription(), professionalDataByLicense))
-                .secondInscription(mapInscriptionDomain(entity.getSecondInscription(), professionalDataByLicense))
-                .winner(mapInscriptionDomain(entity.getWinner(), professionalDataByLicense))
+                .firstInscription(mapInscriptionDomain(entity.getFirstInscription()))
+                .secondInscription(mapInscriptionDomain(entity.getSecondInscription()))
+                .winner(mapInscriptionDomain(entity.getWinner()))
                 .roundNumber(entity.getRoundNumber())
                 .bracketPosition(entity.getBracketPosition())
                 .nextMatch(mapMatchReference(entity.getNextMatch()))
@@ -75,8 +65,6 @@ public class MatchDomainMapper {
             return null;
         }
 
-        // Note: do not map nextMatch here to avoid creating multiple MatchEntity instances
-        // with the same identifier in the same persistence context when saving batches.
         MatchEntity entity = MatchEntity.builder()
                 .id(domain.getId())
                 .draw(mapDrawEntity(domain.getDrawId()))
@@ -145,10 +133,6 @@ public class MatchDomainMapper {
         return MatchScore.builder().sets(sets).build();
     }
 
-    /**
-     * Create an entity without wiring the nextMatch relationship. Adapter will link nextMatch instances
-     * to ensure the same MatchEntity object is reused within a saveAll operation.
-     */
     public MatchEntity toEntityWithoutNextMatch(Match domain) {
         return toEntity(domain);
     }
@@ -157,10 +141,8 @@ public class MatchDomainMapper {
         if (entities == null) {
             return List.of();
         }
-
-        Map<String, ProPlayerData> professionalDataByLicense = loadProfessionalData(entities);
         return entities.stream()
-                .map(entity -> toDomain(entity, professionalDataByLicense))
+                .map(this::toDomainInternal)
                 .toList();
     }
 
@@ -168,20 +150,17 @@ public class MatchDomainMapper {
         if (entity == null) {
             return null;
         }
-
         return Match.builder()
                 .id(entity.getId())
                 .build();
     }
 
-    private Inscription mapInscriptionDomain(InscriptionEntity entity, Map<String, ProPlayerData> professionalDataByLicense) {
+    private Inscription mapInscriptionDomain(InscriptionEntity entity) {
         if (entity == null) {
             return null;
         }
 
         ParticipantEntity participant = entity.getParticipant();
-        ParticipantSource participantSource = participant != null ? participant.getParticipantSource() : null;
-        ProPlayerData professionalData = findProfessionalData(participant, professionalDataByLicense);
         return Inscription.builder()
                 .id(entity.getId())
                 .eventId(entity.getEvent() != null ? entity.getEvent().getId() : null)
@@ -189,66 +168,16 @@ public class MatchDomainMapper {
                 .status(entity.getStatus())
                 .paymentStatus(entity.getPaymentStatus())
                 .registeredAt(entity.getRegisteredAt())
-                .participantSource(participantSource)
+                .participantSource(participant != null ? participant.getParticipantSource() : null)
                 .seed(participant != null ? participant.getSeed() : null)
-                .professionalRankingPosition(professionalData != null ? professionalData.rankingPosition() : null)
-                .professionalAwardedPoints(professionalData != null ? professionalData.awardedPoints() : null)
+                .points(participant != null ? participant.getPoints() : null)
                 .build();
-    }
-
-    private ProPlayerData findProfessionalData(ParticipantEntity participant, Map<String, ProPlayerData> professionalDataByLicense) {
-        if (participant == null || participant.getParticipantSource() != ParticipantSource.PROFESSIONAL) {
-            return null;
-        }
-
-        String normalized = normalizeLicense(participant.getDisplayTennisId());
-        return normalized != null ? professionalDataByLicense.get(normalized) : null;
-    }
-
-    private Map<String, ProPlayerData> loadProfessionalData(List<MatchEntity> matches) {
-        List<String> licenses = matches.stream()
-                .filter(Objects::nonNull)
-                .flatMap(this::inscriptions)
-                .filter(Objects::nonNull)
-                .map(InscriptionEntity::getParticipant)
-                .filter(Objects::nonNull)
-                .filter(participant -> participant.getParticipantSource() == ParticipantSource.PROFESSIONAL)
-                .map(ParticipantEntity::getDisplayTennisId)
-                .map(this::normalizeLicense)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-
-        if (licenses.isEmpty()) {
-            return Map.of();
-        }
-
-        return proPlayerRepository.findByNormalizedLicenses(licenses).stream()
-                .filter(proPlayer -> normalizeLicense(proPlayer.getLicense()) != null)
-                .collect(Collectors.toMap(
-                        proPlayer -> normalizeLicense(proPlayer.getLicense()),
-                        ProPlayerData::from,
-                        (left, right) -> left
-                ));
-    }
-
-    private Stream<InscriptionEntity> inscriptions(MatchEntity match) {
-        return Stream.of(match.getFirstInscription(), match.getSecondInscription(), match.getWinner());
-    }
-
-    private String normalizeLicense(String license) {
-        if (license == null || license.isBlank()) {
-            return null;
-        }
-
-        return license.trim().toLowerCase(Locale.ROOT);
     }
 
     private DrawEntity mapDrawEntity(UUID drawId) {
         if (drawId == null) {
             return null;
         }
-
         return drawRepository.getReferenceById(drawId);
     }
 
@@ -256,29 +185,13 @@ public class MatchDomainMapper {
         if (inscriptionId == null) {
             return null;
         }
-
         return inscriptionRepository.getReferenceById(inscriptionId);
-    }
-
-    private MatchEntity mapMatchEntity(Match nextMatch) {
-        if (nextMatch == null || nextMatch.getId() == null) {
-            return null;
-        }
-
-        return matchRepository.getReferenceById(nextMatch.getId());
     }
 
     private CourtEntity mapCourtEntity(UUID courtId) {
         if (courtId == null) {
             return null;
         }
-
         return courtRepository.getReferenceById(courtId);
-    }
-
-    private record ProPlayerData(Integer rankingPosition, Integer awardedPoints) {
-        private static ProPlayerData from(ProPlayerEntity entity) {
-            return new ProPlayerData(entity.getRankingPosition(), entity.getAwardedPoints());
-        }
     }
 }

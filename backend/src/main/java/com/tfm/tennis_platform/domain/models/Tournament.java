@@ -39,6 +39,7 @@ public class Tournament {
     private final TournamentStatus state; // 'soon', 'inscription', 'playing', 'finished'
     private final Integer setsPerMatch;
     private final Integer decisiveTiebreakPoints;
+    private final Integer gamesPerSet;
     private final Member createdBy;
     private final List<Event> events;
 
@@ -62,14 +63,20 @@ public class Tournament {
             if (this.setsPerMatch == null) {
                 this.setsPerMatch = 3;
             }
-            if (this.setsPerMatch != 3 && this.setsPerMatch != 5) {
-                throw new IllegalArgumentException("El formato de sets debe ser a 3 o 5 sets.");
+            if (this.setsPerMatch != 1 && this.setsPerMatch != 2 && this.setsPerMatch != 3 && this.setsPerMatch != 5) {
+                throw new IllegalArgumentException("El formato de sets debe ser a 1, 2, 3 o 5 sets.");
             }
             if (this.decisiveTiebreakPoints == null) {
                 this.decisiveTiebreakPoints = 7;
             }
             if (this.decisiveTiebreakPoints != 7 && this.decisiveTiebreakPoints != 10) {
                 throw new IllegalArgumentException("El tiebreak decisivo debe ser a 7 o 10 puntos.");
+            }
+            if (this.gamesPerSet == null) {
+                this.gamesPerSet = 6;
+            }
+            if (this.gamesPerSet != 4 && this.gamesPerSet != 5 && this.gamesPerSet != 6) {
+                throw new IllegalArgumentException("Los juegos por set deben ser 4, 5 o 6.");
             }
             if (this.events == null) {
                 this.events = new ArrayList<>();

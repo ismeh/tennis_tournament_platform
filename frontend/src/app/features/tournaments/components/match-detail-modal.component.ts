@@ -37,7 +37,7 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetSc
                         <p class="truncate text-sm font-bold text-neutral-800">
                           {{ getParticipantName(match()?.firstInscriptionId) }}
                         </p>
-                        @if (match()?.professionalMatch && match()?.firstInscriptionId) {
+                        @if (match()?.firstInscriptionId && (match()?.firstWinPoints != null || match()?.firstPlayerPoints)) {
                           <span [class]="getWinPointsClasses(match(), match()?.firstInscriptionId)">
                             {{ getWinPointsLabel(match()?.firstWinPoints) }}
                           </span>
@@ -52,7 +52,7 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetSc
                         <p class="truncate text-sm font-bold text-neutral-800">
                           {{ getParticipantName(match()?.secondInscriptionId) }}
                         </p>
-                        @if (match()?.professionalMatch && match()?.secondInscriptionId) {
+                        @if (match()?.secondInscriptionId && (match()?.secondWinPoints != null || match()?.secondPlayerPoints)) {
                           <span [class]="getWinPointsClasses(match(), match()?.secondInscriptionId)">
                             {{ getWinPointsLabel(match()?.secondWinPoints) }}
                           </span>
@@ -339,8 +339,8 @@ import { CourtResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetSc
                               </div>
                             </div>
 
-                            <!-- Tiebreak score input (shown if 7-6 or 6-7) -->
-                            @if ((set.p1Games === 7 && set.p2Games === 6) || (set.p1Games === 6 && set.p2Games === 7)) {
+                            <!-- Tiebreak score input (shown if gamesToWin+1 - gamesToWin or vice versa) -->
+                            @if ((set.p1Games === gamesPerSet + 1 && set.p2Games === gamesPerSet) || (set.p1Games === gamesPerSet && set.p2Games === gamesPerSet + 1)) {
                               <div class="flex items-center gap-1.5 border-l border-neutral-200 pl-3">
                                 <span class="text-[10px] font-bold text-neutral-500 uppercase">Tiebreak</span>
                                 <input
@@ -460,6 +460,7 @@ export class MatchDetailModalComponent {
   @Input() canManageInput = false;
   @Input() setsPerMatch = 3;
   @Input() decisiveTiebreakPoints = 7;
+  @Input() gamesPerSet = 6;
 
   @Input() set matchInput(value: MatchResponse | null) {
     if (value) {
@@ -786,12 +787,13 @@ export class MatchDetailModalComponent {
     const oppGames = player === 1 ? set.p2Games : set.p1Games;
     const tb = player === 1 ? set.p1Tiebreak : set.p2Tiebreak;
     const oppTb = player === 1 ? set.p2Tiebreak : set.p1Tiebreak;
+    const gamesToWin = this.gamesPerSet;
 
-    if (games === 7 && oppGames === 6 && tb != null && oppTb != null) {
-      return `7(${oppTb})`;
+    if (games === gamesToWin + 1 && oppGames === gamesToWin && tb != null && oppTb != null) {
+      return `${gamesToWin + 1}(${oppTb})`;
     }
-    if (games === 6 && oppGames === 7 && tb != null && oppTb != null) {
-      return `6(${tb})`;
+    if (games === gamesToWin && oppGames === gamesToWin + 1 && tb != null && oppTb != null) {
+      return `${gamesToWin}(${tb})`;
     }
     return games.toString();
   }
@@ -808,7 +810,8 @@ export class MatchDetailModalComponent {
     const sets = this.interactiveSets();
     const idx = this.currentSetIndex();
     if (idx >= sets.length) return false;
-    return sets[idx].p1Games === 6 && sets[idx].p2Games === 6;
+    const gamesToWin = this.gamesPerSet;
+    return sets[idx].p1Games === gamesToWin && sets[idx].p2Games === gamesToWin;
   }
 
   isDecisiveSet(): boolean {
@@ -935,7 +938,7 @@ export class MatchDetailModalComponent {
     }
 
     const currentSet = { ...sets[setIndex] };
-    const isTb = currentSet.p1Games === 6 && currentSet.p2Games === 6;
+    const isTb = currentSet.p1Games === this.gamesPerSet && currentSet.p2Games === this.gamesPerSet;
 
     if (isTb) {
       if (player === 1) {
@@ -1033,15 +1036,16 @@ export class MatchDetailModalComponent {
 
     const g1 = currentSet.p1Games;
     const g2 = currentSet.p2Games;
+    const gamesToWin = this.gamesPerSet;
 
-    if (g1 === 6 && g2 === 6) {
+    if (g1 === gamesToWin && g2 === gamesToWin) {
       this.autoSaveInteractiveScore();
       return;
     }
 
-    if (g1 >= 6 && g1 - g2 >= 2) {
+    if (g1 >= gamesToWin && g1 - g2 >= 2) {
       this.checkSetWin(sets, setIndex, 1);
-    } else if (g2 >= 6 && g2 - g1 >= 2) {
+    } else if (g2 >= gamesToWin && g2 - g1 >= 2) {
       this.checkSetWin(sets, setIndex, 2);
     }
 
@@ -1057,7 +1061,7 @@ export class MatchDetailModalComponent {
       if (s.p2Games > s.p1Games) p2SetsWon++;
     });
 
-    const setsToWin = Math.ceil(this.setsPerMatch / 2);
+    const setsToWin = this.setsPerMatch === 1 ? 1 : Math.ceil(this.setsPerMatch / 2);
 
     if (p1SetsWon >= setsToWin) {
       this.selectedWinnerId = this.match()!.firstInscriptionId || '';
@@ -1076,13 +1080,14 @@ export class MatchDetailModalComponent {
   }
 
   formatInteractiveResultString(setsArray: any[]): string {
+    const gamesToWin = this.gamesPerSet;
     return setsArray
       .filter(s => s.p1Games != null && s.p2Games != null)
       .map(s => {
         let str = `${s.p1Games}-${s.p2Games}`;
-        if (s.p1Games === 7 && s.p2Games === 6 && s.p2Tiebreak != null) {
+        if (s.p1Games === gamesToWin + 1 && s.p2Games === gamesToWin && s.p2Tiebreak != null) {
           str += `(${s.p2Tiebreak})`;
-        } else if (s.p1Games === 6 && s.p2Games === 7 && s.p1Tiebreak != null) {
+        } else if (s.p1Games === gamesToWin && s.p2Games === gamesToWin + 1 && s.p1Tiebreak != null) {
           str += `(${s.p1Tiebreak})`;
         }
         return str;
@@ -1152,7 +1157,7 @@ export class MatchDetailModalComponent {
       }
     });
 
-    const setsToWin = Math.ceil(this.setsPerMatch / 2);
+    const setsToWin = this.setsPerMatch === 1 ? 1 : Math.ceil(this.setsPerMatch / 2);
 
     if (p1SetsWon >= setsToWin) {
       this.selectedWinnerId = this.match()?.firstInscriptionId || '';
@@ -1194,13 +1199,14 @@ export class MatchDetailModalComponent {
   }
 
   formatManualResultString(): string {
+    const gamesToWin = this.gamesPerSet;
     return this.manualSets()
       .filter(s => s.p1Games != null && s.p2Games != null)
       .map(s => {
         let str = `${s.p1Games}-${s.p2Games}`;
-        if (s.p1Games === 7 && s.p2Games === 6 && s.p2Tiebreak != null) {
+        if (s.p1Games === gamesToWin + 1 && s.p2Games === gamesToWin && s.p2Tiebreak != null) {
           str += `(${s.p2Tiebreak})`;
-        } else if (s.p1Games === 6 && s.p2Games === 7 && s.p1Tiebreak != null) {
+        } else if (s.p1Games === gamesToWin && s.p2Games === gamesToWin + 1 && s.p1Tiebreak != null) {
           str += `(${s.p1Tiebreak})`;
         }
         return str;

@@ -123,4 +123,28 @@ public interface JpaMemberRepository extends JpaRepository<MemberEntity, UUID> {
             """, nativeQuery = true)
     List<UmpireSearchProjection> findAllByRoleWithPersonData(@Param("role") String role);
 
+    @Query(value = """
+            SELECT m.id AS id, m.email AS email, p.first_name AS firstName, p.last_name AS lastName
+            FROM users m
+            LEFT JOIN persons p ON m.person_id = p.id
+            WHERE m.user_role IN (:roles)
+              AND (
+                  LOWER(m.email) = LOWER(:query)
+                  OR LOWER(COALESCE(p.first_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+                  OR LOWER(COALESCE(p.last_name, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+                  OR LOWER(CONCAT(COALESCE(p.first_name, ''), ' ', COALESCE(p.last_name, ''))) LIKE LOWER(CONCAT('%', :query, '%'))
+              )
+            ORDER BY m.email ASC
+            """, nativeQuery = true)
+    List<UmpireSearchProjection> searchByRolesAndQuery(@Param("roles") List<String> roles, @Param("query") String query);
+
+    @Query(value = """
+            SELECT m.id AS id, m.email AS email, p.first_name AS firstName, p.last_name AS lastName
+            FROM users m
+            LEFT JOIN persons p ON m.person_id = p.id
+            WHERE m.user_role IN (:roles)
+            ORDER BY m.email ASC
+            """, nativeQuery = true)
+    List<UmpireSearchProjection> findAllByRolesWithPersonData(@Param("roles") List<String> roles);
+
 }

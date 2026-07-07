@@ -216,4 +216,15 @@ describe('DrawsComponent', () => {
       expect(component.matchScheduleSaved.emit).not.toHaveBeenCalled();
     });
   });
+
+  describe('eventNameInput', () => {
+    it('should have empty string default', () => {
+      expect(component.eventNameInput).toBe('');
+    });
+
+    it('should accept event name input', () => {
+      component.eventNameInput = 'Absoluto Masculino';
+      expect(component.eventNameInput).toBe('Absoluto Masculino');
+    });
+  });
 });

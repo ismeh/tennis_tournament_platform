@@ -22,7 +22,7 @@ export function getSurfaceBackgroundImage(surface: TournamentSurfaceCategory): s
   return SURFACE_BACKGROUND_IMAGES[surface] ?? '';
 }
 
-export type TournamentStatus = 'DRAFT' | 'OPEN' | 'ACTIVE' | 'CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type TournamentStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export type MatchStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'WALKOVER' | 'RETIRED' | 'CANCELLED' | 'SUSPENDED';
 
@@ -53,6 +53,7 @@ export interface TournamentCreateRequest {
   courtCount: number;
   setsPerMatch?: number;
   decisiveTiebreakPoints?: number;
+  gamesPerSet?: number;
 }
 
 export interface TournamentGeneralInfoUpdateRequest {
@@ -71,6 +72,7 @@ export interface TournamentGeneralInfoUpdateRequest {
   locationFormattedAddress?: string | null;
   setsPerMatch?: number;
   decisiveTiebreakPoints?: number;
+  gamesPerSet?: number;
 }
 
 export interface TournamentProviderSummary {
@@ -98,6 +100,7 @@ export interface TournamentResponse {
   professionalTournament?: boolean | null;
   setsPerMatch?: number | null;
   decisiveTiebreakPoints?: number | null;
+  gamesPerSet?: number | null;
 }
 
 export interface TournamentCalendarFilters {
@@ -464,6 +467,7 @@ export interface TournamentInscriptionPlayer {
   seed?: number | null;
   club?: string | null;
   entryStatus?: string | null;
+  paymentStatus?: string | null;
 }
 
 export interface TournamentStatusUpdateRequest {
@@ -477,9 +481,15 @@ export interface ParticipantPointsUpdateRequest {
 }
 
 export interface ParticipantDetailUpdateRequest {
-  participantId: string;
+  inscriptionId?: string | null;
+  participantId?: string | null;
   clubName: string | null;
   entryStatus: string | null;
+  paymentStatus?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  gender?: string | null;
+  eventId?: string | null;
 }
 
 export interface ReorganizeMatchPlayersRequest {
@@ -525,4 +535,9 @@ export interface TournamentUmpireSearchResponse {
 
 export interface TournamentUmpireRequest {
   id: string;
+}
+
+export interface SwapMatchSchedulesRequest {
+  matchId1: string;
+  matchId2: string;
 }

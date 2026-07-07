@@ -100,6 +100,11 @@ public interface JpaMatchRepository extends JpaRepository<MatchEntity, UUID> {
               participant.displayFirstName as firstName,
               participant.displayLastName as lastName,
               participant.displayGender as gender,
+              sum(case
+                when winner.id = firstInscription.id then cast(coalesce(match.firstPlayerPoints, '0') as long)
+                when winner.id = secondInscription.id then cast(coalesce(match.secondPlayerPoints, '0') as long)
+                else 0
+              end) as points,
               count(match.id) as victories
             from MatchEntity match
             join match.draw draw
@@ -108,7 +113,10 @@ public interface JpaMatchRepository extends JpaRepository<MatchEntity, UUID> {
             left join event.ageCategory ageCategory
             join match.winner winner
             join winner.participant participant
+            left join match.firstInscription firstInscription
+            left join match.secondInscription secondInscription
             where event.tournament.id = :tournamentId
+              and match.status = com.tfm.tennis_platform.domain.models.enums.MatchStatus.COMPLETED
               and (:gender is null or upper(coalesce(event.gender, '')) = :gender)
               and (:categoryId is null or ageCategory.id = :categoryId)
             group by
@@ -118,6 +126,11 @@ public interface JpaMatchRepository extends JpaRepository<MatchEntity, UUID> {
               participant.displayLastName,
               participant.displayGender
             order by
+              sum(case
+                when winner.id = firstInscription.id then cast(coalesce(match.firstPlayerPoints, '0') as long)
+                when winner.id = secondInscription.id then cast(coalesce(match.secondPlayerPoints, '0') as long)
+                else 0
+              end) desc,
               count(match.id) desc,
               participant.displayLastName asc,
               participant.displayFirstName asc

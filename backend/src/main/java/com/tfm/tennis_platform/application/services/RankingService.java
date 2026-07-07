@@ -83,18 +83,19 @@ public class RankingService {
 
     private List<TournamentRankingEntry> assignTournamentPositions(List<TournamentRankingEntry> entries) {
         List<TournamentRankingEntry> ranked = new ArrayList<>();
-        Long previousVictories = null;
+        Long previousPoints = null;
         int currentPosition = 0;
 
         List<TournamentRankingEntry> rankingOrder = entries.stream()
-                .sorted(tournamentRankingComparator("victories", "desc"))
+                .sorted(tournamentRankingComparator("points", "desc"))
                 .toList();
 
         for (int index = 0; index < rankingOrder.size(); index++) {
             TournamentRankingEntry entry = rankingOrder.get(index);
-            if (previousVictories == null || !previousVictories.equals(entry.victories())) {
+            long entryPoints = entry.points() != null ? entry.points() : 0L;
+            if (previousPoints == null || !previousPoints.equals(entryPoints)) {
                 currentPosition = index + 1;
-                previousVictories = entry.victories();
+                previousPoints = entryPoints;
             }
             ranked.add(entry.withPosition(currentPosition));
         }
@@ -128,8 +129,12 @@ public class RankingService {
                     Comparator.comparingInt((TournamentRankingEntry entry) -> entry.position() == null ? Integer.MAX_VALUE : entry.position()),
                     descending
             ).thenComparing(nameComparator);
-            default -> directionAware(
+            case "victories" -> directionAware(
                     Comparator.comparingLong((TournamentRankingEntry entry) -> entry.victories() == null ? 0L : entry.victories()),
+                    descending
+            ).thenComparing(nameComparator);
+            default -> directionAware(
+                    Comparator.comparingLong((TournamentRankingEntry entry) -> entry.points() == null ? 0L : entry.points()),
                     descending
             ).thenComparing(nameComparator);
         };
@@ -167,8 +172,8 @@ public class RankingService {
 
     private String normalizeTournamentSort(String sortBy) {
         return switch (normalizeSortValue(sortBy)) {
-            case "position", "name", "gender" -> normalizeSortValue(sortBy);
-            default -> "victories";
+            case "position", "name", "gender", "victories" -> normalizeSortValue(sortBy);
+            default -> "points";
         };
     }
 

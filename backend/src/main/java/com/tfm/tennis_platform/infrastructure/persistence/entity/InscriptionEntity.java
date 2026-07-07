@@ -10,6 +10,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "inscriptions")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -32,7 +33,7 @@ public class InscriptionEntity {
 
     @Column(name = "payment_status")
     @Builder.Default
-    private String paymentStatus = "UNPAID";
+    private String paymentStatus = "PENDING";
 
     @Column(name = "registered_at", updatable = false)
     @CreationTimestamp

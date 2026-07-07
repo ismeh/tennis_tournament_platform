@@ -190,4 +190,22 @@ describe('getApiErrorMessage', () => {
     const error = new ApiRequestError('CLIENT_ERROR', 'err', 0);
     expect(getApiErrorMessage(error)).toBe('No se pudo completar la operación.');
   });
+
+  it('handles parses of valid JSON that is not ApiErrorResponse', () => {
+    const httpError = new HttpErrorResponse({
+      error: '{"hello": "world"}',
+      status: 400
+    });
+    const result = normalizeApiError(httpError);
+    expect(result.code).toBe('INVALID_REQUEST');
+  });
+
+  it('handles objects that fail isApiErrorResponse partial matches', () => {
+    const httpError = new HttpErrorResponse({
+      error: { code: 'MY_CODE', message: 'No status' }, // missing status
+      status: 400
+    });
+    const result = normalizeApiError(httpError);
+    expect(result.code).toBe('INVALID_REQUEST');
+  });
 });

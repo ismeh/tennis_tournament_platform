@@ -605,4 +605,58 @@ describe('BracketComponent', () => {
       expect(component.isFullscreen()).toBeFalse();
     });
   });
+
+  describe('requestWakeLock', () => {
+    it('should do nothing if wakeLock API is not available', async () => {
+      const originalWakeLock = navigator.wakeLock;
+      Object.defineProperty(navigator, 'wakeLock', {
+        value: undefined,
+        configurable: true,
+        writable: true
+      });
+      await (component as any).requestWakeLock();
+      expect((component as any).wakeLock).toBeNull();
+      Object.defineProperty(navigator, 'wakeLock', {
+        value: originalWakeLock,
+        configurable: true,
+        writable: true
+      });
+    });
+
+    it('should request screen lock when API is available', async () => {
+      const originalWakeLock = navigator.wakeLock;
+      const mockSentinel = { addEventListener: jasmine.createSpy('addEventListener'), release: Promise.resolve.bind(Promise) };
+      const mockWakeLock = {
+        request: jasmine.createSpy('request').and.returnValue(Promise.resolve(mockSentinel))
+      };
+      Object.defineProperty(navigator, 'wakeLock', {
+        value: mockWakeLock,
+        configurable: true,
+        writable: true
+      });
+      await (component as any).requestWakeLock();
+      expect(mockWakeLock.request).toHaveBeenCalledWith('screen');
+      expect((component as any).wakeLock).toBe(mockSentinel);
+      Object.defineProperty(navigator, 'wakeLock', {
+        value: originalWakeLock,
+        configurable: true,
+        writable: true
+      });
+    });
+  });
+
+  describe('releaseWakeLock', () => {
+    it('should release and nullify wakeLock', async () => {
+      const mockRelease = jasmine.createSpy('release').and.returnValue(Promise.resolve());
+      (component as any).wakeLock = { release: mockRelease };
+      (component as any).releaseWakeLock();
+      expect(mockRelease).toHaveBeenCalled();
+      expect((component as any).wakeLock).toBeNull();
+    });
+
+    it('should do nothing if no wakeLock', () => {
+      (component as any).wakeLock = null;
+      expect(() => (component as any).releaseWakeLock()).not.toThrow();
+    });
+  });
 });

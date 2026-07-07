@@ -107,4 +107,34 @@ describe('tournament.model helpers', () => {
     expect(isConsolationDisabled(['ROUND_ROBIN'])).toBeTrue();
     expect(isConsolationDisabled(['SINGLE_ELIMINATION'])).toBeFalse();
   });
+
+  it('has paymentStatus field in TournamentInscriptionPlayer interface', () => {
+    const player = {
+      inscriptionId: 'ins-1',
+      participantId: 'p-1',
+      eventId: 'e-1',
+      categoryId: 1,
+      category: 'Absoluto',
+      eventName: 'Absoluto Masculino',
+      eventGender: 'MALE',
+      firstName: 'Carlos',
+      lastName: 'Lopez',
+      gender: 'MALE',
+      paymentStatus: 'PAID'
+    };
+    expect(player.paymentStatus).toBe('PAID');
+  });
+
+  it('has points field in TournamentRankingEntry interface', () => {
+    const entry = {
+      position: 1,
+      participantId: 'p-1',
+      personId: null,
+      firstName: 'Carlos',
+      lastName: 'Lopez',
+      gender: 'MALE',
+      points: 100
+    };
+    expect(entry.points).toBe(100);
+  });
 });
