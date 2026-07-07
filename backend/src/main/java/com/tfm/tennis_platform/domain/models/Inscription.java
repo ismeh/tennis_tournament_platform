@@ -18,8 +18,6 @@ public class Inscription {
     private final ParticipantSource participantSource;
     private final Integer seed;
     private final Integer points;
-    private final Integer professionalRankingPosition;
-    private final Integer professionalAwardedPoints;
 
     public boolean isProfessional() {
         return participantSource == ParticipantSource.PROFESSIONAL;
@@ -30,8 +28,8 @@ public class Inscription {
             return seed;
         }
 
-        if (professionalRankingPosition != null && professionalRankingPosition > 0) {
-            return professionalRankingPosition;
+        if (points != null && points > 0) {
+            return points;
         }
 
         return null;

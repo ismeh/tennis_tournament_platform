@@ -68,6 +68,7 @@ public class TournamentService {
                 .locationFormattedAddress(tournament.getLocationFormattedAddress())
                 .setsPerMatch(tournament.getSetsPerMatch())
                 .decisiveTiebreakPoints(tournament.getDecisiveTiebreakPoints())
+                .gamesPerSet(tournament.getGamesPerSet())
                 .createdBy(creator)
                 .build();
 
@@ -137,7 +138,7 @@ public class TournamentService {
                                          Integer maxPlayers, String location, Double locationLatitude,
                                          Double locationLongitude, String locationPlaceId,
                                          String locationFormattedAddress, Integer setsPerMatch,
-                                         Integer decisiveTiebreakPoints, String requesterEmail) {
+                                         Integer decisiveTiebreakPoints, Integer gamesPerSet, String requesterEmail) {
         Tournament currentTournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
         assertTournamentAdmin(currentTournament, requesterEmail);
@@ -198,6 +199,9 @@ public class TournamentService {
         if (decisiveTiebreakPoints != null) {
             builder.decisiveTiebreakPoints(decisiveTiebreakPoints);
         }
+        if (gamesPerSet != null) {
+            builder.gamesPerSet(gamesPerSet);
+        }
 
         return tournamentRepository.save(builder.build());
     }
@@ -211,7 +215,7 @@ public class TournamentService {
                                          Double locationLongitude, String locationPlaceId,
                                          String locationFormattedAddress, String requesterEmail) {
         return updateGeneralInfo(tournamentId, name, playPeriod, startTime, inscriptionPeriod, surface, maxPlayers,
-                location, locationLatitude, locationLongitude, locationPlaceId, locationFormattedAddress, null, null, requesterEmail);
+                location, locationLatitude, locationLongitude, locationPlaceId, locationFormattedAddress, null, null, null, requesterEmail);
     }
 
     public void assertTournamentAdmin(UUID tournamentId, String requesterEmail) {

@@ -61,18 +61,27 @@ public class Match {
         return loserNextMatch != null ? loserNextMatch.getId() : null;
     }
 
-    public boolean isProfessionalMatch() {
-        return firstInscription != null
-                && secondInscription != null
-                && firstInscription.isProfessional()
-                && secondInscription.isProfessional();
-    }
-
     public Integer getFirstWinPoints() {
-        return isProfessionalMatch() ? secondInscription.getProfessionalAwardedPoints() : null;
+        try {
+            return firstPlayerPoints != null ? Integer.parseInt(firstPlayerPoints) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public Integer getSecondWinPoints() {
-        return isProfessionalMatch() ? firstInscription.getProfessionalAwardedPoints() : null;
+        try {
+            return secondPlayerPoints != null ? Integer.parseInt(secondPlayerPoints) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    public boolean isCompletedNormally() {
+        return status == MatchStatus.COMPLETED;
+    }
+
+    public boolean isWalkoverOrRetired() {
+        return status == MatchStatus.WALKOVER || status == MatchStatus.RETIRED;
     }
 }

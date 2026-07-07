@@ -18,7 +18,21 @@ public class MatchScore {
     }
 
     public boolean isMatchComplete(int setsPerMatch, int decisiveTiebreakPoints) {
-        int setsToWin = (setsPerMatch == 5) ? 3 : 2;
+        return isMatchComplete(setsPerMatch, decisiveTiebreakPoints, 6);
+    }
+
+    public boolean isMatchComplete(int setsPerMatch, int decisiveTiebreakPoints, int gamesPerSet) {
+        int setsToWin;
+        if (setsPerMatch == 1) {
+            setsToWin = 1;
+        } else if (setsPerMatch == 2) {
+            setsToWin = 2;
+        } else if (setsPerMatch == 5) {
+            setsToWin = 3;
+        } else {
+            setsToWin = 2;
+        }
+
         int player1Sets = 0;
         int player2Sets = 0;
 
@@ -28,10 +42,10 @@ public class MatchScore {
 
         for (SetScore set : sets) {
             boolean isDecisive = (set.getSetNumber() == setsPerMatch);
-            if (!set.isComplete(isDecisive, decisiveTiebreakPoints)) {
-                return false; // Any set present must be complete
+            if (!set.isComplete(isDecisive, decisiveTiebreakPoints, gamesPerSet)) {
+                return false;
             }
-            Integer winner = set.getWinnerSide(isDecisive, decisiveTiebreakPoints);
+            Integer winner = set.getWinnerSide(isDecisive, decisiveTiebreakPoints, gamesPerSet);
             if (winner != null) {
                 if (winner == 1) {
                     player1Sets++;
@@ -49,7 +63,21 @@ public class MatchScore {
     }
 
     public Integer getWinningSide(int setsPerMatch, int decisiveTiebreakPoints) {
-        int setsToWin = (setsPerMatch == 5) ? 3 : 2;
+        return getWinningSide(setsPerMatch, decisiveTiebreakPoints, 6);
+    }
+
+    public Integer getWinningSide(int setsPerMatch, int decisiveTiebreakPoints, int gamesPerSet) {
+        int setsToWin;
+        if (setsPerMatch == 1) {
+            setsToWin = 1;
+        } else if (setsPerMatch == 2) {
+            setsToWin = 2;
+        } else if (setsPerMatch == 5) {
+            setsToWin = 3;
+        } else {
+            setsToWin = 2;
+        }
+
         int player1Sets = 0;
         int player2Sets = 0;
 
@@ -59,10 +87,10 @@ public class MatchScore {
 
         for (SetScore set : sets) {
             boolean isDecisive = (set.getSetNumber() == setsPerMatch);
-            if (!set.isComplete(isDecisive, decisiveTiebreakPoints)) {
+            if (!set.isComplete(isDecisive, decisiveTiebreakPoints, gamesPerSet)) {
                 continue;
             }
-            Integer winner = set.getWinnerSide(isDecisive, decisiveTiebreakPoints);
+            Integer winner = set.getWinnerSide(isDecisive, decisiveTiebreakPoints, gamesPerSet);
             if (winner != null) {
                 if (winner == 1) {
                     player1Sets++;
@@ -83,13 +111,17 @@ public class MatchScore {
     }
 
     public String toResultString() {
+        return toResultString(6);
+    }
+
+    public String toResultString(int gamesPerSet) {
         if (sets == null || sets.isEmpty()) {
             return "";
         }
 
         List<String> setStrings = new ArrayList<>();
         for (SetScore set : sets) {
-            if (set.isTiebreak()) {
+            if (set.isTiebreak(gamesPerSet)) {
                 Integer tb1 = set.getFirstPlayerTiebreak();
                 Integer tb2 = set.getSecondPlayerTiebreak();
                 int minTb = (tb1 != null && tb2 != null) ? Math.min(tb1, tb2) : 0;
