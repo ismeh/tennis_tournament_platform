@@ -21,25 +21,6 @@ describe('RankingService', () => {
     httpMock.verify();
   });
 
-  it('should request professional ranking with filters', () => {
-    service.getProfessionalRanking({ gender: 'MALE', category: 'ABSOLUTA', page: 1, size: 25, sortBy: 'points', sortDirection: 'desc' }).subscribe(response => {
-      expect(response.items[0].playerId).toBe(1);
-      expect(response.size).toBe(25);
-    });
-
-    const request = httpMock.expectOne(`${AppSettings.API_URL}/rankings/professionals?gender=MALE&category=ABSOLUTA&page=1&size=25&sortBy=points&sortDirection=desc`);
-    expect(request.request.method).toBe('GET');
-    request.flush({
-      items: [{ position: 1, playerId: 1, fullName: 'ALCARAZ GARFIA, CARLOS' }],
-      page: 1,
-      size: 25,
-      totalItems: 40,
-      totalPages: 2,
-      sortBy: 'points',
-      sortDirection: 'desc'
-    });
-  });
-
   it('should request tournament ranking with filters', () => {
     service.getTournamentRanking('tournament-id', { gender: 'FEMALE', categoryId: 7, page: 0, size: 10 }).subscribe(response => {
       expect(response.items[0].victories).toBe(3);

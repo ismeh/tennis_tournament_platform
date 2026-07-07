@@ -454,4 +454,231 @@ describe('MatchDetailModalComponent', () => {
       expect(component.getParticipantLastName(null)).toBe('Participante');
     });
   });
+
+  describe('key down event listeners', () => {
+    it('should close on Escape keydown if open', () => {
+      spyOn(component, 'onClose');
+      component.isOpen.set(true);
+      const event = new KeyboardEvent('keydown', { key: 'Escape' });
+      component.onEscapeKeyDown(event);
+      expect(component.onClose).toHaveBeenCalled();
+    });
+
+    it('should not close on Escape keydown if closed', () => {
+      spyOn(component, 'onClose');
+      component.isOpen.set(false);
+      const event = new KeyboardEvent('keydown', { key: 'Escape' });
+      component.onEscapeKeyDown(event);
+      expect(component.onClose).not.toHaveBeenCalled();
+    });
+
+    it('should save on Enter keydown in manual mode if open and form is valid', () => {
+      spyOn(component, 'onSave');
+      component.isOpen.set(true);
+      component.canManageInput = true;
+      component.scoringMode.set('manual');
+      const event = new KeyboardEvent('keydown', { key: 'Enter' });
+      component.onEnterKeyDown(event);
+      expect(component.onSave).toHaveBeenCalled();
+    });
+  });
+
+  describe('isByeSlot', () => {
+    it('should detect bye slots', () => {
+      component.match.set(createMatch({ roundNumber: 1 }));
+      expect(component.isByeSlot(null, 'p2')).toBeTrue();
+      expect(component.isByeSlot('p1', 'p2')).toBeFalse();
+    });
+  });
+
+  describe('save schedule', () => {
+    it('should emit saveSchedule when schedule is valid', () => {
+      spyOn(component.saveSchedule, 'emit');
+      component.canManageInput = true;
+      component.match.set(createMatch());
+      component.selectedCourtId = 'court-123';
+      component.scheduledAtInput = '2026-05-01T10:00';
+      component.selectedScheduleTimeType = 'EXACT';
+
+      component.onSaveSchedule();
+      expect(component.saveSchedule.emit).toHaveBeenCalledWith({
+        matchId: 'match-1',
+        courtId: 'court-123',
+        scheduledAt: '2026-05-01T10:00',
+        scheduleTimeType: 'EXACT'
+      });
+    });
+  });
+
+  describe('interactive scoring points logic', () => {
+    it('should increment and decrement game points correctly for Player 1', () => {
+      component.match.set(createMatch({ firstInscriptionId: 'p1', secondInscriptionId: 'p2' }));
+      component.scoringMode.set('interactive');
+      component.resetInteractiveScoreState();
+
+      // starts at 0 (0)
+      expect(component.getPointsDisplay(1)).toBe('0');
+
+      component.incrementPoint(1); // 15
+      expect(component.getPointsDisplay(1)).toBe('15');
+
+      component.incrementPoint(1); // 30
+      expect(component.getPointsDisplay(1)).toBe('30');
+
+      component.decrementPoint(1); // 15
+      expect(component.getPointsDisplay(1)).toBe('15');
+    });
+
+    it('should handle deuce and Ad advantage', () => {
+      component.match.set(createMatch({ firstInscriptionId: 'p1', secondInscriptionId: 'p2' }));
+      component.scoringMode.set('interactive');
+      component.resetInteractiveScoreState();
+
+      // P1: 40, P2: 40
+      component.gamePointsP1.set(3);
+      component.gamePointsP2.set(3);
+
+      component.incrementPoint(1); // P1 gets Ad
+      expect(component.getPointsDisplay(1)).toBe('Ad');
+      expect(component.getPointsDisplay(2)).toBe('40');
+
+      component.incrementPoint(2); // back to deuce (40-40)
+      expect(component.getPointsDisplay(1)).toBe('40');
+      expect(component.getPointsDisplay(2)).toBe('40');
+    });
+
+    it('should win game and advance set or match on winGame/checkSetWin', () => {
+      component.match.set(createMatch({ firstInscriptionId: 'p1', secondInscriptionId: 'p2' }));
+      component.scoringMode.set('interactive');
+      component.setsPerMatch = 3;
+      component.resetInteractiveScoreState();
+
+      // Set games to 5-4 for P1
+      component.interactiveSets.set([{ p1Games: 5, p2Games: 4 }]);
+      component.gamePointsP1.set(3); // P1 at 40 points
+
+      // P1 wins the game, thus winning the set 6-4
+      component.incrementPoint(1);
+      expect(component.interactiveSets()[0].p1Games).toBe(6);
+      expect(component.interactiveSets()[0].p2Games).toBe(4);
+
+      // It should push a second set because the match is not over yet (best of 3 sets needs 2 sets won)
+      expect(component.interactiveSets().length).toBe(2);
+      expect(component.currentSetIndex()).toBe(1);
+
+      // Now set second set to 5-0 for P1
+      component.interactiveSets.set([
+        { p1Games: 6, p2Games: 4 },
+        { p1Games: 5, p2Games: 0 }
+      ]);
+      component.currentSetIndex.set(1);
+      component.gamePointsP1.set(3); // 40 points
+
+      // P1 wins the game, thus winning the set 6-0 and the match 2-0 sets
+      component.incrementPoint(1);
+      expect(component.selectedWinnerId).toBe('p1');
+      expect(component.selectedStatus).toBe('COMPLETED');
+      expect(component.matchResult).toBe('6-4 6-0');
+    });
+
+    it('should remove current set and go back when decrementing at 0-0 in second set', () => {
+      component.match.set(createMatch({ firstInscriptionId: 'p1', secondInscriptionId: 'p2' }));
+      component.scoringMode.set('interactive');
+      component.setsPerMatch = 3;
+      
+      // We are at 0-0 in second set, after first set ended 6-4
+      component.interactiveSets.set([
+        { p1Games: 6, p2Games: 4 },
+        { p1Games: 0, p2Games: 0 }
+      ]);
+      component.currentSetIndex.set(1);
+      component.resetGamePoints();
+
+      // Decrementing point for P1 when points are 0 should prompt confirmation
+      component.decrementPoint(1);
+      expect(component.pendingGamesDecrementPlayer()).toBe(1);
+
+      // Decrementing again should remove second set and go back to first set
+      component.decrementPoint(1);
+      expect(component.interactiveSets().length).toBe(1);
+      expect(component.currentSetIndex()).toBe(0);
+      expect(component.matchResult).toBe('6-4');
+    });
+  });
+
+  describe('getWinPointsClasses', () => {
+    it('should return green classes for winner', () => {
+      const match = createMatch({ winnerId: 'p1' });
+      const classes = component.getWinPointsClasses(match, 'p1');
+      expect(classes).toContain('bg-green-100');
+    });
+
+    it('should return line-through classes for loser', () => {
+      const match = createMatch({ winnerId: 'p2' });
+      const classes = component.getWinPointsClasses(match, 'p1');
+      expect(classes).toContain('line-through');
+    });
+
+    it('should return default classes otherwise', () => {
+      const match = createMatch({ winnerId: null });
+      const classes = component.getWinPointsClasses(match, 'p1');
+      expect(classes).toContain('bg-neutral-100');
+      expect(classes).not.toContain('line-through');
+    });
+  });
+
+  describe('getInteractiveSetGames branches', () => {
+    it('should return - for out of bound index', () => {
+      component.interactiveSets.set([{ p1Games: 6, p2Games: 4 }]);
+      expect(component.getInteractiveSetGames(1, 1)).toBe('-');
+    });
+
+    it('should return games with tiebreak for player 1 winning tiebreak', () => {
+      component.interactiveSets.set([{ p1Games: 7, p2Games: 6, p1Tiebreak: 7, p2Tiebreak: 5 }]);
+      expect(component.getInteractiveSetGames(1, 0)).toBe('7(5)');
+    });
+
+    it('should return games with tiebreak for player 1 losing tiebreak', () => {
+      component.interactiveSets.set([{ p1Games: 6, p2Games: 7, p1Tiebreak: 4, p2Tiebreak: 7 }]);
+      expect(component.getInteractiveSetGames(1, 0)).toBe('6(4)');
+    });
+  });
+
+  describe('onManualScoreChanged branch decisions', () => {
+    it('should decide winner when P1 wins required sets', () => {
+      component.match.set(createMatch({ firstInscriptionId: 'p1', secondInscriptionId: 'p2' }));
+      component.setsPerMatch = 3;
+      component.manualSets.set([
+        { p1Games: 6, p2Games: 4, p1Tiebreak: null, p2Tiebreak: null },
+        { p1Games: 6, p2Games: 2, p1Tiebreak: null, p2Tiebreak: null }
+      ]);
+      component.onManualScoreChanged();
+      expect(component.selectedWinnerId).toBe('p1');
+      expect(component.selectedStatus).toBe('COMPLETED');
+    });
+
+    it('should decide winner when P2 wins required sets', () => {
+      component.match.set(createMatch({ firstInscriptionId: 'p1', secondInscriptionId: 'p2' }));
+      component.setsPerMatch = 3;
+      component.manualSets.set([
+        { p1Games: 4, p2Games: 6, p1Tiebreak: null, p2Tiebreak: null },
+        { p1Games: 2, p2Games: 6, p1Tiebreak: null, p2Tiebreak: null }
+      ]);
+      component.onManualScoreChanged();
+      expect(component.selectedWinnerId).toBe('p2');
+      expect(component.selectedStatus).toBe('COMPLETED');
+    });
+
+    it('should keep pending status when no player has won enough sets', () => {
+      component.match.set(createMatch({ firstInscriptionId: 'p1', secondInscriptionId: 'p2' }));
+      component.setsPerMatch = 3;
+      component.manualSets.set([
+        { p1Games: 6, p2Games: 4, p1Tiebreak: null, p2Tiebreak: null },
+        { p1Games: 3, p2Games: 6, p1Tiebreak: null, p2Tiebreak: null }
+      ]);
+      component.onManualScoreChanged();
+      expect(component.selectedWinnerId).toBe('');
+      expect(component.selectedStatus).toBe('PENDING');
+    });
+  });
 });

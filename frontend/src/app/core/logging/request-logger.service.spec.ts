@@ -198,5 +198,26 @@ describe('RequestLoggerService', () => {
       expect(entry.headers!['Cookie']).toBe('***REDACTED***');
       expect(entry.headers!['Content-Type']).toBe('application/json');
     });
+
+    it('returns undefined if headers is undefined', async () => {
+      await service.configure({ enableConsole: true, minLogLevel: LogLevel.DEBUG, logHeaders: true });
+      await service.logRequest('GET', '/api/test', 200, 50, {
+        headers: undefined
+      });
+
+      const entry = consoleTransport.logRequest.calls.mostRecent().args[0];
+      expect(entry.headers).toBeUndefined();
+    });
+
+    it('handles null sensitiveHeaders fallback', async () => {
+      await service.configure({ enableConsole: true, minLogLevel: LogLevel.DEBUG, logHeaders: true, sensitiveHeaders: undefined });
+      await service.logRequest('GET', '/api/test', 200, 50, {
+        headers: { Authorization: 'Bearer secret', 'Content-Type': 'application/json' }
+      });
+
+      const entry = consoleTransport.logRequest.calls.mostRecent().args[0];
+      expect(entry.headers!['Authorization']).toBe('Bearer secret');
+      expect(entry.headers!['Content-Type']).toBe('application/json');
+    });
   });
 });

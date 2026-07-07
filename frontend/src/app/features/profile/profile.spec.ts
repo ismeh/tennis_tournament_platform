@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { MemberService } from '../../data/services/member.service';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
@@ -105,5 +105,42 @@ describe('ProfileComponent', () => {
     });
     expect(authServiceSpy.setDisplayName).toHaveBeenCalledWith('Rafael Nadal');
     expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos');
+  });
+
+  describe('role labelling branches', () => {
+    it('labels role as Arbitro when UMPIRE', () => {
+      memberServiceSpy.getMyProfile.and.returnValue(of({ role: 'UMPIRE' } as any));
+      component.ngOnInit();
+      expect(component.roleLabel()).toBe('Árbitro');
+    });
+
+    it('labels role as Jugador when PLAYER', () => {
+      memberServiceSpy.getMyProfile.and.returnValue(of({ role: 'PLAYER' } as any));
+      component.ngOnInit();
+      expect(component.roleLabel()).toBe('Jugador');
+    });
+  });
+
+  describe('ngOnInit errors', () => {
+    it('sets nationalities to empty list if getNationalities fails', () => {
+      referenceDataServiceSpy.getNationalities.and.returnValue(throwError(() => new Error('Reference error')));
+      component.ngOnInit();
+      expect(component.nationalities()).toEqual([]);
+    });
+
+    it('sets errorMessage if getMyProfile fails', () => {
+      memberServiceSpy.getMyProfile.and.returnValue(throwError(() => new Error('Load failed')));
+      component.ngOnInit();
+      expect(component.errorMessage()).toContain('No se pudo cargar tu perfil actual');
+    });
+  });
+
+  describe('submit error', () => {
+    it('sets error message and sets isSubmitting to false on failure', () => {
+      memberServiceSpy.updateMyProfile.and.returnValue(throwError(() => new Error('Save failed')));
+      component.submit();
+      expect(component.isSubmitting()).toBeFalse();
+      expect(component.errorMessage()).toContain('No se pudo guardar el perfil');
+    });
   });
 });

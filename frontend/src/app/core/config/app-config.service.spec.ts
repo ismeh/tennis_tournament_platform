@@ -78,4 +78,20 @@ describe('AppConfigService', () => {
       window.fetch = originalFetch;
     });
   });
+
+  describe('in server', () => {
+    beforeEach(() => {
+      setup('server');
+    });
+
+    it('configures API_URL from process.env', async () => {
+      (window as any).process = { env: { API_URL: 'http://server.api/api' } };
+
+      await service.load();
+
+      expect(AppSettings.API_URL).toBe('http://server.api/api');
+
+      delete (window as any).process;
+    });
+  });
 });

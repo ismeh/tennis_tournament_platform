@@ -4,7 +4,7 @@ import { of, throwError } from 'rxjs';
 import { RankingComponent } from './ranking';
 import { RankingService } from '../../data/services/ranking.service';
 import { TournamentService } from '../../data/services/tournament.service';
-import { ProfessionalRankingResponse, TournamentRankingResponse, RankingTournamentResponse } from '../../data/interfaces/ranking.model';
+import { TournamentRankingResponse, RankingTournamentResponse } from '../../data/interfaces/ranking.model';
 import { TournamentEventCatalogItem } from '../../data/interfaces/tournament.model';
 
 describe('RankingComponent', () => {
@@ -12,14 +12,9 @@ describe('RankingComponent', () => {
   let rankingServiceSpy: jasmine.SpyObj<RankingService>;
   let tournamentServiceSpy: jasmine.SpyObj<TournamentService>;
 
-  const mockProfessionalRows: ProfessionalRankingResponse[] = [
-    { position: 1, playerId: 1, license: 'L001', fullName: 'Player One', firstName: 'Player', lastName: 'One', gender: 'MALE', category: 'A', clubName: 'Club A', birthDate: '2000-01-01', points: 100 },
-    { position: 2, playerId: 2, license: null, fullName: 'Player Two', firstName: 'Player', lastName: 'Two', gender: 'FEMALE', category: 'B', clubName: null, birthDate: null, points: 50 },
-  ];
-
   const mockTournamentRows: TournamentRankingResponse[] = [
-    { position: 1, participantId: 'p1', license: 'L001', firstName: 'Player', lastName: 'One', gender: 'MALE', victories: 5 },
-    { position: 2, participantId: 'p2', license: null, firstName: 'Player', lastName: null, gender: 'FEMALE', victories: 3 },
+    { position: 1, participantId: 'p1', license: 'L001', firstName: 'Player', lastName: 'One', gender: 'MALE', points: 100, victories: 5 },
+    { position: 2, participantId: 'p2', license: null, firstName: 'Player', lastName: null, gender: 'FEMALE', points: 50, victories: 3 },
   ];
 
   const mockTournaments: RankingTournamentResponse[] = [
@@ -33,20 +28,9 @@ describe('RankingComponent', () => {
 
   beforeEach(async () => {
     rankingServiceSpy = jasmine.createSpyObj('RankingService', [
-      'getProfessionalRanking',
       'getTournamentRanking',
       'getRankingTournaments',
     ]);
-
-    rankingServiceSpy.getProfessionalRanking.and.returnValue(of({
-      items: mockProfessionalRows,
-      page: 0,
-      size: 10,
-      totalItems: 2,
-      totalPages: 1,
-      sortBy: 'position',
-      sortDirection: 'asc',
-    }));
 
     rankingServiceSpy.getTournamentRanking.and.returnValue(of({
       items: mockTournamentRows,
@@ -81,34 +65,8 @@ describe('RankingComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('setMode', () => {
-    it('should not change if same mode', () => {
-      component.setMode('professionals');
-      expect(component.mode()).toBe('professionals');
-    });
-
-    it('should switch to tournament mode', () => {
-      component.setMode('tournament');
-      expect(component.mode()).toBe('tournament');
-    });
-
-    it('should reset gender if switching from MIXED to professionals', () => {
-      component.mode.set('tournament');
-      component.selectedGender.set('MIXED');
-      component.setMode('professionals');
-      expect(component.selectedGender()).toBeNull();
-    });
-  });
-
   describe('applyFilters', () => {
-    it('should load professional ranking', () => {
-      component.mode.set('professionals');
-      component.applyFilters();
-      expect(rankingServiceSpy.getProfessionalRanking).toHaveBeenCalled();
-    });
-
     it('should load tournament ranking', () => {
-      component.mode.set('tournament');
       component.selectedTournamentId.set('t1');
       component.applyFilters();
       expect(rankingServiceSpy.getTournamentRanking).toHaveBeenCalled();
@@ -153,8 +111,9 @@ describe('RankingComponent', () => {
 
   describe('onPageSizeChange', () => {
     it('should set page size', () => {
-      rankingServiceSpy.getProfessionalRanking.and.returnValue(of({
-        items: mockProfessionalRows,
+      component.selectedTournamentId.set('t1');
+      rankingServiceSpy.getTournamentRanking.and.returnValue(of({
+        items: mockTournamentRows,
         page: 0,
         size: 25,
         totalItems: 2,
@@ -167,8 +126,9 @@ describe('RankingComponent', () => {
     });
 
     it('should default to 10 for NaN', () => {
-      rankingServiceSpy.getProfessionalRanking.and.returnValue(of({
-        items: mockProfessionalRows,
+      component.selectedTournamentId.set('t1');
+      rankingServiceSpy.getTournamentRanking.and.returnValue(of({
+        items: mockTournamentRows,
         page: 0,
         size: 10,
         totalItems: 2,
@@ -189,9 +149,10 @@ describe('RankingComponent', () => {
     });
 
     it('should go to previous page', () => {
+      component.selectedTournamentId.set('t1');
       component.page.set(2);
-      rankingServiceSpy.getProfessionalRanking.and.returnValue(of({
-        items: mockProfessionalRows,
+      rankingServiceSpy.getTournamentRanking.and.returnValue(of({
+        items: mockTournamentRows,
         page: 1,
         size: 10,
         totalItems: 20,
@@ -213,10 +174,11 @@ describe('RankingComponent', () => {
     });
 
     it('should go to next page', () => {
+      component.selectedTournamentId.set('t1');
       component.totalPages.set(3);
       component.page.set(0);
-      rankingServiceSpy.getProfessionalRanking.and.returnValue(of({
-        items: mockProfessionalRows,
+      rankingServiceSpy.getTournamentRanking.and.returnValue(of({
+        items: mockTournamentRows,
         page: 1,
         size: 10,
         totalItems: 20,
@@ -232,18 +194,18 @@ describe('RankingComponent', () => {
   describe('setSort', () => {
     it('should not sort by invalid field', () => {
       component.setSort('invalidField');
-      expect(component.sortBy()).toBe('position');
+      expect(component.sortBy()).toBe('victories');
     });
 
     it('should sort by new field', () => {
-      component.setSort('name');
-      expect(component.sortBy()).toBe('name');
+      component.setSort('position');
+      expect(component.sortBy()).toBe('position');
     });
 
     it('should toggle direction for same field', () => {
-      component.sortBy.set('name');
+      component.sortBy.set('position');
       component.sortDirection.set('asc');
-      component.setSort('name');
+      component.setSort('position');
       expect(component.sortDirection()).toBe('desc');
     });
   });
@@ -308,29 +270,21 @@ describe('RankingComponent', () => {
   });
 
   describe('computed properties', () => {
-    it('should return correct ranking title for professionals', () => {
-      component.mode.set('professionals');
-      expect(component.rankingTitle()).toBe('Ranking profesional');
-    });
-
     it('should return correct ranking title for tournament', () => {
-      component.mode.set('tournament');
       expect(component.rankingTitle()).toBe('Ranking del torneo');
     });
 
     it('should return row count based on mode', () => {
-      component.mode.set('professionals');
+      component.tournamentRows.set(mockTournamentRows);
       expect(component.rowCount()).toBe(2);
     });
 
-    it('should return gender options based on mode', () => {
-      component.mode.set('professionals');
-      expect(component.genderOptions()).toEqual(['MALE', 'FEMALE']);
-      component.mode.set('tournament');
+    it('should return gender options', () => {
       expect(component.genderOptions()).toEqual(['MALE', 'FEMALE', 'MIXED']);
     });
 
     it('should compute page range label', () => {
+      component.tournamentRows.set(mockTournamentRows);
       component.totalItems.set(2);
       component.page.set(0);
       component.pageSize.set(10);

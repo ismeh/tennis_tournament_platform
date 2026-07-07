@@ -137,4 +137,38 @@ describe('authInterceptor', () => {
     expect(localStorage.getItem(AppSettings.USER_NAME_KEY)).toBeNull();
     expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBeNull();
   });
+
+  it('passes through public auth requests without adding authorization', () => {
+    httpClient.get('/api/auth/login').subscribe();
+
+    const request = httpMock.expectOne('/api/auth/login');
+    expect(request.request.headers.has('Authorization')).toBeFalse();
+    request.flush({ ok: true });
+
+    // With query param
+    httpClient.get('/api/auth/login?param=1').subscribe();
+    const request2 = httpMock.expectOne('/api/auth/login?param=1');
+    expect(request2.request.headers.has('Authorization')).toBeFalse();
+    request2.flush({ ok: true });
+  });
+
+  it('propagates non-401 errors from protected requests', () => {
+    localStorage.setItem(AppSettings.TOKEN_KEY, 'valid-access-token');
+
+    let errorThrown: any;
+    httpClient.get('/api/private').subscribe({
+      error: (err) => { errorThrown = err; }
+    });
+
+    const request = httpMock.expectOne('/api/private');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer valid-access-token');
+
+    request.flush('Internal Server Error', {
+      status: 500,
+      statusText: 'Internal Server Error'
+    });
+
+    expect(errorThrown).toBeTruthy();
+    expect(errorThrown.status).toBe(500);
+  });
 });
