@@ -2,22 +2,58 @@ import { Component, Input, Output, EventEmitter, signal, computed, ElementRef, H
 import { CommonModule } from '@angular/common';
 import { CourtResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse, TournamentStatus } from '../../../data/interfaces/tournament.model';
 import { MatchDetailModalComponent } from './match-detail-modal.component';
+import { MatchesComponent } from './matches.component';
 import { BracketExportService } from '../services/bracket-export.service';
 
 @Component({
   selector: 'app-bracket',
   standalone: true,
-  imports: [CommonModule, MatchDetailModalComponent],
+  imports: [CommonModule, MatchDetailModalComponent, MatchesComponent],
   template: `
     <div class="bracket-root space-y-4" #fullscreenRoot>
-      @if (showTitleInput) {
-        <h5 class="text-sm font-medium text-neutral-900">Cuadro de partidos</h5>
-      }
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        @if (showTitleInput) {
+          <h5 class="text-sm font-medium text-neutral-900">Cuadro de partidos</h5>
+        }
+        <!-- TOGGLE VISTA MÓVIL/ESCRITORIO -->
+        <div class="inline-flex rounded-lg border border-neutral-200 bg-neutral-50 p-1 md:hidden">
+          <button
+            type="button"
+            (click)="mobileViewMode.set('bracket')"
+            [class]="mobileViewMode() === 'bracket' ? 'rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-primary-700 shadow-sm' : 'rounded-md px-2.5 py-1 text-xs font-semibold text-neutral-600'"
+          >
+            Cuadro
+          </button>
+          <button
+            type="button"
+            (click)="mobileViewMode.set('list')"
+            [class]="mobileViewMode() === 'list' ? 'rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-primary-700 shadow-sm' : 'rounded-md px-2.5 py-1 text-xs font-semibold text-neutral-600'"
+          >
+            Lista
+          </button>
+        </div>
+      </div>
 
       @if (draws().length === 0) {
         <p class="text-xs text-neutral-600">Sin cuadros</p>
+      } @else if (mobileViewMode() === 'list') {
+        <!-- VISTA LISTA RESPONSIVA (Móvil) -->
+        <div class="space-y-6 md:hidden">
+          @for (draw of draws(); track draw.id) {
+            <div class="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+              <h6 class="font-bold text-neutral-900 border-b border-neutral-100 pb-2 mb-3">{{ draw.label }}</h6>
+              <app-matches
+                [matchesInput]="draw.matches || []"
+                [participantNamesInput]="participantNamesInput"
+                [participantOrderInput]="participantOrderInput"
+                [showSwapButton]="false"
+                (matchSelected)="onMatchClicked($event)"
+              ></app-matches>
+            </div>
+          }
+        </div>
       } @else if (isDoubleElimination()) {
-        <div class="space-y-4">
+        <div class="space-y-4" [class.hidden]="mobileViewMode() === 'list'">
           @if (getWinnersDraw(); as winnersDraw) {
             <div [ngClass]="showDrawCardInput ? 'rounded-md border border-neutral-200 bg-white p-4' : ''">
               @if (showDrawCardInput) {
@@ -552,8 +588,23 @@ import { BracketExportService } from '../services/bracket-export.service';
     }
 
     .bracket-scroll {
-      overflow: auto;
+      overflow-x: auto;
+      overflow-y: hidden;
       padding: 1rem 1.25rem 1.25rem;
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
+      /* Indicadores de scroll gradientes en los extremos */
+      background-image: 
+        linear-gradient(to right, white, white),
+        linear-gradient(to right, white, white),
+        linear-gradient(to right, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0)),
+        linear-gradient(to left, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0));
+      background-position: left center, right center, left center, right center;
+      background-repeat: no-repeat;
+      background-color: white;
+      background-size: 20px 100%, 20px 100%, 10px 100%, 10px 100%;
+      background-attachment: local, local, scroll, scroll;
     }
 
     .bracket-zoom-surface {
@@ -562,14 +613,27 @@ import { BracketExportService } from '../services/bracket-export.service';
 
     .bracket-board {
       display: flex;
-      gap: 3.5rem;
+      gap: 1rem;
       align-items: flex-start;
       transform-origin: top left;
     }
 
+    @media (min-width: 768px) {
+      .bracket-board {
+        gap: 3.5rem;
+      }
+    }
+
     .bracket-round {
-      width: 19rem;
-      flex: 0 0 19rem;
+      width: 14rem;
+      flex: 0 0 14rem;
+    }
+
+    @media (min-width: 768px) {
+      .bracket-round {
+        width: 19rem;
+        flex: 0 0 19rem;
+      }
     }
 
     .bracket-round-header {
@@ -621,16 +685,23 @@ import { BracketExportService } from '../services/bracket-export.service';
       display: flex;
       width: 100%;
       flex-direction: column;
-      gap: 0.375rem;
+      gap: 0.25rem;
       border: 1px solid rgb(203 213 225);
       border-left: 3px solid rgb(100 116 139);
       border-radius: 0.5rem;
       background: rgb(255 255 255);
-      padding: 0.625rem;
+      padding: 0.35rem;
       text-align: left;
       box-shadow: 0 8px 18px rgb(15 23 42 / 0.06);
       transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background 160ms ease;
       z-index: 2;
+    }
+
+    @media (min-width: 768px) {
+      .bracket-match {
+        gap: 0.375rem;
+        padding: 0.625rem;
+      }
     }
 
     .bracket-match:hover,
@@ -689,16 +760,26 @@ import { BracketExportService } from '../services/bracket-export.service';
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: center;
-      gap: 0.5rem;
-      min-height: 3.75rem;
+      gap: 0.25rem;
+      min-height: 2.5rem;
       border: 1px solid rgb(226 232 240);
       border-radius: 0.375rem;
       background: rgb(248 250 252);
-      padding: 0.875rem 0.75rem;
+      padding: 0.4rem 0.5rem;
       color: rgb(15 23 42);
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      line-height: 1.5;
+      line-height: 1.3;
+    }
+
+    @media (min-width: 768px) {
+      .bracket-player {
+        gap: 0.5rem;
+        min-height: 3.75rem;
+        padding: 0.875rem 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
     }
 
     .bracket-player-draggable {
@@ -799,6 +880,15 @@ import { BracketExportService } from '../services/bracket-export.service';
       pointer-events: none;
       background: rgb(148 163 184);
       z-index: 1;
+      display: none;
+    }
+
+    @media (min-width: 768px) {
+      .bracket-input-line,
+      .bracket-output-line,
+      .bracket-connector-rail {
+        display: block;
+      }
     }
 
     .bracket-input-line {
@@ -863,6 +953,7 @@ export class BracketComponent implements OnDestroy {
   zoomLevel = signal(1);
   isFullscreen = signal(false);
   isExportingPdf = signal(false);
+  mobileViewMode = signal<'bracket' | 'list'>('bracket');
   private wakeLock: WakeLockSentinel | null = null;
   selectedMatch = signal<MatchResponse | null>(null);
 
@@ -1032,7 +1123,10 @@ export class BracketComponent implements OnDestroy {
       return 400;
     }
     const rounds = this.getRounds(matches);
-    return Math.max(360, rounds.length * 304 + Math.max(0, rounds.length - 1) * 56);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const colWidth = isMobile ? 224 : 304; // 14rem vs 19rem
+    const gapWidth = isMobile ? 16 : 56;    // 1rem vs 3.5rem
+    return Math.max(isMobile ? 280 : 360, rounds.length * colWidth + Math.max(0, rounds.length - 1) * gapWidth);
   }
 
   getScaledBoardWidth(matches: MatchResponse[] | undefined): number {
@@ -1086,12 +1180,17 @@ export class BracketComponent implements OnDestroy {
 
   getBracketBodyHeight(rounds: Array<{ roundNumber: number; matches: MatchResponse[] }>): number {
     const firstRoundMatchCount = rounds[0]?.matches.length ?? 1;
-    return Math.max(360, (firstRoundMatchCount - 1) * this.slotPitch + this.matchHeight + 24);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const currentSlotPitch = isMobile ? 130 : this.slotPitch;
+    const currentMatchHeight = isMobile ? 110 : this.matchHeight;
+    return Math.max(isMobile ? 240 : 360, (firstRoundMatchCount - 1) * currentSlotPitch + currentMatchHeight + 24);
   }
 
   getMatchTop(roundIndex: number, matchIndex: number): number {
     const roundSpan = 2 ** roundIndex;
-    return (matchIndex * roundSpan + (roundSpan - 1) / 2) * this.slotPitch;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const currentSlotPitch = isMobile ? 130 : this.slotPitch;
+    return (matchIndex * roundSpan + (roundSpan - 1) / 2) * currentSlotPitch;
   }
 
   getRoundTopPadding(roundIndex: number): number {
@@ -1103,7 +1202,9 @@ export class BracketComponent implements OnDestroy {
   }
 
   getConnectorHeight(roundIndex: number): number {
-    return this.slotPitch * (2 ** roundIndex);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const currentSlotPitch = isMobile ? 130 : this.slotPitch;
+    return currentSlotPitch * (2 ** roundIndex);
   }
 
   isLastRound(roundIndex: number, totalRounds: number): boolean {
