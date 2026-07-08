@@ -21,7 +21,7 @@ type DrawGenerationFeedback = {
       } @else {
         <div class="space-y-4">
           @for (stage of stages(); track stage.id) {
-            <div class="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+            <div class="rounded-xl border border-neutral-200/70 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
               <div class="flex items-center justify-between">
                 <div>
                   <h3 class="text-lg font-semibold text-neutral-900">{{ getStageTypeLabel(stage.stageType) }}</h3>
@@ -57,7 +57,7 @@ type DrawGenerationFeedback = {
               }
 
               @if (expandedStageId() === stage.id && (stage.draws || []).length > 0) {
-                <div class="mt-4 border-t border-neutral-200 pt-4">
+                <div class="mt-4 border-t border-neutral-100 pt-4">
                   <app-draws
                     [drawsInput]="stage.draws || []"
                     [participantNamesInput]="participantNamesInput"
@@ -80,7 +80,7 @@ type DrawGenerationFeedback = {
               }
 
               @if (expandedStageId() === stage.id && (stage.draws || []).length === 0) {
-                <div class="mt-4 border-t border-neutral-200 pt-4 text-sm text-neutral-600">
+                <div class="mt-4 border-t border-neutral-100 pt-4 text-sm text-neutral-600">
                   Sin cuadros generados
                 </div>
               }

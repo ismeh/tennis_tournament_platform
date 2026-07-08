@@ -1085,8 +1085,8 @@ public class MatchService {
 
         var tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
-        if (tournament.getState() != TournamentStatus.IN_PROGRESS) {
-            throw new InvalidArgumentException("Solo se pueden intercambiar programaciones en torneos en curso.");
+        if (tournament.getState() == TournamentStatus.COMPLETED || tournament.getState() == TournamentStatus.CANCELLED) {
+            throw new InvalidArgumentException("No se pueden intercambiar programaciones en torneos finalizados o cancelados.");
         }
 
         Match match1 = matchRepository.findByIdAndTournamentId(match1Id, tournamentId)

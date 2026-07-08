@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { MemberService } from '../../data/services/member.service';
@@ -70,6 +71,7 @@ describe('ProfileComponent', () => {
       imports: [ProfileComponent],
       providers: [
         provideRouter([]),
+        provideHttpClient(),
         { provide: MemberService, useValue: memberServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
         { provide: ReferenceDataService, useValue: referenceDataServiceSpy },

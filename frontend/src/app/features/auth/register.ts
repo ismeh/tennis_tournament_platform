@@ -86,9 +86,9 @@ const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`
 						/>
 						<label for="privacyAccepted" class="text-sm text-neutral-600">
 							Acepto la
-							<a routerLink="/politica-privacidad" target="_blank" class="font-medium text-primary-600 hover:text-primary-700">política de privacidad</a>
+							<a href="/politica-privacidad" target="_blank" class="font-medium text-primary-600 hover:text-primary-700">política de privacidad</a>
 							y los
-							<a routerLink="/terminos-condiciones" target="_blank" class="font-medium text-primary-600 hover:text-primary-700">términos y condiciones</a>.
+							<a href="/terminos-condiciones" target="_blank" class="font-medium text-primary-600 hover:text-primary-700">términos y condiciones</a>.
 						</label>
 					</div>
 

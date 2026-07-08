@@ -4,6 +4,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MemberService } from '../../data/services/member.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { TournamentService } from '../../data/services/tournament.service';
+import { PlayerInscriptionResponse } from '../../data/interfaces/tournament.model';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { NationalityOption } from '../../data/interfaces/reference-data.model';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
@@ -95,6 +97,62 @@ import { ClubAutocompleteComponent } from '../../components/club-autocomplete';
           </div>
         </form>
       </div>
+
+      <!-- Inscriptions Section -->
+      <div class="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 class="text-xl font-bold text-neutral-900">Mis inscripciones</h2>
+        <p class="mt-1 text-sm text-neutral-600">
+          Torneos y categorías a los que te has apuntado.
+        </p>
+
+        @if (isLoadingInscriptions()) {
+          <div class="mt-6 flex justify-center py-6">
+            <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+          </div>
+        } @else if (inscriptionsError()) {
+          <div class="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {{ inscriptionsError() }}
+          </div>
+        } @else if (inscriptions().length === 0) {
+          <div class="mt-6 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center">
+            <p class="text-sm font-medium text-neutral-900">Aún no te has inscrito en ningún torneo</p>
+            <p class="mt-1 text-xs text-neutral-500">Explora el calendario de torneos y apúntate para competir.</p>
+            <a routerLink="/torneos" class="mt-4 inline-flex items-center rounded-lg bg-primary-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary-600">
+              Explorar torneos
+            </a>
+          </div>
+        } @else {
+          <div class="mt-6 divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+            @for (ins of inscriptions(); track ins.eventId + ins.tournamentId) {
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 hover:bg-neutral-50 transition-colors">
+                <div class="min-w-0">
+                  <a [routerLink]="['/torneos', ins.tournamentId]" class="font-bold text-neutral-900 hover:text-primary-600 transition-colors text-base truncate block">
+                    {{ ins.tournamentName }}
+                  </a>
+                  <p class="mt-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Prueba: {{ ins.eventName }} · {{ ins.categoryName || 'General' }}
+                  </p>
+                  <p class="mt-1 text-xs text-neutral-500">
+                    Fechas: {{ ins.playStartDate | date:'dd/MM/yyyy' }} - {{ ins.playEndDate | date:'dd/MM/yyyy' }}
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <span class="rounded-full bg-neutral-100 border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-700">
+                    {{ getEntryStatusLabel(ins.entryStatus) }}
+                  </span>
+
+                  <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border"
+                        [class]="ins.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'">
+                    <span class="mr-1.5 h-1.5 w-1.5 rounded-full" [class]="ins.paymentStatus === 'PAID' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'"></span>
+                    {{ getPaymentStatusLabel(ins.paymentStatus) }}
+                  </span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
     </section>
   `
 })
@@ -103,6 +161,7 @@ export class ProfileComponent implements OnInit {
   private readonly memberService = inject(MemberService);
   private readonly authService = inject(AuthService);
   private readonly referenceDataService = inject(ReferenceDataService);
+  private readonly tournamentService = inject(TournamentService);
   private readonly router = inject(Router);
 
   readonly isSubmitting = signal(false);
@@ -111,6 +170,10 @@ export class ProfileComponent implements OnInit {
   readonly successMessage = signal<string | null>(null);
   readonly nationalities = signal<NationalityOption[]>([]);
   readonly roleLabel = signal('');
+
+  readonly inscriptions = signal<PlayerInscriptionResponse[]>([]);
+  readonly isLoadingInscriptions = signal(false);
+  readonly inscriptionsError = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     firstName: ['', [Validators.required, Validators.minLength(2)]],
@@ -131,6 +194,8 @@ export class ProfileComponent implements OnInit {
         this.nationalities.set([]);
       }
     });
+
+    this.loadInscriptions();
 
     this.memberService.getMyProfile().subscribe({
       next: profile => {
@@ -155,6 +220,41 @@ export class ProfileComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
+
+  loadInscriptions(): void {
+    this.isLoadingInscriptions.set(true);
+    this.inscriptionsError.set(null);
+    this.tournamentService.getMyInscriptions().subscribe({
+      next: (data) => {
+        this.inscriptions.set(data);
+        this.isLoadingInscriptions.set(false);
+      },
+      error: (error) => {
+        this.inscriptionsError.set(getApiErrorMessage(error, 'No se pudieron cargar tus inscripciones.'));
+        this.isLoadingInscriptions.set(false);
+      }
+    });
+  }
+
+  getEntryStatusLabel(status: string | null): string {
+    if (!status) return 'DA';
+    switch (status) {
+      case 'DIRECT_ACCEPTANCE': return 'DA (Aceptación Directa)';
+      case 'WILDCARD': return 'WC (Invitación)';
+      case 'QUALIFIER': return 'Q (Clasificado)';
+      case 'LUCKY_LOSER': return 'LL (Perdedor Afortunado)';
+      default: return status;
+    }
+  }
+
+  getPaymentStatusLabel(status: string | null): string {
+    if (!status) return 'Pendiente';
+    switch (status) {
+      case 'PAID': return 'Pagado';
+      case 'PENDING': return 'Pendiente';
+      default: return status;
+    }
   }
 
   submit(): void {

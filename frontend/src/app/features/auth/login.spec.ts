@@ -12,7 +12,9 @@ describe('LoginComponent', () => {
   let returnUrl: string | null;
 
   beforeEach(async () => {
-    authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['login']);
+    authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['login'], {
+      isLoggedIn$: of(false)
+    });
     returnUrl = null;
 
     await TestBed.configureTestingModule({

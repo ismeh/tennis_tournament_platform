@@ -16,6 +16,7 @@ import {
   SetScoreResponse,
   ParticipantDetailUpdateRequest,
   ParticipantPointsUpdateRequest,
+  PlayerInscriptionResponse,
   PlayerMatchCalendarResponse,
   ReorganizeMatchPlayersRequest,
   SwapMatchSchedulesRequest,
@@ -63,6 +64,10 @@ export class TournamentService {
         to: filters.to
       })
     });
+  }
+
+  getMyInscriptions(): Observable<PlayerInscriptionResponse[]> {
+    return this.http.get<PlayerInscriptionResponse[]>(this.myInscriptionsUrl);
   }
 
   getMyTournamentCalendar(filters: TournamentCalendarFilters = {}): Observable<TournamentCalendarResponse[]> {
@@ -238,6 +243,10 @@ export class TournamentService {
 
   private get myMatchesCalendarUrl(): string {
     return `${AppSettings.API_URL}/calendar/my-matches`;
+  }
+
+  private get myInscriptionsUrl(): string {
+    return `${AppSettings.API_URL}/calendar/my-inscriptions`;
   }
 
   private get myTournamentsCalendarUrl(): string {

@@ -71,20 +71,41 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                   Inscribirse
                 </a>
               }
-              <div class="relative flex items-center gap-2 sm:gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
-                  {{ getUserInitial(displayName$ | async) }}
-                </div>
-                <button
-                  type="button"
-                  (click)="toggleProfileMenu()"
-                  class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-primary-50 hover:text-primary-600"
+              <div class="relative flex items-center gap-0.5 border border-neutral-200 bg-white rounded-full pl-2 pr-1 py-1 hover:bg-neutral-50 transition-colors">
+                <a
+                  routerLink="/perfil"
+                  class="flex items-center gap-2 text-sm font-medium text-neutral-700 hover:text-primary-600 focus:outline-none"
+                  title="Ver Perfil"
                 >
+                  <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-500 text-xs font-semibold text-white">
+                    {{ getUserInitial(displayName$ | async) }}
+                  </div>
                   @if (countryCode(); as cc) {
                     <span class="fi fi-{{ cc }}"></span>
                   }
-                  {{ resolveDisplayName(displayName$ | async) }}
-                  <span class="text-xs">⌄</span>
+                  <span class="max-w-[120px] truncate">
+                    {{ resolveDisplayName(displayName$ | async) }}
+                  </span>
+                </a>
+                <button
+                  type="button"
+                  (click)="toggleProfileMenu()"
+                  class="flex items-center justify-center rounded-full p-1.5 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700 focus:outline-none transition-colors"
+                  title="Abrir menú"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4 transition-transform duration-200"
+                    [class.rotate-180]="isProfileMenuOpen()"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
                 </button>
                 @if (isProfileMenuOpen()) {
                   <div class="absolute right-0 top-12 z-50 w-44 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
@@ -194,7 +215,11 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
           <!-- Mobile Auth Section -->
           <div class="border-t border-neutral-200 px-4 py-3">
             @if (isLoggedIn$ | async) {
-              <div class="flex items-center gap-3 mb-3 px-2">
+              <a
+                routerLink="/perfil"
+                (click)="closeMobileMenu()"
+                class="flex items-center gap-3 mb-3 px-2 py-1.5 rounded-lg hover:bg-neutral-50 transition-colors"
+              >
                 <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
                   {{ getUserInitial(displayName$ | async) }}
                 </div>
@@ -208,7 +233,7 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                     </span>
                   }
                 </div>
-              </div>
+              </a>
               @if ((role$ | async) === 'ORGANIZER') {
                 <a
                   routerLink="/torneos/crear"

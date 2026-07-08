@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.application.services;
 
 import com.tfm.tennis_platform.domain.exceptions.InvalidArgumentException;
+import com.tfm.tennis_platform.domain.models.calendar.PlayerInscriptionItem;
 import com.tfm.tennis_platform.domain.models.calendar.PlayerMatchCalendarItem;
 import com.tfm.tennis_platform.domain.models.calendar.TournamentCalendarItem;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
@@ -118,6 +119,13 @@ public class CalendarService {
         }
 
         return calendarRepository.findMyTournaments(organizerEmail, startDate, endDate);
+    }
+
+    public List<PlayerInscriptionItem> findMyInscriptions(String playerEmail) {
+        if (playerEmail == null || playerEmail.isBlank()) {
+            throw new InvalidArgumentException("Inicia sesión para consultar tus inscripciones.");
+        }
+        return calendarRepository.findMyInscriptions(playerEmail);
     }
 
     private LocalDate resolveStartDate(LocalDate from) {

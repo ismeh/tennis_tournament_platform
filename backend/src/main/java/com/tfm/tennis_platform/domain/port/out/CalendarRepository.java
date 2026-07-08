@@ -1,5 +1,6 @@
 package com.tfm.tennis_platform.domain.port.out;
 
+import com.tfm.tennis_platform.domain.models.calendar.PlayerInscriptionItem;
 import com.tfm.tennis_platform.domain.models.calendar.PlayerMatchCalendarItem;
 import com.tfm.tennis_platform.domain.models.calendar.TournamentCalendarItem;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
@@ -48,5 +49,9 @@ public interface CalendarRepository {
             String organizerEmail,
             LocalDate from,
             LocalDate to
+    );
+
+    List<PlayerInscriptionItem> findMyInscriptions(
+            String playerEmail
     );
 }

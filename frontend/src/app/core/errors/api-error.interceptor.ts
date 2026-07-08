@@ -14,9 +14,13 @@ export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
 
       // Do not show an error toast for 401 status since auth.interceptor.ts handles this
       // by either refreshing the token or redirecting to the login page.
-      // Also skip network errors (status 0) until the app has fully initialized
-      // to avoid flooding the user with connection errors during startup.
-      if (apiError.status !== 401 && (appReady.isReady() || apiError.status !== 0)) {
+      // Also skip network errors (status 0) until the app has fully initialized,
+      // and do not show them for GET requests to avoid toast flooding on startup/page loads.
+      if (
+        apiError.status !== 401 &&
+        (appReady.isReady() || apiError.status !== 0) &&
+        (req.method !== 'GET' || apiError.status !== 0)
+      ) {
         toastService.showError(apiError.message);
       }
 

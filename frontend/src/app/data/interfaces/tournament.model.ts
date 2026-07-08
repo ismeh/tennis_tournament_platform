@@ -421,6 +421,18 @@ export interface EventInscriptionResponse {
   registeredAt: string;
 }
 
+export interface PlayerInscriptionResponse {
+  tournamentId: string;
+  tournamentName: string;
+  eventId: string;
+  eventName: string;
+  categoryName: string;
+  entryStatus: string;
+  paymentStatus: string;
+  playStartDate: string;
+  playEndDate: string;
+}
+
 export interface TournamentInscriptionsResponse {
   tournamentId: string;
   selectedEventId?: string | null;

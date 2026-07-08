@@ -85,7 +85,7 @@ interface DrawDisplayItem {
                       [matchesInput]="getAllMatches(item.draws)"
                       [participantNamesInput]="participantNamesInput"
                       [participantOrderInput]="participantOrderInput"
-                      [showSwapButton]="true"
+                      [showSwapButton]="canManageInput"
                       (matchSelected)="onMatchSelected($event)"
                       (swapScheduleClicked)="swapScheduleClicked.emit($event)"
                     ></app-matches>

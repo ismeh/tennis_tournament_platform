@@ -1,10 +1,12 @@
 package com.tfm.tennis_platform.infrastructure.controller;
 
 import com.tfm.tennis_platform.application.services.CalendarService;
+import com.tfm.tennis_platform.domain.models.calendar.PlayerInscriptionItem;
 import com.tfm.tennis_platform.domain.models.calendar.PlayerMatchCalendarItem;
 import com.tfm.tennis_platform.domain.models.calendar.TournamentCalendarItem;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
+import com.tfm.tennis_platform.infrastructure.controller.dto.PlayerInscriptionResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.PlayerMatchCalendarResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentCalendarPageResponse;
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentCalendarResponse;
@@ -73,6 +75,23 @@ public class CalendarController {
     ) {
         return ResponseEntity.ok(calendarService.findMyTournaments(principal.getName(), from, to).stream()
                 .map(CalendarController::toTournamentResponse)
+                .toList());
+    }
+
+    @GetMapping("/my-inscriptions")
+    public ResponseEntity<List<PlayerInscriptionResponse>> getMyInscriptions(Principal principal) {
+        return ResponseEntity.ok(calendarService.findMyInscriptions(principal.getName()).stream()
+                .map(item -> new PlayerInscriptionResponse(
+                        item.tournamentId(),
+                        item.tournamentName(),
+                        item.eventId(),
+                        item.eventName(),
+                        item.categoryName(),
+                        item.entryStatus(),
+                        item.paymentStatus(),
+                        item.playStartDate(),
+                        item.playEndDate()
+                ))
                 .toList());
     }
 
