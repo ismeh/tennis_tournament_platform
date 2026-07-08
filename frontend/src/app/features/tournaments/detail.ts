@@ -410,46 +410,52 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   </div>
                 </form>
               } @else {
-                <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                  <div class="rounded-2xl border border-neutral-200 p-4">
-                    <p class="text-xs uppercase tracking-widest text-neutral-500">Superficie</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ getSurfaceLabel(tournament()!.surfaceCategory) }}</p>
+                <div class="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50/30 overflow-hidden divide-y divide-neutral-200">
+                  <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-neutral-200">
+                    <div class="p-4">
+                      <p class="text-xs uppercase tracking-widest text-neutral-500 font-medium">Superficie</p>
+                      <p class="mt-1 font-semibold text-neutral-900">{{ getSurfaceLabel(tournament()!.surfaceCategory) }}</p>
+                    </div>
+                    <div class="p-4">
+                      <p class="text-xs uppercase tracking-widest text-neutral-500 font-medium">Plazas</p>
+                      <p class="mt-1 font-semibold text-neutral-900">{{ tournament()!.maxPlayers }} jugadores</p>
+                    </div>
                   </div>
-                  <div class="rounded-2xl border border-neutral-200 p-4">
-                    <p class="text-xs uppercase tracking-widest text-neutral-500">Plazas</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ tournament()!.maxPlayers }} jugadores</p>
+                  <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-neutral-200">
+                    <div class="p-4">
+                      <p class="text-xs uppercase tracking-widest text-neutral-500 font-medium">Fechas de juego</p>
+                      <p class="mt-1 font-semibold text-neutral-900">
+                        {{ tournament()!.playStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.playEndDate | date: 'dd/MM/yyyy' }}
+                      </p>
+                    </div>
+                    <div class="p-4">
+                      <p class="text-xs uppercase tracking-widest text-neutral-500 font-medium">Periodo de inscripción</p>
+                      <p class="mt-1 font-semibold text-neutral-900">
+                        {{ tournament()!.inscriptionStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.inscriptionEndDate | date: 'dd/MM/yyyy' }}
+                      </p>
+                    </div>
                   </div>
-                  <div class="rounded-2xl border border-neutral-200 p-4">
-                    <p class="text-xs uppercase tracking-widest text-neutral-500">Fechas de juego</p>
-                    <p class="mt-1 font-semibold text-neutral-900">
-                      {{ tournament()!.playStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.playEndDate | date: 'dd/MM/yyyy' }}
-                    </p>
-                  </div>
-                  <div class="rounded-2xl border border-neutral-200 p-4">
-                    <p class="text-xs uppercase tracking-widest text-neutral-500">Periodo de inscripción</p>
-                    <p class="mt-1 font-semibold text-neutral-900">
-                      {{ tournament()!.inscriptionStartDate | date: 'dd/MM/yyyy' }} - {{ tournament()!.inscriptionEndDate | date: 'dd/MM/yyyy' }}
-                    </p>
-                  </div>
-                  <div class="rounded-2xl border border-neutral-200 p-4">
-                    <p class="text-xs uppercase tracking-widest text-neutral-500">Formato de partido</p>
-                    <p class="mt-1 font-semibold text-neutral-900">
-                      @if (tournament()!.setsPerMatch === 1 && (tournament()!.gamesPerSet ?? 6) !== 6) {
-                        A {{ tournament()!.gamesPerSet }} juegos
-                      } @else if (tournament()!.setsPerMatch === 1) {
-                        A 1 set
-                      } @else if (tournament()!.setsPerMatch === 2 && (tournament()!.gamesPerSet ?? 6) !== 6) {
-                        A 2 sets ({{ tournament()!.gamesPerSet }} juegos)
-                      } @else if (tournament()!.setsPerMatch === 2) {
-                        A 2 sets (mejor de 2)
-                      } @else {
-                        Al mejor de {{ tournament()!.setsPerMatch ?? 3 }} sets
-                      }
-                    </p>
-                  </div>
-                  <div class="rounded-2xl border border-neutral-200 p-4">
-                    <p class="text-xs uppercase tracking-widest text-neutral-500">Tiebreak set decisivo</p>
-                    <p class="mt-1 font-semibold text-neutral-900">A {{ tournament()!.decisiveTiebreakPoints ?? 7 }} puntos</p>
+                  <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-neutral-200">
+                    <div class="p-4">
+                      <p class="text-xs uppercase tracking-widest text-neutral-500 font-medium">Formato de partido</p>
+                      <p class="mt-1 font-semibold text-neutral-900">
+                        @if (tournament()!.setsPerMatch === 1 && (tournament()!.gamesPerSet ?? 6) !== 6) {
+                          A {{ tournament()!.gamesPerSet }} juegos
+                        } @else if (tournament()!.setsPerMatch === 1) {
+                          A 1 set
+                        } @else if (tournament()!.setsPerMatch === 2 && (tournament()!.gamesPerSet ?? 6) !== 6) {
+                          A 2 sets ({{ tournament()!.gamesPerSet }} juegos)
+                        } @else if (tournament()!.setsPerMatch === 2) {
+                          A 2 sets (mejor de 2)
+                        } @else {
+                          Al mejor de {{ tournament()!.setsPerMatch ?? 3 }} sets
+                        }
+                      </p>
+                    </div>
+                    <div class="p-4">
+                      <p class="text-xs uppercase tracking-widest text-neutral-500 font-medium">Tiebreak set decisivo</p>
+                      <p class="mt-1 font-semibold text-neutral-900">A {{ tournament()!.decisiveTiebreakPoints ?? 7 }} puntos</p>
+                    </div>
                   </div>
                 </div>
 
@@ -1194,14 +1200,28 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   </label>
                 </div>
 
-                <button
-                  type="button"
-                  class="mt-4 rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-3 font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
-                  [disabled]="!canRequestInscription() || isSubmittingInscription()"
-                  (click)="requestInscription()"
-                >
-                  {{ isSubmittingInscription() ? 'Tramitando inscripción...' : 'Inscribirme' }}
-                </button>
+                <div class="mt-4 flex items-center gap-3 flex-wrap">
+                  <button
+                    type="button"
+                    class="rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-3 font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                    [disabled]="!canRequestInscription() || isSubmittingInscription()"
+                    (click)="requestInscription()"
+                  >
+                    {{ isSubmittingInscription() ? 'Tramitando inscripción...' : 'Inscribirme' }}
+                  </button>
+
+                  @if (tournament()?.status === 'OPEN') {
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                      <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Inscripciones abiertas
+                    </span>
+                  } @else {
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+                      <span class="h-2 w-2 rounded-full bg-red-500"></span>
+                      Inscripciones cerradas
+                    </span>
+                  }
+                </div>
               }
 
               @if (actionMessage()) {
@@ -1299,143 +1319,147 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         </div>
                       }
 
-                      <div class="mt-4 rounded-2xl border border-neutral-200 bg-white">
-                        <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] gap-3 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500 rounded-t-2xl">
-                          <span>Nombre</span>
-                          <span>Prueba</span>
-                          <span title="Club al que pertenece el jugador" class="cursor-help">Club</span>
-                          <span title="DA = Aceptación Directa · WC = Wildcard · Q = Clasificado · LL = Perdedor Afortunado" class="cursor-help">Tipo Acceso</span>
-                          <span class="text-right">Puntos</span>
-                          <span class="text-center">Pago</span>
-                        </div>
+                      <div class="mt-4 rounded-2xl border border-neutral-200 bg-white overflow-hidden">
+                        <div class="overflow-x-auto">
+                          <div class="min-w-[768px]">
+                            <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] gap-3 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500 rounded-t-2xl">
+                              <span>Nombre</span>
+                              <span>Prueba</span>
+                              <span title="Club al que pertenece el jugador" class="cursor-help">Club</span>
+                              <span title="DA = Aceptación Directa · WC = Wildcard · Q = Clasificado · LL = Perdedor Afortunado" class="cursor-help">Tipo Acceso</span>
+                              <span class="text-right">Puntos</span>
+                              <span class="text-center">Pago</span>
+                            </div>
 
-                        <div class="divide-y divide-neutral-100 bg-white rounded-b-2xl">
-                          @for (player of tournamentInscriptionPlayers(); track player.inscriptionId + player.firstName + player.lastName) {
-                            <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] items-center gap-3 px-4 py-2 text-sm last:rounded-b-2xl">
-                              <div class="min-w-0">
-                                @if (isTournamentAdmin() && player.playerSource === 'MANUAL') {
-                                  <div class="flex flex-col gap-1">
-                                    <input
-                                      type="text"
-                                      class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                      [ngModel]="getEditedFirstName(player)"
-                                      (ngModelChange)="setEditedFirstName(player, $event)"
-                                      placeholder="Nombre"
-                                    />
-                                    <input
-                                      type="text"
-                                      class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                      [ngModel]="getEditedLastName(player)"
-                                      (ngModelChange)="setEditedLastName(player, $event)"
-                                      placeholder="Apellido"
-                                    />
-                                    <div class="mt-1 flex items-center gap-1.5 flex-wrap">
-                                      <button
-                                        type="button"
-                                        (click)="generateInvitation(player)"
-                                        [disabled]="isGeneratingInvitation(player.inscriptionId)"
-                                        class="inline-flex items-center gap-1 rounded bg-neutral-100 hover:bg-neutral-200 text-[10px] font-semibold text-neutral-700 px-2 py-0.5 transition-colors disabled:opacity-50"
-                                        [title]="'Generar enlace de invitación para que el jugador se registre en la plataforma'"
-                                      >
-                                        @if (isGeneratingInvitation(player.inscriptionId)) {
-                                          <span>Generando...</span>
-                                        } @else if (getInvitationUrl(player.inscriptionId)) {
-                                          <svg class="h-3 w-3 text-emerald-600 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                          </svg>
-                                          <span class="text-emerald-700">¡Copiado! Recopiar</span>
-                                        } @else {
-                                          <svg class="h-3 w-3 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                          </svg>
-                                          <span>Invitar</span>
-                                        }
-                                      </button>
-                                    </div>
-                                  </div>
-                                } @else {
-                                  <p class="truncate font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
-                                  <p class="truncate text-xs text-neutral-500">{{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}</p>
-                                }
-                              </div>
-                              <div class="min-w-0">
-                                @if (isTournamentAdmin()) {
-                                  <select
-                                    class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                    [ngModel]="getEditedEventId(player)"
-                                    (ngModelChange)="setEditedEventId(player, $event)"
-                                  >
-                                    @for (event of manualPlayerEventOptions(); track event.eventId) {
-                                      <option [value]="event.eventId">{{ event.eventName }}</option>
+                            <div class="divide-y divide-neutral-100 bg-white rounded-b-2xl">
+                              @for (player of tournamentInscriptionPlayers(); track player.inscriptionId + player.firstName + player.lastName) {
+                                <div class="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.5fr)_minmax(0,0.5fr)] items-center gap-3 px-4 py-2 text-sm last:rounded-b-2xl">
+                                  <div class="min-w-0">
+                                    @if (isTournamentAdmin() && player.playerSource === 'MANUAL') {
+                                      <div class="flex flex-col gap-1">
+                                        <input
+                                          type="text"
+                                          class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                          [ngModel]="getEditedFirstName(player)"
+                                          (ngModelChange)="setEditedFirstName(player, $event)"
+                                          placeholder="Nombre"
+                                        />
+                                        <input
+                                          type="text"
+                                          class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                          [ngModel]="getEditedLastName(player)"
+                                          (ngModelChange)="setEditedLastName(player, $event)"
+                                          placeholder="Apellido"
+                                        />
+                                        <div class="mt-1 flex items-center gap-1.5 flex-wrap">
+                                          <button
+                                            type="button"
+                                            (click)="generateInvitation(player)"
+                                            [disabled]="isGeneratingInvitation(player.inscriptionId)"
+                                            class="inline-flex items-center gap-1 rounded bg-neutral-100 hover:bg-neutral-200 text-[10px] font-semibold text-neutral-700 px-2 py-0.5 transition-colors disabled:opacity-50"
+                                            [title]="'Generar enlace de invitación para que el jugador se registre en la plataforma'"
+                                          >
+                                            @if (isGeneratingInvitation(player.inscriptionId)) {
+                                              <span>Generando...</span>
+                                            } @else if (getInvitationUrl(player.inscriptionId)) {
+                                              <svg class="h-3 w-3 text-emerald-600 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                              </svg>
+                                              <span class="text-emerald-700">¡Copiado! Recopiar</span>
+                                            } @else {
+                                              <svg class="h-3 w-3 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                              </svg>
+                                              <span>Invitar</span>
+                                            }
+                                          </button>
+                                        </div>
+                                      </div>
+                                    } @else {
+                                      <p class="truncate font-semibold text-neutral-900">{{ player.firstName }} {{ player.lastName }}</p>
+                                      <p class="truncate text-xs text-neutral-500">{{ getInscriptionGenderLabel(player.gender) }} · {{ getPlayerSourceLabel(player.playerSource) }}</p>
                                     }
-                                  </select>
-                                } @else {
-                                  <p class="truncate text-xs text-neutral-700">{{ player.eventName }}</p>
-                                  <p class="truncate text-xs text-neutral-400">{{ player.category }}</p>
-                                }
-                              </div>
-                              @if (isTournamentAdmin()) {
-                                <div class="min-w-0">
-                                  <app-club-autocomplete
-                                    placeholder="Club..."
-                                    [ngModel]="getEditedClub(player)"
-                                    (ngModelChange)="setEditedClub(player, $event)"
-                                    (clubSelected)="onClubSelected(player, $event)"
-                                  ></app-club-autocomplete>
-                                </div>
-                                <div class="min-w-0">
-                                  <select
-                                    class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                    [ngModel]="getEditedEntryStatus(player)"
-                                    (ngModelChange)="setEditedEntryStatus(player, $event)"
-                                  >
-                                    <option value="">-</option>
-                                    <option value="DIRECT_ACCEPTANCE">DA</option>
-                                    <option value="WILDCARD">WC</option>
-                                    <option value="QUALIFIER">Q</option>
-                                    <option value="LUCKY_LOSER">LL</option>
-                                  </select>
-                                </div>
-                                <div class="flex items-center justify-end">
-                                  <input type="number" min="0" class="w-20 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-right text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" [ngModel]="getEditedPoints(player)" (ngModelChange)="setEditedPoints(player, $event)" />
-                                </div>
-                              } @else {
-                                <div class="min-w-0">
-                                  <p class="truncate text-xs text-neutral-700">{{ player.club || '-' }}</p>
-                                </div>
-                                <div class="min-w-0">
-                                  <span class="inline-flex rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{{ getEntryStatusLabel(player.entryStatus) }}</span>
-                                </div>
-                                <div class="text-right">
-                                  @if (player.points != null) {
-                                    <span class="font-semibold text-neutral-900">{{ player.points }}</span>
+                                  </div>
+                                  <div class="min-w-0">
+                                    @if (isTournamentAdmin()) {
+                                      <select
+                                        class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                        [ngModel]="getEditedEventId(player)"
+                                        (ngModelChange)="setEditedEventId(player, $event)"
+                                      >
+                                        @for (event of manualPlayerEventOptions(); track event.eventId) {
+                                          <option [value]="event.eventId">{{ event.eventName }}</option>
+                                        }
+                                      </select>
+                                    } @else {
+                                      <p class="truncate text-xs text-neutral-700">{{ player.eventName }}</p>
+                                      <p class="truncate text-xs text-neutral-400">{{ player.category }}</p>
+                                    }
+                                  </div>
+                                  @if (isTournamentAdmin()) {
+                                    <div class="min-w-0">
+                                      <app-club-autocomplete
+                                        placeholder="Club..."
+                                        [ngModel]="getEditedClub(player)"
+                                        (ngModelChange)="setEditedClub(player, $event)"
+                                        (clubSelected)="onClubSelected(player, $event)"
+                                      ></app-club-autocomplete>
+                                    </div>
+                                    <div class="min-w-0">
+                                      <select
+                                        class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                        [ngModel]="getEditedEntryStatus(player)"
+                                        (ngModelChange)="setEditedEntryStatus(player, $event)"
+                                      >
+                                        <option value="">-</option>
+                                        <option value="DIRECT_ACCEPTANCE">DA</option>
+                                        <option value="WILDCARD">WC</option>
+                                        <option value="QUALIFIER">Q</option>
+                                        <option value="LUCKY_LOSER">LL</option>
+                                      </select>
+                                    </div>
+                                    <div class="flex items-center justify-end">
+                                      <input type="number" min="0" class="w-20 rounded-lg border border-neutral-300 bg-white px-2 py-1 text-right text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" [ngModel]="getEditedPoints(player)" (ngModelChange)="setEditedPoints(player, $event)" />
+                                    </div>
                                   } @else {
-                                    <span class="text-neutral-400">-</span>
+                                    <div class="min-w-0">
+                                      <p class="truncate text-xs text-neutral-700">{{ player.club || '-' }}</p>
+                                    </div>
+                                    <div class="min-w-0">
+                                      <span class="inline-flex rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{{ getEntryStatusLabel(player.entryStatus) }}</span>
+                                    </div>
+                                    <div class="text-right">
+                                      @if (player.points != null) {
+                                        <span class="font-semibold text-neutral-900">{{ player.points }}</span>
+                                      } @else {
+                                        <span class="text-neutral-400">-</span>
+                                      }
+                                    </div>
                                   }
+                                  <div class="text-center">
+                                    @if (isTournamentAdmin()) {
+                                      <select
+                                        class="w-full rounded-lg border border-neutral-300 bg-white px-1 py-0.5 text-[11px] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                        [ngModel]="getEditedPaymentStatus(player)"
+                                        (ngModelChange)="setEditedPaymentStatus(player, $event)"
+                                      >
+                                        <option value="PENDING">Pendiente</option>
+                                        <option value="PAID">Pagado</option>
+                                      </select>
+                                    } @else {
+                                      @if (player.paymentStatus === 'PAID') {
+                                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Pagado</span>
+                                      } @else if (player.paymentStatus === 'PENDING') {
+                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Pendiente</span>
+                                      } @else {
+                                        <span class="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-500">-</span>
+                                      }
+                                    }
+                                  </div>
                                 </div>
                               }
-                              <div class="text-center">
-                                @if (isTournamentAdmin()) {
-                                  <select
-                                    class="w-full rounded-lg border border-neutral-300 bg-white px-1 py-0.5 text-[11px] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                    [ngModel]="getEditedPaymentStatus(player)"
-                                    (ngModelChange)="setEditedPaymentStatus(player, $event)"
-                                  >
-                                    <option value="PENDING">Pendiente</option>
-                                    <option value="PAID">Pagado</option>
-                                  </select>
-                                } @else {
-                                  @if (player.paymentStatus === 'PAID') {
-                                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Pagado</span>
-                                  } @else if (player.paymentStatus === 'PENDING') {
-                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Pendiente</span>
-                                  } @else {
-                                    <span class="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-500">-</span>
-                                  }
-                                }
-                              </div>
                             </div>
-                          }
+                          </div>
                         </div>
                       </div>
                     }
@@ -1742,7 +1766,8 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     Genera cuadros para ver aquí los partidos programables.
                   </div>
                 } @else if (isMatchSchedulePanelExpanded()) {
-                  <div class="mt-4 grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-2 lg:grid-cols-[1.5fr_1.2fr_0.8fr_0.9fr_1fr_0.8fr_auto]">
+                  <!-- VISTA ESCRITORIO: todos los filtros en línea -->
+                  <div class="mt-4 hidden md:grid gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 md:grid-cols-2 lg:grid-cols-[1.5fr_1.2fr_0.8fr_0.9fr_1fr_0.8fr_auto]">
                     <label class="text-xs font-semibold uppercase tracking-widest text-neutral-600">
                       Jugador
                       <input
@@ -1835,6 +1860,54 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     </div>
                   </div>
 
+                  <!-- VISTA MÓVIL: solo jugador + botón de filtros drawer -->
+                  <div class="mt-4 flex gap-3 md:hidden items-center">
+                    <div class="relative flex-1 font-sans">
+                      <input
+                        type="text"
+                        class="w-full rounded-lg border border-neutral-300 bg-white pl-3 pr-10 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                        [ngModel]="matchSchedulePlayerFilter()"
+                        (ngModelChange)="matchSchedulePlayerFilter.set($event)"
+                        name="m-matchSchedulePlayerFilter"
+                        placeholder="Buscar jugador..."
+                      />
+                      @if (matchSchedulePlayerFilter()) {
+                        <button
+                          type="button"
+                          (click)="matchSchedulePlayerFilter.set('')"
+                          class="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-neutral-600"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      }
+                    </div>
+                    <button
+                      type="button"
+                      (click)="matchScheduleFilterPanelOpen.set(true)"
+                      class="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white shadow-sm transition hover:bg-neutral-800"
+                      title="Filtros de partidos"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" y1="21" x2="4" y2="14"></line>
+                        <line x1="4" y1="10" x2="4" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12" y2="3"></line>
+                        <line x1="20" y1="21" x2="20" y2="16"></line>
+                        <line x1="20" y1="12" x2="20" y2="3"></line>
+                        <line x1="1" y1="14" x2="7" y2="14"></line>
+                        <line x1="9" y1="8" x2="15" y2="8"></line>
+                        <line x1="17" y1="16" x2="23" y2="16"></line>
+                      </svg>
+                      @if (activeMatchScheduleFilterCount() > 0) {
+                        <span class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-bold text-white">
+                          {{ activeMatchScheduleFilterCount() }}
+                        </span>
+                      }
+                    </button>
+                  </div>
+
                   @if (actionError()) {
                     <div class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       {{ actionError() }}
@@ -1846,24 +1919,19 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                       No hay partidos que coincidan con los filtros seleccionados.
                     </div>
                   } @else {
-                  <div class="mt-4 overflow-x-auto">
-                    <table class="w-full min-w-[920px] text-sm">
+                  <!-- VISTA ESCRITORIO: tabla 5 columnas -->
+                  <div class="mt-4 hidden overflow-x-auto md:block">
+                    <table class="w-full text-sm">
                       <thead class="bg-neutral-100">
                         <tr>
                           <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">
                             <button type="button" class="inline-flex items-center gap-1 transition-colors hover:text-primary-700" (click)="setMatchScheduleSort('event')">
-                              Prueba <span>{{ getMatchScheduleSortIndicator('event') }}</span>
+                              Prueba / Partido <span>{{ getMatchScheduleSortIndicator('event') }}</span>
                             </button>
                           </th>
-                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">
-                            <button type="button" class="inline-flex items-center gap-1 transition-colors hover:text-primary-700" (click)="setMatchScheduleSort('round')">
-                              Partido <span>{{ getMatchScheduleSortIndicator('round') }}</span>
-                            </button>
-                          </th>
-                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Tipo</th>
                           <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">
                             <button type="button" class="inline-flex items-center gap-1 transition-colors hover:text-primary-700" (click)="setMatchScheduleSort('scheduledAt')">
-                              Inicio <span>{{ getMatchScheduleSortIndicator('scheduledAt') }}</span>
+                              Tipo / Inicio <span>{{ getMatchScheduleSortIndicator('scheduledAt') }}</span>
                             </button>
                           </th>
                           <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">
@@ -1872,8 +1940,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             </button>
                           </th>
                           <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Cascada</th>
-                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Programar</th>
-                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Intercambiar</th>
+                          <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1881,15 +1948,12 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                           <tr class="border-b border-neutral-200 align-top hover:bg-neutral-50/80 cursor-pointer transition-colors" (click)="onMatchSelected(row.match)">
                             <td class="px-3 py-3" title="Hacer clic para ver detalles o registrar resultados">
                               <p class="font-medium text-neutral-900">{{ row.eventLabel }}</p>
-                              <p class="mt-1 text-xs text-neutral-500">{{ row.drawLabel }}</p>
-                            </td>
-                            <td class="px-3 py-3" title="Hacer clic para ver detalles o registrar resultados">
-                              <p class="font-medium text-neutral-900">Ronda {{ row.match.roundNumber }}</p>
-                              <p class="mt-1 text-xs text-neutral-600 font-semibold text-primary-700">{{ row.firstPlayerName }} vs {{ row.secondPlayerName }}</p>
+                              <p class="mt-0.5 text-xs text-neutral-500">{{ row.drawLabel }}</p>
+                              <p class="mt-1 text-xs font-semibold text-primary-700">R{{ row.match.roundNumber }}: {{ row.firstPlayerName }} vs {{ row.secondPlayerName }}</p>
                             </td>
                             <td class="px-3 py-3" (click)="$event.stopPropagation()">
                               <select
-                                class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                class="mb-1.5 w-full rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-xs text-neutral-800 focus:border-primary-500 focus:outline-none"
                                 [ngModel]="getMatchScheduleDraft(row.match).scheduleTimeType"
                                 (ngModelChange)="updateMatchScheduleType(row.match, $event)"
                                 [name]="'scheduleType-' + row.match.id"
@@ -1897,11 +1961,9 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                 <option value="EXACT">A esta hora</option>
                                 <option value="NOT_BEFORE">No antes de</option>
                               </select>
-                            </td>
-                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
                               <input
                                 type="datetime-local"
-                                class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                class="w-full rounded-lg border border-neutral-300 px-2 py-1.5 text-xs text-neutral-800 focus:border-primary-500 focus:outline-none"
                                 [ngModel]="getMatchScheduleDraft(row.match).scheduledAt"
                                 (ngModelChange)="updateMatchScheduleDate(row.match, $event)"
                                 [name]="'scheduledAt-' + row.match.id"
@@ -1909,7 +1971,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                             </td>
                             <td class="px-3 py-3" (click)="$event.stopPropagation()">
                               <select
-                                class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-xs text-neutral-800 focus:border-primary-500 focus:outline-none"
                                 [ngModel]="getMatchScheduleDraft(row.match).courtId"
                                 (ngModelChange)="updateMatchScheduleCourt(row.match, $event)"
                                 [name]="'court-' + row.match.id"
@@ -1921,7 +1983,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                               </select>
                             </td>
                             <td class="px-3 py-3" (click)="$event.stopPropagation()">
-                              <label class="inline-flex items-center gap-2 text-xs font-semibold text-neutral-700">
+                              <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-700 cursor-pointer">
                                 <input
                                   type="checkbox"
                                   class="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
@@ -1929,33 +1991,157 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                                   (ngModelChange)="updateMatchScheduleCascade(row.match, $event)"
                                   [name]="'cascade-' + row.match.id"
                                 />
-                                Replanificar siguientes
+                                Sí
                               </label>
                             </td>
-                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
-                              <button
-                                type="button"
-                                class="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
-                                [disabled]="!canSaveMatchSchedule(row.match)"
-                                (click)="saveMatchSchedule(row.match)"
-                              >
-                                {{ savingScheduleMatchId() === row.match.id ? 'Guardando...' : 'Guardar' }}
-                              </button>
-                            </td>
-                            <td class="px-3 py-3" (click)="$event.stopPropagation()">
-                              <button
-                                type="button"
-                                class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400"
-                                [disabled]="!canSaveMatchSchedule(row.match)"
-                                (click)="openSwapScheduleModal(row.match)"
-                              >
-                                Intercambiar
-                              </button>
+                            <td class="px-3 py-3 whitespace-nowrap" (click)="$event.stopPropagation()">
+                              <div class="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  class="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                                  [disabled]="!canSaveMatchSchedule(row.match)"
+                                  (click)="saveMatchSchedule(row.match)"
+                                >
+                                  {{ savingScheduleMatchId() === row.match.id ? '...' : 'Guardar' }}
+                                </button>
+                                <button
+                                  type="button"
+                                  class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400"
+                                  [disabled]="!isTournamentAdmin() || tournament()?.status === 'COMPLETED' || tournament()?.status === 'CANCELLED'"
+                                  (click)="openSwapScheduleModal(row.match)"
+                                >
+                                  Intercambiar
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         }
                       </tbody>
                     </table>
+                  </div>
+
+                  <!-- VISTA MÓVIL: tarjetas expandibles -->
+                  <div class="mt-4 space-y-2 md:hidden">
+                    @for (row of filteredTournamentMatchScheduleRows(); track row.match.id) {
+                      <div class="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+                        <!-- Cabecera de tarjeta (siempre visible) -->
+                        <button
+                          type="button"
+                          class="flex w-full items-start justify-between gap-3 px-4 py-3 text-left"
+                          (click)="toggleScheduleCard(row.match.id)"
+                        >
+                          <div class="min-w-0 flex-1">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-primary-600">{{ row.eventLabel }}</p>
+                            <p class="mt-0.5 text-sm font-semibold text-neutral-900">{{ row.firstPlayerName }} vs {{ row.secondPlayerName }}</p>
+                            <p class="mt-0.5 text-xs text-neutral-500">{{ row.drawLabel }} · Ronda {{ row.match.roundNumber }}</p>
+                            <div class="mt-1 flex flex-wrap gap-2 items-center">
+                              @if (getMatchScheduleDraft(row.match).scheduledAt) {
+                                <span class="text-xs font-medium text-neutral-600">📅 {{ getMatchScheduleDraft(row.match).scheduledAt | date:'dd/MM HH:mm' }}</span>
+                              }
+                              @if (row.match.result) {
+                                <span class="rounded bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 ring-1 ring-green-200">
+                                  ✅ {{ row.match.result }}
+                                </span>
+                              } @else {
+                                <span class="rounded px-2 py-0.5 text-[10px] font-bold"
+                                  [class.bg-neutral-100]="row.match.status === 'PENDING'"
+                                  [class.text-neutral-600]="row.match.status === 'PENDING'"
+                                  [class.bg-sky-50]="row.match.status === 'IN_PROGRESS'"
+                                  [class.text-sky-700]="row.match.status === 'IN_PROGRESS'"
+                                  [class.ring-1]="true"
+                                  [class.ring-neutral-200]="row.match.status === 'PENDING'"
+                                  [class.ring-sky-200]="row.match.status === 'IN_PROGRESS'"
+                                >
+                                  {{ row.match.status === 'PENDING' ? 'Pendiente' : (row.match.status === 'IN_PROGRESS' ? 'En juego' : row.match.status) }}
+                                </span>
+                              }
+                            </div>
+                          </div>
+                          <span class="mt-1 shrink-0 text-neutral-400 text-sm">{{ isScheduleCardOpen(row.match.id) ? '▲' : '▼' }}</span>
+                        </button>
+
+                        <!-- Formulario expandible -->
+                        @if (isScheduleCardOpen(row.match.id)) {
+                          <div class="border-t border-neutral-100 px-4 py-3 space-y-3 bg-neutral-50" (click)="$event.stopPropagation()">
+                            <div class="grid grid-cols-2 gap-2">
+                              <div>
+                                <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Tipo</label>
+                                <select
+                                  class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-2 text-xs text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                  [ngModel]="getMatchScheduleDraft(row.match).scheduleTimeType"
+                                  (ngModelChange)="updateMatchScheduleType(row.match, $event)"
+                                  [name]="'m-scheduleType-' + row.match.id"
+                                >
+                                  <option value="EXACT">A esta hora</option>
+                                  <option value="NOT_BEFORE">No antes de</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Pista</label>
+                                <select
+                                  class="w-full rounded-lg border border-neutral-300 bg-white px-2 py-2 text-xs text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                  [ngModel]="getMatchScheduleDraft(row.match).courtId"
+                                  (ngModelChange)="updateMatchScheduleCourt(row.match, $event)"
+                                  [name]="'m-court-' + row.match.id"
+                                >
+                                  <option value="">Selecciona</option>
+                                  @for (court of courts(); track court.id) {
+                                    <option [value]="court.id">{{ court.name }}</option>
+                                  }
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Fecha y hora de inicio</label>
+                              <input
+                                type="datetime-local"
+                                class="w-full rounded-lg border border-neutral-300 px-2 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none"
+                                [ngModel]="getMatchScheduleDraft(row.match).scheduledAt"
+                                (ngModelChange)="updateMatchScheduleDate(row.match, $event)"
+                                [name]="'m-scheduledAt-' + row.match.id"
+                              />
+                            </div>
+                            <label class="inline-flex items-center gap-2 text-xs font-semibold text-neutral-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                                [ngModel]="getMatchScheduleDraft(row.match).cascade"
+                                (ngModelChange)="updateMatchScheduleCascade(row.match, $event)"
+                                [name]="'m-cascade-' + row.match.id"
+                              />
+                              Replanificar siguientes automáticamente
+                            </label>
+                            <div class="flex flex-col gap-2 pt-1">
+                              <div class="flex gap-2">
+                                <button
+                                  type="button"
+                                  class="flex-1 rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                                  [disabled]="!canSaveMatchSchedule(row.match)"
+                                  (click)="saveMatchSchedule(row.match)"
+                                >
+                                  {{ savingScheduleMatchId() === row.match.id ? 'Guardando...' : 'Guardar' }}
+                                </button>
+                                <button
+                                  type="button"
+                                  class="flex-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400"
+                                  [disabled]="!isTournamentAdmin() || tournament()?.status === 'COMPLETED' || tournament()?.status === 'CANCELLED'"
+                                  (click)="openSwapScheduleModal(row.match)"
+                                >
+                                  Intercambiar
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                class="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+                                (click)="onMatchSelected(row.match)"
+                              >
+                                ✏️ Registrar / Editar resultado
+                              </button>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
                   </div>
                   }
                 }
@@ -1985,9 +2171,9 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                   </div>
 
                   @if (isEventsDrawsPanelExpanded()) {
-                  <div class="mt-5 space-y-4">
+                  <div class="mt-4 divide-y divide-neutral-100">
                   @for (event of tournament()!.events!; track event.eventId) {
-                    <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                    <div class="py-6 first:pt-2 last:pb-0">
                       <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Prueba</p>
@@ -2000,11 +2186,7 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                         </span>
                       </div>
 
-                      <div class="mt-4 rounded-xl border border-neutral-200 bg-white p-4">
-                        <div class="mb-3 flex items-center justify-between gap-3">
-                          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary-600">Cuadros</p>
-                        </div>
-                        
+                      <div class="mt-4">
                         @if (event.stages && event.stages.length > 0) {
                           <app-stages
                             [stagesInput]="event.stages"
@@ -2103,6 +2285,117 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
       (saveSchedule)="onMatchScheduleSaved($event)"
       (close)="onModalClose()"
     ></app-match-detail-modal>
+
+    @if (matchScheduleFilterPanelOpen()) {
+      <div class="fixed inset-0 z-50 flex justify-end font-sans">
+        <div class="absolute inset-0 bg-black/40" (click)="matchScheduleFilterPanelOpen.set(false)"></div>
+        <div class="relative flex h-full w-full max-w-md flex-col bg-white shadow-xl">
+          <div class="flex items-center justify-between border-b border-neutral-200 px-6 py-4">
+            <h2 class="text-lg font-bold text-neutral-950">Filtros de partidos</h2>
+            <button
+              type="button"
+              (click)="matchScheduleFilterPanelOpen.set(false)"
+              class="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto px-6 py-5">
+            <form (ngSubmit)="$event.preventDefault()" class="space-y-5">
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Prueba</span>
+                <select
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="matchScheduleEventFilter()"
+                  (ngModelChange)="matchScheduleEventFilter.set($event)"
+                  name="matchScheduleEventFilter"
+                >
+                  <option value="">Todos</option>
+                  @for (eventLabel of matchScheduleEventFilterOptions(); track eventLabel) {
+                    <option [value]="eventLabel">{{ eventLabel }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Ronda</span>
+                <select
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="matchScheduleRoundFilter()"
+                  (ngModelChange)="matchScheduleRoundFilter.set($event)"
+                  name="matchScheduleRoundFilter"
+                >
+                  <option value="">Todas</option>
+                  @for (round of matchScheduleRoundFilterOptions(); track round) {
+                    <option [value]="round">Ronda {{ round }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Fecha</span>
+                <input
+                  type="date"
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="matchScheduleDateFilter()"
+                  (ngModelChange)="matchScheduleDateFilter.set($event)"
+                  name="matchScheduleDateFilter"
+                />
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Pista</span>
+                <select
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="matchScheduleCourtFilter()"
+                  (ngModelChange)="matchScheduleCourtFilter.set($event)"
+                  name="matchScheduleCourtFilter"
+                >
+                  <option value="">Todas</option>
+                  @for (court of courts(); track court.id) {
+                    <option [value]="court.id">{{ court.name }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Tipo</span>
+                <select
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="matchScheduleProfessionalFilter()"
+                  (ngModelChange)="matchScheduleProfessionalFilter.set($event)"
+                  name="matchScheduleProfessionalFilter"
+                >
+                  <option value="">Todos</option>
+                  <option value="PRO">PRO</option>
+                </select>
+              </label>
+            </form>
+          </div>
+
+          <div class="flex gap-3 border-t border-neutral-200 px-6 py-4">
+            <button
+              type="button"
+              (click)="clearMatchScheduleFilters()"
+              class="h-11 flex-1 rounded-lg border border-neutral-300 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+            >
+              Limpiar
+            </button>
+            <button
+              type="button"
+              (click)="matchScheduleFilterPanelOpen.set(false)"
+              class="h-11 flex-1 rounded-lg bg-primary-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700"
+            >
+              Aplicar
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `
 })
 export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewInit {
@@ -2217,6 +2510,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly savingScheduleMatchId = signal<string | null>(null);
   readonly savingScheduleCascadeMatchId = signal<string | null>(null);
   readonly hasPendingLiveRefresh = signal(false);
+  readonly openScheduleCardIds = signal<Set<string>>(new Set());
   readonly matchScheduleDrafts = signal<Record<string, MatchScheduleDraft>>({});
   readonly matchScheduleEventFilter = signal('');
   readonly matchScheduleRoundFilter = signal('');
@@ -2224,6 +2518,16 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly matchScheduleCourtFilter = signal('');
   readonly matchScheduleProfessionalFilter = signal('');
   readonly matchSchedulePlayerFilter = signal('');
+  readonly matchScheduleFilterPanelOpen = signal(false);
+  readonly activeMatchScheduleFilterCount = computed(() => {
+    let count = 0;
+    if (this.matchScheduleEventFilter()) count++;
+    if (this.matchScheduleRoundFilter()) count++;
+    if (this.matchScheduleDateFilter()) count++;
+    if (this.matchScheduleCourtFilter()) count++;
+    if (this.matchScheduleProfessionalFilter()) count++;
+    return count;
+  });
   readonly matchScheduleSortField = signal<MatchScheduleSortField>('scheduledAt');
   readonly matchScheduleSortDirection = signal<MatchScheduleSortDirection>('asc');
 
@@ -4105,8 +4409,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     });
   }
 
-  private loadTournament(tournamentId: string, preserveActiveSection = false): void {
-    this.isLoading.set(true);
+  private loadTournament(tournamentId: string, preserveActiveSection = false, silent = false): void {
+    if (!silent) {
+      this.isLoading.set(true);
+    }
     this.errorMessage.set(null);
 
     this.tournamentService.getTournamentById(tournamentId).subscribe({
@@ -4119,7 +4425,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         this.loadCourts(tournament.id);
         this.loadScheduleConfig(tournamentId);
         this.loadTournamentUmpires();
-        this.isLoading.set(false);
+        if (!silent) {
+          this.isLoading.set(false);
+        }
         if (!preserveActiveSection) {
           let restored = false;
           if (typeof window !== 'undefined' && window.sessionStorage) {
@@ -4137,7 +4445,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       },
       error: (error) => {
         this.errorMessage.set(getApiErrorMessage(error, 'No se pudo cargar el detalle del torneo.'));
-        this.isLoading.set(false);
+        if (!silent) {
+          this.isLoading.set(false);
+        }
       }
     });
   }
@@ -4913,6 +5223,20 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     });
   }
 
+  toggleScheduleCard(matchId: string): void {
+    const current = new Set(this.openScheduleCardIds());
+    if (current.has(matchId)) {
+      current.delete(matchId);
+    } else {
+      current.add(matchId);
+    }
+    this.openScheduleCardIds.set(current);
+  }
+
+  isScheduleCardOpen(matchId: string): boolean {
+    return this.openScheduleCardIds().has(matchId);
+  }
+
   openSwapScheduleModal(match: MatchResponse): void {
     if (!this.isTournamentAdmin()) {
       return;
@@ -4948,7 +5272,20 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       next: () => {
         this.closeSwapModal();
         this.actionMessage.set('Programación intercambiada correctamente.');
-        this.loadTournament(tournamentId);
+
+        const currentTournament = this.tournament();
+        if (currentTournament) {
+          const updatedTournament = this.patchMatchSchedulesInTournament(currentTournament, source.id, targetRow.match.id);
+          if (updatedTournament) {
+            this.tournament.set(updatedTournament);
+            const m1 = this.findMatchInTournament(updatedTournament, source.id);
+            const m2 = this.findMatchInTournament(updatedTournament, targetRow.match.id);
+            if (m1) this.setMatchScheduleDraft(m1);
+            if (m2) this.setMatchScheduleDraft(m2);
+          }
+        }
+
+        this.loadTournament(tournamentId, true, true);
       },
       error: (error) => {
         this.swapModalError.set(getApiErrorMessage(error, 'No se pudo intercambiar la programación.'));
@@ -5420,6 +5757,37 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
     Object.assign(sourceMatch, this.resolveOptimisticMatchState(sourceMatch));
     Object.assign(targetMatch, this.resolveOptimisticMatchState(targetMatch));
+
+    return clonedTournament;
+  }
+
+  private patchMatchSchedulesInTournament(
+    currentTournament: TournamentResponse,
+    matchId1: string,
+    matchId2: string
+  ): TournamentResponse | null {
+    const clonedTournament = this.cloneTournament(currentTournament);
+    const match1 = this.findMatchInTournament(clonedTournament, matchId1);
+    const match2 = this.findMatchInTournament(clonedTournament, matchId2);
+
+    if (!match1 || !match2) {
+      return null;
+    }
+
+    const tempScheduledAt = match1.scheduledAt;
+    const tempScheduleTimeType = match1.scheduleTimeType;
+    const tempCourtId = match1.courtId;
+    const tempCourt = match1.court;
+
+    match1.scheduledAt = match2.scheduledAt;
+    match1.scheduleTimeType = match2.scheduleTimeType;
+    match1.courtId = match2.courtId;
+    match1.court = match2.court;
+
+    match2.scheduledAt = tempScheduledAt;
+    match2.scheduleTimeType = tempScheduleTimeType;
+    match2.courtId = tempCourtId;
+    match2.court = tempCourt;
 
     return clonedTournament;
   }
