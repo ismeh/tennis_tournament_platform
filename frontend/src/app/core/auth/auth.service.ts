@@ -159,19 +159,27 @@ export class AuthService {
       return of(void 0);
     }
 
-    if (!this.hasValidStoredToken() && !this.getRefreshToken()) {
+    const token = this.readStoredToken();
+    if (!token && !this.getRefreshToken()) {
       return of(void 0);
     }
 
-    return this.http.get<ProfileResponse>(`${this.authUrl}/profile`).pipe(
-      tap(profile => {
-        this.setDisplayName(this.resolveProfileDisplayName(profile));
-        this.setNationality(profile.nationality ?? null);
-        if (profile.role) {
-          this.setRole(profile.role as UserRole);
+    return this.getAccessTokenForRequest().pipe(
+      switchMap(validToken => {
+        if (!validToken) {
+          return of(void 0);
         }
+        return this.http.get<ProfileResponse>(`${this.authUrl}/profile`).pipe(
+          tap(profile => {
+            this.setDisplayName(this.resolveProfileDisplayName(profile));
+            this.setNationality(profile.nationality ?? null);
+            if (profile.role) {
+              this.setRole(profile.role as UserRole);
+            }
+          }),
+          map(() => void 0)
+        );
       }),
-      map(() => void 0),
       catchError(() => of(void 0))
     );
   }
