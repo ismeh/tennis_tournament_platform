@@ -1,5 +1,6 @@
 package com.tfm.tennis_platform.infrastructure.persistence.adapter;
 
+import com.tfm.tennis_platform.domain.models.calendar.PlayerInscriptionItem;
 import com.tfm.tennis_platform.domain.models.calendar.PlayerMatchCalendarItem;
 import com.tfm.tennis_platform.domain.models.calendar.TournamentCalendarItem;
 import com.tfm.tennis_platform.domain.models.enums.Surface;
@@ -350,6 +351,55 @@ public class CalendarRepositoryAdapter implements CalendarRepository {
         }
 
         return gender.trim().toUpperCase(Locale.ROOT);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlayerInscriptionItem> findMyInscriptions(String playerEmail) {
+        if (isBlank(playerEmail)) {
+            return List.of();
+        }
+
+        return memberRepository.findByEmail(playerEmail)
+                .map(member -> member.getPersonId() == null
+                        ? List.<PlayerInscriptionItem>of()
+                        : findInscriptionsForPerson(member.getPersonId()))
+                .orElse(List.of());
+    }
+
+    private List<PlayerInscriptionItem> findInscriptionsForPerson(UUID personId) {
+        TypedQuery<InscriptionEntity> query = entityManager.createQuery("""
+                select distinct i
+                from InscriptionEntity i
+                join fetch i.event e
+                join fetch e.tournament t
+                left join fetch e.ageCategory c
+                join i.participant p
+                left join p.individualPerson ip
+                left join p.members m
+                where ip.id = :personId or m.id = :personId
+                """, InscriptionEntity.class);
+        query.setParameter("personId", personId);
+        return query.getResultList().stream()
+                .map(this::toPlayerInscriptionItem)
+                .toList();
+    }
+
+    private PlayerInscriptionItem toPlayerInscriptionItem(InscriptionEntity i) {
+        EventEntity e = i.getEvent();
+        TournamentEntity t = e.getTournament();
+        ParticipantEntity p = i.getParticipant();
+        return new PlayerInscriptionItem(
+                t.getId(),
+                t.getFormalName(),
+                e.getId(),
+                resolveEventName(e),
+                e.getAgeCategory() != null ? e.getAgeCategory().getCategory() : null,
+                p != null && p.getEntryStatus() != null ? p.getEntryStatus().name() : null,
+                i.getPaymentStatus(),
+                t.getPlayStartDate(),
+                t.getPlayEndDate()
+        );
     }
 
     private boolean isBlank(String value) {
