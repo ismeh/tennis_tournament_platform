@@ -59,6 +59,8 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/calendar/tournaments").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/tournaments/*/updates").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/tournaments/*/inscriptions").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/tournaments/*/courts").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/tournaments/*/schedule-config").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/rankings/tournaments").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/rankings/tournaments/*").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/age-categories").permitAll()
