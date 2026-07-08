@@ -26,10 +26,9 @@ import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/i
         <p class="text-xs text-neutral-600">Sin partidos</p>
       } @else {
         <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+          <table class="w-full text-sm min-w-[620px]">
             <thead class="bg-neutral-100">
               <tr>
-                <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Ronda</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Partido</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Jugadores</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-neutral-700">Estado</th>
@@ -46,8 +45,10 @@ import { MatchResponse, MatchStatus, MATCH_STATUS_LABELS } from '../../../data/i
                   (click)="onMatchClicked(match)"
                   class="cursor-pointer border-b border-neutral-200 hover:bg-primary-50"
                 >
-                  <td class="px-3 py-2">Ronda {{ match.roundNumber }}</td>
-                  <td class="px-3 py-2">#{{ getMatchNumber(match) }}</td>
+                  <td class="px-3 py-2">
+                    <p class="font-medium text-neutral-900">Ronda {{ match.roundNumber }}</p>
+                    <p class="text-xs text-neutral-500">#{{ getMatchNumber(match) }}</p>
+                  </td>
                   <td class="px-3 py-2">
                     <div class="max-w-64">
                       <p class="flex items-center gap-2 truncate font-medium text-neutral-900">
