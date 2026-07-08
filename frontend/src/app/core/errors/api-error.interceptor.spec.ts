@@ -5,6 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { apiErrorInterceptor } from './api-error.interceptor';
 import { ToastService } from './toast.service';
 import { ApiRequestError } from './api-error.model';
+import { AppReadyService } from '../app-ready.service';
 
 describe('apiErrorInterceptor', () => {
   let httpClient: HttpClient;
@@ -71,6 +72,45 @@ describe('apiErrorInterceptor', () => {
 
     const request = httpMock.expectOne('/api/test');
     request.flush({ ok: true });
+
+    expect(toastService.showError).not.toHaveBeenCalled();
+  });
+
+  it('does not show toast for status 0 error when app is not ready', () => {
+    httpClient.get('/api/test').subscribe({
+      error: () => undefined
+    });
+
+    const request = httpMock.expectOne('/api/test');
+    request.error(new ProgressEvent('error'), { status: 0, statusText: 'Unknown Error' });
+
+    expect(toastService.showError).not.toHaveBeenCalled();
+  });
+
+  it('shows toast for status 0 error on POST requests when app is ready', () => {
+    const appReady = TestBed.inject(AppReadyService);
+    appReady.markReady();
+
+    httpClient.post('/api/test', {}).subscribe({
+      error: () => undefined
+    });
+
+    const request = httpMock.expectOne('/api/test');
+    request.error(new ProgressEvent('error'), { status: 0, statusText: 'Unknown Error' });
+
+    expect(toastService.showError).toHaveBeenCalled();
+  });
+
+  it('does not show toast for status 0 error on GET requests even when app is ready', () => {
+    const appReady = TestBed.inject(AppReadyService);
+    appReady.markReady();
+
+    httpClient.get('/api/test').subscribe({
+      error: () => undefined
+    });
+
+    const request = httpMock.expectOne('/api/test');
+    request.error(new ProgressEvent('error'), { status: 0, statusText: 'Unknown Error' });
 
     expect(toastService.showError).not.toHaveBeenCalled();
   });
