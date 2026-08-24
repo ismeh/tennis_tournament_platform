@@ -2,6 +2,7 @@
 
 [![Build](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/build.yml/badge.svg)](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/build.yml)
 [![Tests](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/test.yml/badge.svg)](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/test.yml)
+[![Live Website](https://img.shields.io/website?label=live%20website&up_message=available&down_message=down&url=https%3A%2F%2Fpuntomatch.istr.es%2F)](https://puntomatch.istr.es/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ismeh/tennis_tournament_platform)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
