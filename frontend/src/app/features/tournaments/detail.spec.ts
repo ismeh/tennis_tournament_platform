@@ -145,6 +145,7 @@ describe('TournamentDetailComponent', () => {
   });
 
   it('should save selected tournament events', () => {
+    component.clearSelectedEvents();
     component.toggleCatalogEvent(
       { id: 2, category: 'Absoluto Dobles Mixto', description: 'Dobles mixto open' },
       true
@@ -165,6 +166,7 @@ describe('TournamentDetailComponent', () => {
   });
 
   it('should show validation error when saving with no selected events', () => {
+    component.clearSelectedEvents();
     component.saveTournamentEvents();
 
     expect(tournamentServiceSpy.saveTournamentEvents).not.toHaveBeenCalled();
@@ -172,6 +174,7 @@ describe('TournamentDetailComponent', () => {
   });
 
   it('should require at least one gender per selected event before saving', () => {
+    component.clearSelectedEvents();
     component.toggleCatalogEvent(
       { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open' },
       true

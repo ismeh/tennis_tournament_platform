@@ -3,6 +3,8 @@ package com.tfm.tennis_platform.application.services;
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.models.Member;
 import com.tfm.tennis_platform.domain.models.enums.MemberTier;
+import com.tfm.tennis_platform.domain.exceptions.DuplicateResourceException;
+import com.tfm.tennis_platform.domain.exceptions.UnauthorizedException;
 import com.tfm.tennis_platform.infrastructure.security.JwtService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -110,12 +112,12 @@ class AuthServiceTest {
     void registerShouldFailWhenEmailAlreadyExists() {
         when(memberRepository.findByEmail("used@example.com")).thenReturn(Optional.of(Member.builder().build()));
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        DuplicateResourceException ex = assertThrows(
+                DuplicateResourceException.class,
                 () -> authService.register("used@example.com", "secret123", "Used User")
         );
 
-        assertEquals("Email already registered", ex.getMessage());
+        assertEquals("Member con email 'used@example.com' ya existe", ex.getMessage());
     }
 
     @Test
@@ -154,12 +156,12 @@ class AuthServiceTest {
         when(userDetailsService.loadUserByUsername("test@example.com")).thenReturn(principal);
         when(jwtService.isRefreshTokenValid("invalid-refresh-token", principal)).thenReturn(false);
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
+        UnauthorizedException ex = assertThrows(
+                UnauthorizedException.class,
                 () -> authService.refresh("invalid-refresh-token")
         );
 
-        assertEquals("Invalid refresh token", ex.getMessage());
+        assertEquals("Token de actualización inválido", ex.getMessage());
     }
 
     @Test
@@ -179,12 +181,12 @@ class AuthServiceTest {
         when(jwtService.isRefreshTokenValid("valid-refresh-token", principal)).thenReturn(true);
         when(memberRepository.findByEmail("test@example.com")).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
+        UnauthorizedException ex = assertThrows(
+                UnauthorizedException.class,
                 () -> authService.refresh("valid-refresh-token")
         );
 
-        assertEquals("Invalid refresh token", ex.getMessage());
+        assertEquals("Token de actualización inválido", ex.getMessage());
     }
 
     private String hashToken(String rawToken) {
