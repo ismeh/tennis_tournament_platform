@@ -22,16 +22,21 @@ The Tennis Tournament Platform follows a **hexagonal architecture** (also known 
 │         │                 │                             │
 ├─────────▼─────────────────▼─────────────────────────────┤
 │                    Application                          │
-│           Services  |  Use Cases  |  Auth               │
-│   TournamentService | MatchService | MemberService      │
-│   AuthService       | UseCaseBus  | CQRS interfaces     │
+│     TournamentService | AuthService | MemberService      │
+│                      | EventService                      │
 ├─────────────────────────────────────────────────────────┤
 │                      Domain                             │
-│     Models: Tournament, Match, Member, Ranking...       │
-│     Ports (interfaces): TournamentRepository, etc.      │
-│     Exceptions: ResourceNotFoundException               │
+│     Models: Tournament, TournamentPeriod, Event,        │
+│             Member, Person                              │
+│     Enums: Surface, TournamentStatus, MemberTier         │
+│     Ports (in/out): TournamentRepository, etc.           │
+│     Exceptions: BaseException + concrete subclasses     │
 └─────────────────────────────────────────────────────────┘
 ```
+
+The lower half of the competition model — stages, draws, matchups and sets — is currently modelled
+at the persistence layer (`StageEntity`, `DrawEntity`, `MatchupEntity`, `MatchSetEntity`). Domain
+models and services for those concepts are planned.
 
 ### Package Structure
 
@@ -39,17 +44,22 @@ The Tennis Tournament Platform follows a **hexagonal architecture** (also known 
 com.tfm.tennis_platform
 ├── domain/
 │   ├── models/          Pure domain objects (no framework annotations)
-│   ├── contracts/       Repository port interfaces
-│   └── (enums via com.tennis.domain.model.enums for now)
+│   │                    Tournament, TournamentPeriod, Event, Member, Person
+│   ├── models/enums/    Surface, TournamentStatus, MemberTier, AgeCategoryEnum
+│   ├── events/          Domain events (TournamentPublished)
+│   ├── exceptions/      BaseException + concrete domain exceptions
+│   └── port/
+│       ├── in/          Inbound use-case interfaces (CreateTournamentUseCase, ...)
+│       └── out/         Outbound repository ports (TournamentRepository, MemberRepository,
+│                        PersonRepository)
 ├── application/
-│   ├── services/        Business logic orchestrators
-│   ├── services_use_cases/  AuthService
-│   └── architecture/    Command, Query, UseCase, UseCaseBus interfaces
+│   ├── services/        TournamentService, AuthService, MemberService
+│   ├── service/         EventService
+│   └── services_use_cases/  Interface placeholder for the auth use cases
 └── infrastructure/
-    ├── controller/      REST controllers + DTOs + WebMappers
-    ├── persistence/     JPA entities + JPA repositories + adapters + PersistenceMappers
-    ├── security/        SecurityConfig, JwtService, JwtAuthenticationFilter, MemberDetailsService
-    └── loggin/          CorrelationIdFilter (MDC correlation ID injection)
+    ├── controller/      REST controllers + dto/ + mapper/ (TournamentWebMapper)
+    ├── persistence/     entity/ + repository/ + adapter/ + mapper/
+    └── security/        SecurityConfig, JwtService, JwtAuthenticationFilter, MemberDetailsService
 ```
 
 ### Dependency Rule
@@ -60,7 +70,17 @@ Inner layers must not depend on outer layers:
 domain ← application ← infrastructure
 ```
 
-Cross-boundary communication uses port interfaces (defined in `domain/contracts/`) implemented by infrastructure adapters.
+Cross-boundary communication uses port interfaces (defined in `domain/port/out/`) implemented by
+infrastructure adapters. Inbound use cases are declared in `domain/port/in/`.
+
+### Notes on the current layout
+
+- `application/services/` (plural) holds the main services; `application/service/` (singular) holds
+  `EventService`. New services belong in `application/services/`.
+- `services_use_cases/` is a placeholder package for inbound use-case interfaces; controllers call
+  services directly today.
+- The event/inscription branch of the model (`StageEntity`, `DrawEntity`, `MatchupEntity`,
+  `MatchSetEntity`) exists at the persistence layer only; it has no domain model or service yet.
 
 ---
 
@@ -70,24 +90,41 @@ Cross-boundary communication uses port interfaces (defined in `domain/contracts/
 
 ```
 app/
-├── core/auth/           Authentication: AuthService, authInterceptor (global, singleton)
+├── core/
+│   ├── auth/            AuthService, authInterceptor (function-style, registered in app.config)
+│   └── logging/         RequestLoggerService + console/file transports
 ├── data/
 │   ├── interfaces/      TypeScript interfaces matching backend DTOs
 │   └── services/        HTTP services (Repository layer)
-├── features/            Page-level components (routed)
-├── components/          Shared components: Header, Footer (layout-level)
-├── layout/              AppLayoutComponent: wraps header + outlet + footer
-└── shared/              Constants (AppSettings), pipes, directives
+├── features/            Page-level components (routed): home, auth/, tournaments/
+├── components/          Shared components: Header, Footer
+├── layout/              AppLayout: wraps header + outlet + footer
+└── shared/              constants.ts -> AppSettings
 ```
 
 ### Routing
 
-All routes defined in `app.routes.ts`. No feature routing modules.
+All routes defined in `app.routes.ts`. No feature routing modules, no lazy `loadChildren`.
 SSR is enabled and targets all routes (`outputMode: server`).
+
+Route paths are Spanish (`/torneos`, `/torneos/crear`, `/torneos/:id`, `/como-funciona`,
+`/contacto`) except auth, which is English (`/login`, `/register`).
 
 ### Change Detection
 
-Zoneless change detection via `provideZonelessChangeDetection()`. Components must trigger updates through signals or observables with `async` pipe.
+Zoneless change detection via `provideZonelessChangeDetection()`. Components must trigger updates
+through signals or observables with `async` pipe. `zone.js` remains in `package.json` but is not
+wired up — do not rely on zone-based change detection.
+
+### API Base URL
+
+`AppSettings.API_URL` in `shared/constants.ts` is a constant (`http://localhost:8085/api`) matching
+the backend dev port. It does not read from `environments/`, so changing environments means editing
+that constant.
+
+`app.config.ts` reads the request-logger settings from `src/environments/environment`; the
+`development` configuration swaps in `environment.development.ts` through the `fileReplacements`
+entry in `angular.json`.
 
 ---
 
@@ -97,6 +134,8 @@ Zoneless change detection via `provideZonelessChangeDetection()`. Components mus
 Client Request
       │
       ▼
+CorsFilter (localhost:* / 127.0.0.1:*, any port, dev only)
+      ▼
 JwtAuthenticationFilter
   reads Authorization header
   validates JWT signature + expiry
@@ -104,17 +143,26 @@ JwtAuthenticationFilter
       │
       ▼
 SecurityFilterChain (SecurityConfig)
-  /api/login → public
-  all other paths → authenticated
+  OPTIONS /**            → permitAll (CORS preflight)
+  /api/auth/login        → permitAll
+  /api/auth/register     → permitAll
+  /api/auth/refresh      → permitAll
+  /api/auth/logout       → permitAll
+  everything else        → authenticated
+  session policy         → STATELESS
       │
       ▼
-Controller → Service → Repository
+Controller → Service → Repository port
 ```
 
 - Passwords: BCrypt via `BCryptPasswordEncoder`
-- Tokens: signed HMAC-SHA256 JWT (jjwt 0.13)
+- Tokens: signed HMAC-SHA256 JWT (jjwt 0.13); refresh tokens are SHA-256 hashed before storage
+- Session policy is `STATELESS` — there is no server-side session
 - Token source on frontend: `localStorage`, managed exclusively by `AuthService`
-- Correlation logging: every request gets a `correlationId` in MDC via `CorrelationIdFilter`
+  (`access_token`, `refresh_token`, `user_display_name` keys)
+- **Correlation ID.** The log patterns in `application-dev.yaml` and `application-prod.yaml`
+  interpolate `%X{correlationId}`, but no filter populates that MDC key yet, so the placeholder
+  renders empty. Adding a `CorrelationIdFilter` to `infrastructure/` completes this feature.
 
 ---
 
@@ -129,7 +177,7 @@ Angular Component
 Spring Boot Controller (infrastructure/controller/)
    → WebMapper: RequestDTO → Domain Model
    → Service call (application/services/)
-      → Repository port call (domain/contracts/)
+      → Repository port call (domain/port/out/)
          → JPA Adapter (infrastructure/persistence/adapter/)
             → JPA Repository → DB
          ← JPA Adapter returns Domain Model
