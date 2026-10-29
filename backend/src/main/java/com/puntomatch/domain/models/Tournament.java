@@ -10,43 +10,46 @@ import lombok.Singular;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.time.LocalTime;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Getter
-@Builder(builderClassName = "TournamentBuilder", buildMethodName = "buildInternal")
+@Builder(toBuilder = true, builderClassName = "TournamentBuilder", buildMethodName = "buildInternal")
 @ToString(exclude = "events")
 @EqualsAndHashCode(exclude = "events")
 public class Tournament {
     private final UUID id;
     private final String name;
     private final TournamentPeriod playPeriod;
+    private final LocalTime startTime;
     private final TournamentPeriod inscriptionPeriod;
     private final Surface surface;
     private final Integer maxPlayers;
     private final String location;
     private final TournamentStatus state; // 'soon', 'inscription', 'playing', 'finished'
     private final Member createdBy;
-    @Singular
     private final List<Event> events;
 
     public static class TournamentBuilder {
         public Tournament build() {
-            Objects.requireNonNull(name, "name must not be null");
+            Objects.requireNonNull(name, "El nombre del torneo es obligatorio.");
             if (name.trim().isEmpty()) {
-                throw new IllegalArgumentException("name must not be empty");
+                throw new IllegalArgumentException("El nombre del torneo es obligatorio.");
             }
-            Objects.requireNonNull(playPeriod, "playPeriod must not be null");
-            Objects.requireNonNull(inscriptionPeriod, "inscriptionPeriod must not be null");
-            Objects.requireNonNull(surface, "surface must not be null");
-            Objects.requireNonNull(maxPlayers, "maxPlayers must not be null");
+            Objects.requireNonNull(playPeriod, "Las fechas de juego son obligatorias.");
+            Objects.requireNonNull(inscriptionPeriod, "Las fechas de inscripción son obligatorias.");
+            Objects.requireNonNull(surface, "La superficie del torneo es obligatoria.");
+            Objects.requireNonNull(maxPlayers, "El número máximo de jugadores es obligatorio.");
             if (maxPlayers <= 0) {
-                throw new IllegalArgumentException("maxPlayers must be greater than 0");
+                throw new IllegalArgumentException("El número máximo de jugadores debe ser mayor que cero.");
             }
-            Objects.requireNonNull(location, "location must not be null");
+            Objects.requireNonNull(location, "La ubicación del torneo es obligatoria.");
             if (this.state == null) {
                 this.state = TournamentStatus.DRAFT;
             }
@@ -59,59 +62,17 @@ public class Tournament {
             for (Event e : this.events) {
                 String key = e.getCategoryId() + "|" + e.getGender();
                 if (!seen.add(key)) {
-                    throw new IllegalArgumentException("Duplicate event tuple (categoryId + gender)");
+                    throw new IllegalArgumentException("No puedes repetir la misma categoría y género en un torneo.");
                 }
             }
             return buildInternal();
         }
     }
 
-    public Tournament addEvent(Event event) {
-        Objects.requireNonNull(event, "event must not be null");
-        if (this.events.stream().anyMatch(e -> e.getCategoryId().equals(event.getCategoryId()))) {
-            throw new IllegalArgumentException("Event with categoryId " + event.getCategoryId() + " already exists in tournament");
-        }
-        List<Event> newEvents = new ArrayList<>(this.events);
-        newEvents.add(event);
-        return Tournament.builder()
-                .id(this.id)
-                .name(this.name)
-                .playPeriod(this.playPeriod)
-                .inscriptionPeriod(this.inscriptionPeriod)
-                .surface(this.surface)
-                .maxPlayers(this.maxPlayers)
-                .location(this.location)
-                .state(this.state)
-                .createdBy(this.createdBy)
+    public Tournament setEvents(List<Event> newEvents) {
+        Objects.requireNonNull(newEvents, "Debes enviar al menos un evento válido.");
+        return this.toBuilder()
                 .events(newEvents)
-                .build();
-    }
-
-    /**
-     * Añade una lista de eventos al torneo, ignorando los que tengan un categoryId duplicado con los ya existentes en el torneo.
-     * Devuelve un nuevo objeto Tournament con la lista de eventos actualizada.
-     */
-    public Tournament addEvent(List<Event> newEvents) {
-        Objects.requireNonNull(newEvents, "newEvents must not be null");
-        Set<Integer> existingIds = this.events.stream()
-                .map(Event::getCategoryId)
-                .collect(Collectors.toSet());
-        List<Event> filteredNewEvents = newEvents.stream()
-                .filter(e -> !existingIds.contains(e.getCategoryId()))
-                .collect(Collectors.toList());
-        List<Event> updatedEvents = new java.util.ArrayList<>(this.events);
-        updatedEvents.addAll(filteredNewEvents);
-        return Tournament.builder()
-                .id(this.id)
-                .name(this.name)
-                .playPeriod(this.playPeriod)
-                .inscriptionPeriod(this.inscriptionPeriod)
-                .surface(this.surface)
-                .maxPlayers(this.maxPlayers)
-                .location(this.location)
-                .state(this.state)
-                .createdBy(this.createdBy)
-                .events(updatedEvents)
                 .build();
     }
 }

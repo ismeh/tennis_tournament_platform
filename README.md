@@ -3,9 +3,9 @@
 **Every tennis tournament, in one place.**
 
 Spreadsheets, WhatsApp groups, a sign-up sheet taped to the clubhouse door. That is how most tennis
-tournaments are still run. **PuntoMatch** replaces all of it with a single, clean workspace where any
-club or organiser can publish a tournament, configure its draws and take it from draft to open
-inscriptions.
+tournaments are still run. **PuntoMatch** replaces all of it with a single, clean workspace where a
+club or an organiser can publish a tournament, configure its draws, open inscriptions and schedule
+every match on the right court at the right time.
 
 PuntoMatch was presented as a **Master's Final Project (TFM)** for the Master's Degree in
 Engineering.
@@ -14,22 +14,26 @@ Engineering.
 
 ## Why organisers choose PuntoMatch
 
-- **Publish a tournament in minutes.** Name it, pick the surface, set the venue and the dates, say
-  how many players fit. PuntoMatch takes care of the rest: the inscription window, the competition
+- **Publish a tournament in minutes.** Name it, pick the surface, set the venue, the courts and the
+  dates, say how many players fit. PuntoMatch takes care of the inscription window, the competition
   state and who owns the tournament.
-- **One tournament, many draws.** A single event can host as many categories as you need — men's
-  singles, women's singles, mixed, U16… — each one with its own draw, all under the same tournament.
+- **Build the whole competition, not just a list.** Choose the categories (absolute, veterans,
+  cadets, juniors…), decide whether each one is men's, women's or mixed, and let PuntoMatch generate
+  the stages and the single-elimination brackets for you.
+- **Schedule it on real courts.** Define the club's courts and assign every match a court and a
+  time. Players get their own agenda in the calendar view.
+- **Take inscriptions seriously.** Players apply from their account, organisers can register
+  participants manually, and professional players can be pulled in from the RFET ranking import.
 - **Never lose track of where you are.** Every tournament moves through a clear lifecycle
   (_draft → open → closed → in progress → completed_), and only the transitions that make sense are
-  offered. No accidental re-openings, no mismatched states.
-- **Each player has a place.** Players sign up, sign in and come back whenever they want to see
-  what is on. Every account is linked to a real person: name, nationality, birth date and RFET
-  federation licence.
+  offered. Consolation brackets keep first-round losers playing.
+- **Accounts that mean something.** Sign-up with email confirmation, a profile linked to a real
+  person (name, nationality, birth date, federation licence) and a JWT session that survives
+  refreshes.
 - **Made for Spanish tennis.** The whole experience is in Spanish — from the routes to the labels —
   so club staff and players feel at home from the first click.
-- **Start small, grow later.** The same application runs a weekend club tournament or a seasonal
-  circuit, and the API is ready to plug into rankings, brackets and live results as the project
-  grows.
+
+![PuntoMatch features](docs/screenshots/home-features.png)
 
 ## Screenshots
 
@@ -37,7 +41,7 @@ Engineering.
 |---|---|
 | ![Tournaments list](docs/screenshots/tournaments.png) | ![Tournament detail](docs/screenshots/tournament-detail.png) |
 
-**Create a tournament** — dates, surface, capacity and the draws it will host:
+**Create a tournament** — dates, courts, capacity and the categories it will host:
 
 ![Create tournament](docs/screenshots/tournament-create.png)
 
@@ -46,7 +50,7 @@ Engineering.
 | ![Login](docs/screenshots/login.png) | ![Register](docs/screenshots/register.png) |
 
 > Screenshots taken from a local run with the sample data shipped in
-> `backend/src/main/resources/sql_scripts/data-postgre.sql`.
+> `backend/src/main/resources/db/seed/V1000__seed_dev_data.sql`.
 
 ## Try it in five minutes
 
@@ -54,54 +58,54 @@ Engineering.
 
 | Tool | Version | Notes |
 |---|---|---|
-| JDK | 25 | `pom.xml` sets `<java.version>25</java.version>` |
-| Node.js | 20.19+ / 22.12+ / 24 | Angular 20 requirement |
-| npm | 11.x | |
-| Docker | with Compose v2 | runs PostgreSQL and pgAdmin |
+| Docker | with Compose v2 | runs PostgreSQL, the API and the Angular app |
+| JDK | 25 | only for running the backend outside Docker |
+| Node.js | 20.19+ / 22.12+ / 24 | only for running the frontend outside Docker |
 
-### 1. Start the database
+### Start everything with Docker
 
 ```bash
-cd backend
-docker compose up -d
+cp .env.example .env      # adjust secrets if you like
+docker compose up --build
 ```
 
-This brings up PostgreSQL 18 on `localhost:5432` (user `postgres-tfm`, password `secret`, database
-`demo-tfm`) and pgAdmin on `localhost:5050` (`demo@example.com` / `secret`).
+That brings up:
 
-Schema and sample data are mounted under `docker-entrypoint-initdb.d`, so they are applied only to
-a **fresh** volume. To start over with clean data:
+| Service | URL | Notes |
+|---|---|---|
+| Frontend | http://localhost:4200 | Angular app served with SSR |
+| Backend API | http://localhost:8080/api | Spring Boot |
+| PostgreSQL | localhost:5432 | schema created by Flyway migrations |
+
+The template already sets `EMAIL_CONFIRMATION_REQUIRED=false`, so accounts created locally can sign
+in without waiting for a confirmation email.
+
+### Or run it from source
 
 ```bash
-docker compose down -v && docker compose up -d
-```
+# 1. database only
+docker compose up -d postgres
 
-### 2. Start the API
-
-```bash
+# 2. API (http://localhost:8080)
 cd backend
 export JAVA_HOME=/path/to/jdk-25
 export DATASOURCE_URL=jdbc:postgresql://localhost:5432/demo-tfm
 export DB_USER=postgres-tfm
 export DB_PASSWORD=secret
+export EMAIL_CONFIRMATION_REQUIRED=false
+# optional: also load the sample tournament and players
+export SPRING_FLYWAY_LOCATIONS='classpath:db/migration,classpath:db/seed'
+./mvnw spring-boot:run
 
-./mvnw spring-boot:run     # http://localhost:8085
-```
-
-### 3. Open PuntoMatch
-
-```bash
+# 3. frontend (http://localhost:4200) — reads the API URL from public/config.json
 cd frontend
 npm install
-npm start                  # http://localhost:4200
+npm start
 ```
 
-The API base URL is configured in `src/app/shared/constants.ts` (`AppSettings.API_URL`), set to
-`http://localhost:8085/api` for local development.
+### Demo accounts
 
-### Sign in with a demo account
-
-The sample data creates one account per player, all with the password `password`:
+The seed data creates one account per sample player, all with the password `password`:
 
 | Email | Tier |
 |---|---|
@@ -112,8 +116,8 @@ The sample data creates one account per player, all with the password `password`
 | `novak@example.com` | `ADVANCED` |
 | `coco@example.com` | `INTERMEDIATE` |
 
-Signing in and opening _Torneos_ is enough to see the application working end to end; the list is
-only visible to authenticated users.
+Sign in as `rafa@example.com` to find the _Open de Primavera 2026_ tournament already configured
+with its categories, stages and draws.
 
 ---
 
@@ -125,14 +129,15 @@ Everything below is for developers and reviewers.
 
 | Layer | Stack |
 |---|---|
-| Backend | Java 25, Spring Boot 4.0, Spring Security (JWT), Spring Data JPA, MapStruct, PostgreSQL 18 |
+| Backend | Java 25, Spring Boot 4.0, Spring Security (JWT), Spring Data JPA, Flyway, MapStruct, PostgreSQL 18 |
 | Frontend | Angular 20 (standalone components, SSR, zoneless change detection), TailwindCSS 3, Angular Material |
-| Tooling | Maven wrapper, npm, Docker Compose (database only), Karma + Jasmine, JUnit 5 + Mockito |
+| Tooling | Maven wrapper, npm, Docker Compose, Karma + Jasmine, JUnit 5 + Mockito |
 
 ```
-backend/    Java 25 + Spring Boot API (hexagonal: domain ← application ← infrastructure)
-frontend/   Angular 20 SPA with SSR
-docs/       architecture, domain model, API spec, coding standards, screenshots
+backend/     Java 25 + Spring Boot API (hexagonal: domain ← application ← infrastructure)
+frontend/    Angular 20 SPA with SSR
+docs/        architecture, domain model, API spec, coding standards, screenshots
+compose.yaml PostgreSQL + API + frontend for local use
 ```
 
 ### Backend
@@ -140,8 +145,10 @@ docs/       architecture, domain model, API spec, coding standards, screenshots
 Hexagonal architecture, with the dependency rule `domain ← application ← infrastructure`:
 
 - `domain/port/in/` — use cases, `domain/port/out/` — repository ports
-- `application/services/` — `TournamentService`, `AuthService`, `MemberService`
+- `application/services/` — `TournamentService`, `AuthService`, `InscriptionService`,
+  `MatchGenerationService`, `CalendarService`, `ProPlayerQueryService`…
 - `infrastructure/` — REST controllers and DTOs, JPA entities, adapters, mappers, security
+- `resources/db/migration/` — Flyway migrations; `resources/db/seed/` — optional sample data
 
 The flow for a new feature is: port out → persistence adapter → service → controller + DTO, mapping
 across layer boundaries with MapStruct.
@@ -154,13 +161,17 @@ Feature-based standalone components, routed from `frontend/src/app/app.routes.ts
 |---|---|
 | `/` | Landing page |
 | `/torneos` | Tournament list (requires session) |
-| `/torneos/crear` | Tournament creation form with event selection |
-| `/torneos/:id` | Tournament detail: overview, status, inscriptions |
-| `/login`, `/register` | Authentication |
+| `/torneos/crear` | Tournament creation form with categories, modalities and stages |
+| `/torneos/:id` | Tournament detail: overview, configuration, inscriptions, registered players, draws |
+| `/calendario` | Calendar of published tournaments and the player's scheduled matches |
+| `/perfil` | Complete the player profile |
+| `/login`, `/register`, `/confirmar-email` | Authentication and email confirmation |
 | `/como-funciona`, `/contacto` | Placeholder pages |
 
 HTTP services live in `app/data/services/`, return `Observable`s and never subscribe internally.
-Change detection is zoneless: the views update through signals and the `async` pipe.
+Change detection is zoneless: the views update through signals and the `async` pipe. The API URL is
+resolved at runtime from `public/config.json` (or the `API_URL` environment variable when running
+SSR in Docker).
 
 ### Commands
 
@@ -169,7 +180,6 @@ Change detection is zoneless: the views update through signals and the `async` p
 ```bash
 ./mvnw test
 ./mvnw test -Dtest=TournamentServiceTest
-./mvnw test -Dtest=TournamentServiceTest#should_create_tournament_with_authenticated_creator
 ./mvnw compile
 ```
 
@@ -193,7 +203,6 @@ Chrome is not on `PATH`.
 | [`docs/domain-model.md`](./docs/domain-model.md) | Entities, relationships and enums |
 | [`docs/api-spec.md`](./docs/api-spec.md) | REST API reference |
 | [`docs/coding-standards.md`](./docs/coding-standards.md) | Code conventions |
-| [`AGENTS.md`](./AGENTS.md) | Working guide for AI agents: commands, layout, conventions |
 
 ### Conventions
 
@@ -204,19 +213,6 @@ Chrome is not on `PATH`.
 - Frontend: standalone components, dependency injection via `inject()`, zoneless change detection,
   SSR enabled.
 - Branches: `develop` is the working branch, `main` is the default. Commits in the imperative mood.
-
-### Project status
-
-The core tournament flow is implemented. These endpoints are referenced by the frontend but not
-implemented by the backend yet, so the screens that depend on them are incomplete:
-
-| Endpoint | Screen affected |
-|---|---|
-| `GET /api/age-categories` | Event catalogue, on the creation form and the detail page (shows an error) |
-| `POST /api/tournaments/{id}/inscriptions` | Inscriptions tab, on the tournament detail |
-| `GET /members/{email}` | Member lookup used by the detail page to resolve the current member (fails silently) |
-
-`GET`/`PUT /api/auth/profile` exist in the backend but are not consumed by the Angular client yet.
 
 ### License
 

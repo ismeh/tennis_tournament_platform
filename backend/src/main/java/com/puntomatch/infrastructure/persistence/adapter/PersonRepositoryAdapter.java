@@ -2,28 +2,51 @@ package com.puntomatch.infrastructure.persistence.adapter;
 
 import com.puntomatch.domain.models.Person;
 import com.puntomatch.domain.port.out.PersonRepository;
+import com.puntomatch.infrastructure.persistence.entity.PersonEntity;
 import com.puntomatch.infrastructure.persistence.mapper.PersonMapper;
 import com.puntomatch.infrastructure.persistence.repository.JpaPersonRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-@Component
+@Repository
 @RequiredArgsConstructor
 public class PersonRepositoryAdapter implements PersonRepository {
 
-    private final JpaPersonRepository personRepository;
-    private final PersonMapper mapper;
+    private static final int SEARCH_LIMIT = 10;
+
+    private final JpaPersonRepository jpaPersonRepository;
+    private final PersonMapper personMapper;
 
     @Override
     public Person save(Person person) {
-        return mapper.toDomain(personRepository.save(mapper.toEntity(person)));
+        PersonEntity entity = personMapper.toEntity(person);
+        PersonEntity savedEntity = jpaPersonRepository.saveAndFlush(entity);
+        return personMapper.toDomain(savedEntity);
     }
 
     @Override
     public Optional<Person> findById(UUID id) {
-        return personRepository.findById(id).map(mapper::toDomain);
+        return jpaPersonRepository.findById(id).map(personMapper::toDomain);
+    }
+
+    @Override
+    public List<Person> findTop10() {
+        return jpaPersonRepository.findTop10ByOrderByFirstNameAscLastNameAsc()
+                .stream()
+                .map(personMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Person> searchByQuery(String query) {
+        return jpaPersonRepository.searchByQuery(query, PageRequest.of(0, SEARCH_LIMIT))
+                .stream()
+                .map(personMapper::toDomain)
+                .toList();
     }
 }

@@ -10,7 +10,7 @@ public class ResourceNotFoundException extends BaseException {
 
     public ResourceNotFoundException(String resourceName, Object resourceId) {
         super(
-            String.format("%s con ID '%s' no encontrado", resourceName, resourceId),
+            buildMessage(resourceName),
             "RESOURCE_NOT_FOUND",
             HttpStatus.NOT_FOUND.value()
         );
@@ -22,5 +22,16 @@ public class ResourceNotFoundException extends BaseException {
             "RESOURCE_NOT_FOUND",
             HttpStatus.NOT_FOUND.value()
         );
+    }
+
+    private static String buildMessage(String resourceName) {
+        return switch (resourceName) {
+            case "Tournament" -> "No se encontró el torneo solicitado.";
+            case "Match" -> "No se encontró el partido solicitado.";
+            case "Court" -> "No se encontró la pista solicitada.";
+            case "Next match" -> "No se encontró el siguiente partido del cuadro.";
+            case "Member" -> "No se encontró la cuenta solicitada.";
+            default -> "No se encontró el recurso solicitado.";
+        };
     }
 }

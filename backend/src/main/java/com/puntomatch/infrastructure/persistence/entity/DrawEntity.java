@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "draws")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,10 +30,10 @@ public class DrawEntity {
     @Column(name = "draw_type", nullable = false)
     private String drawType;
 
-    @Column(name = "draw_name")
-    private String drawName;
+    @Column(name = "label")
+    private String label;
 
-    @OneToMany(mappedBy = "draw", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "draw", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
-    private List<MatchupEntity> matchups = new ArrayList<>();
+    private List<MatchEntity> matches = new ArrayList<>();
 }

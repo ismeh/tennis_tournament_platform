@@ -11,12 +11,11 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
-  name: string;
 }
 
 export interface RegisterResponse {
-  accessToken: string;
-  refreshToken?: string;
+  emailVerificationRequired: boolean;
+  message: string;
 }
 
 export interface RefreshTokenRequest {

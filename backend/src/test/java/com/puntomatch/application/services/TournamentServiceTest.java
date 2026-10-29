@@ -1,11 +1,13 @@
 package com.puntomatch.application.services;
 
+import com.puntomatch.domain.exceptions.ResourceNotFoundException;
 import com.puntomatch.domain.models.Member;
 import com.puntomatch.domain.models.Tournament;
 import com.puntomatch.domain.models.TournamentPeriod;
 import com.puntomatch.domain.models.enums.Surface;
 import com.puntomatch.domain.models.enums.TournamentStatus;
 import com.puntomatch.domain.port.out.MemberRepository;
+import com.puntomatch.domain.port.out.CourtRepository;
 import com.puntomatch.domain.port.out.TournamentRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,6 +37,9 @@ class TournamentServiceTest {
     @Mock
     private MemberRepository memberRepository;
 
+    @Mock
+    private CourtRepository courtRepository;
+
     @InjectMocks
     private TournamentService tournamentService;
 
@@ -47,6 +53,7 @@ class TournamentServiceTest {
         Tournament incomingTournament = Tournament.builder()
                 .name("Open de Primavera")
                 .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
                 .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
                 .surface(Surface.CLAY)
                 .maxPlayers(32)
@@ -56,6 +63,7 @@ class TournamentServiceTest {
                 .id(UUID.randomUUID())
                 .name("Open de Primavera")
                 .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
                 .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
                 .surface(Surface.CLAY)
                 .maxPlayers(32)
@@ -83,6 +91,7 @@ class TournamentServiceTest {
         Tournament incomingTournament = Tournament.builder()
                 .name("Open de Primavera")
                 .playPeriod(new TournamentPeriod(LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 10)))
+                .startTime(LocalTime.of(9, 0))
                 .inscriptionPeriod(new TournamentPeriod(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 20)))
                 .surface(Surface.CLAY)
                 .maxPlayers(32)
@@ -91,11 +100,11 @@ class TournamentServiceTest {
 
         when(memberRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
                 () -> tournamentService.create(incomingTournament, "missing@example.com")
         );
 
-        assertEquals("Member not found with email: missing@example.com", exception.getMessage());
+        assertEquals("No se encontró la cuenta solicitada.", exception.getMessage());
     }
 }

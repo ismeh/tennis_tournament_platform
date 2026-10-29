@@ -1,0 +1,2 @@
+ALTER TABLE matches
+    ADD COLUMN IF NOT EXISTS loser_next_match_id UUID REFERENCES matches(id) ON DELETE SET NULL;

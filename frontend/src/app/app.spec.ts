@@ -1,8 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
 import { App } from './app';
 
 describe('App', () => {
@@ -11,9 +10,8 @@ describe('App', () => {
       imports: [App],
       providers: [
         provideZonelessChangeDetection(),
-        provideRouter([]),
         provideHttpClient(),
-        provideHttpClientTesting()
+        provideRouter([])
       ]
     }).compileComponents();
   });
@@ -24,7 +22,7 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the application layout', () => {
+  it('should render app-layout', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;

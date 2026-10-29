@@ -3,6 +3,9 @@ import { HomeComponent } from './features/home';
 import { PlaceholderPage } from './features/placeholder';
 import { LoginComponent } from './features/auth/login';
 import { RegisterComponent } from './features/auth/register';
+import { ConfirmEmailComponent } from './features/auth/confirm-email';
+import { CalendarComponent } from './features/calendar/calendar';
+import { ProfileComponent } from './features/profile/profile';
 import { CreateTournamentComponent } from './features/tournaments/create';
 import { TournamentDetailComponent } from './features/tournaments/detail';
 import { TournamentsListComponent } from './features/tournaments/list';
@@ -16,6 +19,11 @@ export const routes: Routes = [
     path: 'torneos',
     component: TournamentsListComponent,
     data: { title: 'Torneos' }
+  },
+  {
+    path: 'calendario',
+    component: CalendarComponent,
+    data: { title: 'Calendario' }
   },
   {
     path: 'torneos/crear',
@@ -46,6 +54,16 @@ export const routes: Routes = [
     path: 'register',
     component: RegisterComponent,
     data: { title: 'Registrarse' }
+  },
+  {
+    path: 'confirmar-email',
+    component: ConfirmEmailComponent,
+    data: { title: 'Confirmar email' }
+  },
+  {
+    path: 'perfil',
+    component: ProfileComponent,
+    data: { title: 'Completar perfil' }
   },
   {
     path: '**',

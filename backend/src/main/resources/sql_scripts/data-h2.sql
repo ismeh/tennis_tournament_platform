@@ -10,13 +10,13 @@ SET MODE PostgreSQL;
         ( 'IPIN006', 'Coco', 'Gauff', 'USA', '2004-03-13', 'FEMALE');
 
     -- 2. Insert sample users (linked to persons)
-    INSERT INTO users (email, password_hash, token_hash, tier, person_id) VALUES
-        ( 'rafa@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN001')),
-        ( 'roger@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN002')),
-        ( 'serena@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN003')),
-        ( 'iga@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN004')),
-        ( 'novak@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN005')),
-        ( 'coco@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, 'INTERMEDIATE', (SELECT id FROM persons WHERE tennis_id = 'IPIN006'));
+	    INSERT INTO users (email, password_hash, token_hash, email_verified, tier, person_id) VALUES
+	        ( 'rafa@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, TRUE, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN001')),
+	        ( 'roger@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, TRUE, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN002')),
+	        ( 'serena@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, TRUE, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN003')),
+	        ( 'iga@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, TRUE, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN004')),
+	        ( 'novak@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, TRUE, 'ADVANCED', (SELECT id FROM persons WHERE tennis_id = 'IPIN005')),
+	        ( 'coco@example.com', '$2a$12$ddhS2ajAtCpi3QDQm4LB2.hHy5kyRphe8SoYh56Unfwv4ToqStDna', NULL, TRUE, 'INTERMEDIATE', (SELECT id FROM persons WHERE tennis_id = 'IPIN006'));
 
     -- 3. Insert a tournament
     INSERT INTO tournaments (name, start_date, end_date, venue, country, surface, category, state) VALUES
@@ -67,18 +67,13 @@ SET MODE PostgreSQL;
         ( (SELECT id FROM tournaments WHERE name = 'Open de Primavera 2026'), (SELECT id FROM persons WHERE tennis_id = 'IPIN005'), 'INDIVIDUAL', 'DIRECT_ACCEPTANCE', 3);
 
     -- 6. Insert a stage for singles event
-    INSERT INTO stages (event_id, stage_number, stage_type) VALUES
+    INSERT INTO stages (event_id, stage_order, stage_type) VALUES
         ( (SELECT id FROM events WHERE name = 'Absoluto Individual Masculino'), 1, 'MAIN');
 
     -- 7. Insert a draw for the stage
-    INSERT INTO draws (stage_id, draw_type, draw_name) VALUES
+    INSERT INTO draws (stage_id, draw_type, label) VALUES
         ( (SELECT id FROM stages WHERE event_id = (SELECT id FROM events WHERE name = 'Absoluto Individual Masculino')), 'ELIMINATION', 'Main Draw');
 
-    -- 8. Insert a matchup (Rafa vs Novak)
-    INSERT INTO matchups (draw_id, round_number, match_number, match_format, status, scheduled_at, court, winner_side) VALUES
-        ( (SELECT id FROM draws WHERE draw_name = 'Main Draw'), 1, 1, 'SET3-S:6/TB7', 'UPCOMING', '2024-05-10 10:00:00+02', 'Pista Central', NULL);
-
-    -- 9. Insert matchup sides
-    INSERT INTO matchup_sides (matchup_id, side_number, participant_id) VALUES
-        ( (SELECT id FROM matchups WHERE round_number = 1 AND match_number = 1), 1, (SELECT id FROM participants WHERE person_id = (SELECT id FROM persons WHERE tennis_id = 'IPIN001'))),
-        ( (SELECT id FROM matchups WHERE round_number = 1 AND match_number = 1), 2, (SELECT id FROM participants WHERE person_id = (SELECT id FROM persons WHERE tennis_id = 'IPIN005')));
+    -- 8. Insert an empty match structure for the MVP
+    INSERT INTO matches (draw_id, round_number, scheduled_at, court, result) VALUES
+        ( (SELECT id FROM draws WHERE label = 'Main Draw'), 1, NULL, NULL, NULL);

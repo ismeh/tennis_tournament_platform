@@ -1,9 +1,12 @@
--- Database Schema for PuntoMatch (H2 Compatible)
+-- Database Schema for Tennis Tournament Platform (H2 Compatible)
 
 DROP TABLE IF EXISTS rankings;
+DROP TABLE IF EXISTS pro_player_imports;
+DROP TABLE IF EXISTS pro_players;
 DROP TABLE IF EXISTS sets;
 DROP TABLE IF EXISTS matchup_sides;
 DROP TABLE IF EXISTS matchups;
+DROP TABLE IF EXISTS matches;
 DROP TABLE IF EXISTS draws;
 DROP TABLE IF EXISTS stages;
 DROP TABLE IF EXISTS events;
@@ -29,11 +32,14 @@ CREATE TABLE persons (
 
 CREATE TABLE users (
     id            UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    email         VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    token_hash    VARCHAR(128),
-    tier          VARCHAR(20) DEFAULT 'FREE',
-    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	    email         VARCHAR(255) UNIQUE NOT NULL,
+	    password_hash VARCHAR(255) NOT NULL,
+	    token_hash    VARCHAR(128),
+	    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+	    email_confirmation_token_hash VARCHAR(128),
+	    email_confirmation_expires_at TIMESTAMP,
+	    tier          VARCHAR(20) DEFAULT 'FREE',
+	    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     person_id     UUID,
     FOREIGN KEY (person_id) REFERENCES persons(id)
 );
@@ -50,12 +56,14 @@ CREATE TABLE tournaments (
     name                    VARCHAR(255) NOT NULL,
     start_date              DATE NOT NULL,
     end_date                DATE NOT NULL,
+    start_time              TIME,
     inscription_start_date  DATE,
     inscription_end_date    DATE,
     surface                 VARCHAR(20),
     max_players             INTEGER,
     location                VARCHAR(255),
     state                   VARCHAR(20) DEFAULT 'DRAFT',
+    version                 BIGINT NOT NULL DEFAULT 0,
     created_by              UUID,
     venue                   VARCHAR(255),
     country                 CHAR(3),
@@ -75,6 +83,13 @@ CREATE TABLE participants (
     id               UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     tournament_id    UUID NOT NULL,
     person_id        UUID,
+    participant_source VARCHAR(30),
+    display_first_name VARCHAR(100),
+    display_last_name VARCHAR(100),
+    display_gender   VARCHAR(20),
+    display_birth_date DATE,
+    display_nationality VARCHAR(50),
+    display_tennis_id VARCHAR(50),
     participant_type VARCHAR(20) NOT NULL,
     entry_status     VARCHAR(30),
     seed             INTEGER,
@@ -127,8 +142,9 @@ CREATE INDEX idx_inscriptions_participant ON inscriptions(participant_id);
 CREATE TABLE stages (
     id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     event_id        UUID NOT NULL,
-    stage_number    INTEGER NOT NULL,
+    stage_order     INTEGER NOT NULL,
     stage_type      VARCHAR(30),
+    description     VARCHAR,
     FOREIGN KEY (event_id) REFERENCES events(id)
 );
 
@@ -136,43 +152,43 @@ CREATE TABLE draws (
     id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     stage_id        UUID NOT NULL,
     draw_type       VARCHAR(30) NOT NULL,
-    draw_name       VARCHAR(100),
+    label           VARCHAR(100),
     FOREIGN KEY (stage_id) REFERENCES stages(id)
 );
 
-CREATE TABLE matchups (
+COMMENT ON COLUMN draws.label IS 'Draw visible name';
+
+CREATE TABLE courts (
     id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    draw_id         UUID NOT NULL,
-    round_number    INTEGER,
-    match_number    INTEGER,
-    match_format    VARCHAR(100),
-    status          VARCHAR(20),
-    scheduled_at    TIMESTAMP,
-    court           VARCHAR(100),
-    winner_side     SMALLINT,
-    FOREIGN KEY (draw_id) REFERENCES draws(id)
+    tournament_id   UUID NOT NULL,
+    name            VARCHAR(100) NOT NULL,
+    active          BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+    UNIQUE (tournament_id, name)
 );
 
-CREATE TABLE matchup_sides (
-    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    matchup_id      UUID NOT NULL,
-    side_number     SMALLINT NOT NULL,
-    participant_id  UUID,
-    UNIQUE (matchup_id, side_number),
-    FOREIGN KEY (matchup_id) REFERENCES matchups(id),
-    FOREIGN KEY (participant_id) REFERENCES participants(id)
-);
-
-CREATE TABLE sets (
-    id              UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
-    matchup_id      UUID NOT NULL,
-    set_number      SMALLINT NOT NULL,
-    side1_games     SMALLINT,
-    side2_games     SMALLINT,
-    side1_tiebreak  SMALLINT,
-    side2_tiebreak  SMALLINT,
-    UNIQUE (matchup_id, set_number),
-    FOREIGN KEY (matchup_id) REFERENCES matchups(id)
+CREATE TABLE matches (
+    id                      UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
+    draw_id                 UUID NOT NULL,
+    first_inscription_id    UUID,
+    second_inscription_id   UUID,
+    winner_id               UUID,
+    round_number            INTEGER,
+    next_match_id           UUID,
+    loser_next_match_id     UUID,
+    scheduled_at            TIMESTAMP,
+    schedule_type           VARCHAR(20),
+    court_id                UUID,
+    court                   VARCHAR(100),
+    result                  VARCHAR(255),
+    version                 BIGINT NOT NULL DEFAULT 0,
+    FOREIGN KEY (draw_id) REFERENCES draws(id),
+    FOREIGN KEY (first_inscription_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (second_inscription_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (winner_id) REFERENCES inscriptions(id),
+    FOREIGN KEY (next_match_id) REFERENCES matches(id),
+    FOREIGN KEY (loser_next_match_id) REFERENCES matches(id),
+    FOREIGN KEY (court_id) REFERENCES courts(id) ON DELETE SET NULL
 );
 
 CREATE TABLE rankings (
@@ -185,3 +201,40 @@ CREATE TABLE rankings (
     UNIQUE (person_id, ranking_date, ranking_type),
     FOREIGN KEY (person_id) REFERENCES persons(id)
 );
+
+CREATE TABLE pro_players (
+    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    puntos INTEGER NOT NULL,
+    licencia VARCHAR(20),
+    name VARCHAR(255) NOT NULL,
+    posicion INTEGER NOT NULL,
+    posicion_territorial INTEGER NOT NULL,
+    posicion_provincial INTEGER NOT NULL,
+    posicion_club INTEGER NOT NULL,
+    posicion_edad INTEGER NOT NULL,
+    edad VARCHAR(50) NOT NULL,
+    nombre_club VARCHAR(255) NOT NULL,
+    nombre_provincial VARCHAR(255) NOT NULL,
+    nombre_territorial VARCHAR(255) NOT NULL,
+    nombre_categoria VARCHAR(255) NOT NULL,
+    puntos_otorga INTEGER NOT NULL,
+    fecha_nacimiento DATE NOT NULL,
+    gender VARCHAR(10) NOT NULL
+);
+
+CREATE INDEX idx_pro_players_gender_position ON pro_players(gender, posicion);
+CREATE INDEX idx_pro_players_license ON pro_players(licencia);
+CREATE INDEX idx_pro_players_name ON pro_players(name);
+
+CREATE TABLE pro_player_imports (
+    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    source_name VARCHAR(100) NOT NULL,
+    checksum VARCHAR(128) NOT NULL,
+    row_count INTEGER NOT NULL,
+    imported_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(30) NOT NULL,
+    error_message CLOB
+);
+
+CREATE INDEX idx_pro_player_imports_source_checksum_status
+ON pro_player_imports(source_name, checksum, status);

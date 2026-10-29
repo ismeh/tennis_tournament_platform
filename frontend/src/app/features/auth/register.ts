@@ -1,31 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
-  selector: 'app-register-page',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
-  template: `
+	selector: 'app-register-page',
+	standalone: true,
+	imports: [CommonModule, ReactiveFormsModule, RouterLink],
+	template: `
 		<section class="mx-auto max-w-md px-4 py-10 sm:py-16">
 			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
 				<h1 class="text-2xl font-bold text-neutral-900">Crear cuenta</h1>
-				<p class="mt-2 text-sm text-neutral-600">Registrate para empezar a usar la plataforma.</p>
+				<p class="mt-2 text-sm text-neutral-600">Regístrate para empezar a usar la plataforma.</p>
 
 				<form class="mt-6 space-y-4" [formGroup]="form" (ngSubmit)="submit()">
-					<div>
-						<label class="mb-1 block text-sm font-medium text-neutral-700" for="name">Nombre</label>
-						<input
-							id="name"
-							type="text"
-							formControlName="name"
-							class="w-full rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:border-primary-500"
-							placeholder="Nombre y apellidos"
-						/>
-					</div>
-
 					<div>
 						<label class="mb-1 block text-sm font-medium text-neutral-700" for="email">Email</label>
 						<input
@@ -38,18 +28,22 @@ import { AuthService } from '../../core/auth/auth.service';
 					</div>
 
 					<div>
-						<label class="mb-1 block text-sm font-medium text-neutral-700" for="password">Contrasena</label>
+						<label class="mb-1 block text-sm font-medium text-neutral-700" for="password">Contraseña</label>
 						<input
 							id="password"
 							type="password"
 							formControlName="password"
 							class="w-full rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:border-primary-500"
-							placeholder="Minimo 6 caracteres"
+							placeholder="Mínimo 6 caracteres"
 						/>
 					</div>
 
 					@if (errorMessage()) {
 						<p class="text-sm text-red-600">{{ errorMessage() }}</p>
+					}
+
+					@if (successMessage()) {
+						<p class="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{{ successMessage() }}</p>
 					}
 
 					<button
@@ -62,44 +56,44 @@ import { AuthService } from '../../core/auth/auth.service';
 				</form>
 
 				<p class="mt-6 text-sm text-neutral-600">
-					Ya tienes cuenta?
-					<a routerLink="/login" class="font-medium text-primary-600 hover:text-primary-700">Inicia sesion</a>
+					¿Ya tienes cuenta?
+					<a routerLink="/login" class="font-medium text-primary-600 hover:text-primary-700">Inicia sesión</a>
 				</p>
 			</div>
 		</section>
 	`
 })
 export class RegisterComponent {
-  private readonly fb = inject(FormBuilder);
-  private readonly authService = inject(AuthService);
-  private readonly router = inject(Router);
+	private readonly fb = inject(FormBuilder);
+	private readonly authService = inject(AuthService);
 
-  readonly isSubmitting = signal(false);
-  readonly errorMessage = signal<string | null>(null);
+	readonly isSubmitting = signal(false);
+	readonly errorMessage = signal<string | null>(null);
+	readonly successMessage = signal<string | null>(null);
 
-  readonly form = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]]
-  });
+	readonly form = this.fb.nonNullable.group({
+		email: ['', [Validators.required, Validators.email]],
+		password: ['', [Validators.required, Validators.minLength(6)]]
+	});
 
-  submit(): void {
-    if (this.form.invalid || this.isSubmitting()) {
-      return;
-    }
+	submit(): void {
+		if (this.form.invalid || this.isSubmitting()) {
+			return;
+		}
 
-    this.isSubmitting.set(true);
-    this.errorMessage.set(null);
+		this.isSubmitting.set(true);
+		this.errorMessage.set(null);
+		this.successMessage.set(null);
 
-    this.authService.register(this.form.getRawValue()).subscribe({
-      next: () => {
-        this.isSubmitting.set(false);
-        this.router.navigateByUrl('/');
-      },
-      error: () => {
-        this.isSubmitting.set(false);
-        this.errorMessage.set('No se pudo registrar la cuenta. Prueba con otro email.');
-      }
-    });
-  }
+		this.authService.register(this.form.getRawValue()).subscribe({
+			next: (response) => {
+				this.isSubmitting.set(false);
+				this.successMessage.set(response.message);
+			},
+			error: (error) => {
+				this.isSubmitting.set(false);
+				this.errorMessage.set(getApiErrorMessage(error, 'No se pudo registrar la cuenta. Revisa los datos e inténtalo de nuevo.'));
+			}
+		});
+	}
 }

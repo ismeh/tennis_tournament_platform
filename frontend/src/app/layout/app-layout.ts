@@ -10,7 +10,7 @@ import { FooterComponent } from '../components/footer';
   template: `
     <div class="flex flex-col min-h-screen">
       <app-header></app-header>
-      <main class="flex-grow">
+      <main class="flex-grow pt-16">
         <router-outlet></router-outlet>
       </main>
       <app-footer></app-footer>
@@ -18,4 +18,4 @@ import { FooterComponent } from '../components/footer';
   `,
   styles: []
 })
-export class AppLayoutComponent {}
+export class AppLayoutComponent { }

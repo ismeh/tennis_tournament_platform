@@ -24,6 +24,7 @@ public class EventEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "age_category_id")
+    @Setter
     private RefAgeCategoryEntity ageCategory;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -39,6 +40,7 @@ public class EventEntity {
     @Column(name = "event_type")
     private String eventType;
 
+    @Setter
     private String gender;
 
 

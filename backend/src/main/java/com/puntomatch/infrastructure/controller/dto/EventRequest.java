@@ -1,31 +1,18 @@
 package com.puntomatch.infrastructure.controller.dto;
 
+import lombok.Data;
 import java.util.List;
+import java.util.UUID;
 
-/**
- * Payload for {@code POST /api/tournaments/{tournamentId}/events}.
- *
- * <p>Mirrors {@code TournamentEventsConfigRequest} on the Angular side:
- * {@code { "events": [{ "categoryId": 1, "gender": "MALE" }] }}.
- */
-public record EventRequest(List<EventItem> events) {
+@Data
+public class EventRequest {
+    private List<EventCategoryGender> events;
 
-    public EventRequest {
-        events = events == null ? List.of() : List.copyOf(events);
-    }
-
-    public List<EventItem> getEvents() {
-        return events;
-    }
-
-    public record EventItem(Integer categoryId, String gender) {
-
-        public Integer getCategoryId() {
-            return categoryId;
-        }
-
-        public String getGender() {
-            return gender;
-        }
+    @Data
+    public static class EventCategoryGender {
+        private UUID id;
+        private Integer categoryId;
+        private String gender;
+        private List<String> stages;
     }
 }

@@ -1,9 +1,13 @@
 package com.puntomatch.application.services;
 
+import com.puntomatch.domain.exceptions.InvalidArgumentException;
+import com.puntomatch.domain.exceptions.ResourceNotFoundException;
 import com.puntomatch.domain.models.Member;
+import com.puntomatch.domain.models.Court;
 import com.puntomatch.domain.models.Tournament;
 import com.puntomatch.domain.models.TournamentPeriod;
 import com.puntomatch.domain.models.enums.TournamentStatus;
+import com.puntomatch.domain.port.out.CourtRepository;
 import com.puntomatch.domain.port.out.MemberRepository;
 import com.puntomatch.domain.port.out.TournamentRepository;
 import jakarta.transaction.Transactional;
@@ -20,11 +24,16 @@ public class TournamentService {
 
     private final TournamentRepository tournamentRepository;
     private final MemberRepository memberRepository;
+    private final CourtRepository courtRepository;
 
     @Transactional
-    public Tournament create(Tournament tournament, String creatorEmail) {
+    public Tournament create(Tournament tournament, String creatorEmail, Integer courtCount) {
         Member creator = memberRepository.findByEmail(creatorEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found with email: " + creatorEmail));
+                .orElseThrow(() -> new ResourceNotFoundException("Member", creatorEmail));
+
+        if (tournament.getStartTime() == null) {
+            throw new InvalidArgumentException("La hora de inicio del torneo es obligatoria.");
+        }
 
         Tournament tournamentToSave = Tournament.builder()
                 .id(UUID.randomUUID())
@@ -32,6 +41,7 @@ public class TournamentService {
                 .playPeriod(new TournamentPeriod(
                         tournament.getPlayPeriod().startDate(),
                         tournament.getPlayPeriod().endDate()))
+                .startTime(tournament.getStartTime())
                 .inscriptionPeriod(new TournamentPeriod(
                         tournament.getInscriptionPeriod().startDate(),
                         tournament.getInscriptionPeriod().endDate()))
@@ -41,7 +51,13 @@ public class TournamentService {
                 .createdBy(creator)
                 .build();
 
-        return tournamentRepository.save(tournamentToSave);
+        Tournament savedTournament = tournamentRepository.save(tournamentToSave);
+        createInitialCourts(savedTournament.getId(), courtCount);
+        return savedTournament;
+    }
+
+    public Tournament create(Tournament tournament, String creatorEmail) {
+        return create(tournament, creatorEmail, 0);
     }
 
     public List<Tournament> findAll() {
@@ -55,10 +71,10 @@ public class TournamentService {
     @Transactional
     public Tournament updateStatus(UUID tournamentId, TournamentStatus newStatus) {
         Tournament currentTournament = tournamentRepository.findById(tournamentId)
-                .orElseThrow(() -> new IllegalArgumentException("Tournament not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
 
         if (newStatus == null) {
-            throw new IllegalArgumentException("Tournament status must not be null");
+            throw new InvalidArgumentException("Selecciona un estado válido para el torneo.");
         }
 
         TournamentStatus currentStatus = currentTournament.getState();
@@ -67,22 +83,36 @@ public class TournamentService {
         }
 
         if (!currentStatus.canTransitionTo(newStatus)) {
-            throw new IllegalArgumentException("Invalid status transition: " + currentStatus + " -> " + newStatus);
+            throw new InvalidArgumentException("No se puede cambiar el torneo de " + currentStatus + " a " + newStatus + ".");
         }
 
-        Tournament updatedTournament = Tournament.builder()
-                .id(currentTournament.getId())
-                .name(currentTournament.getName())
-                .playPeriod(currentTournament.getPlayPeriod())
-                .inscriptionPeriod(currentTournament.getInscriptionPeriod())
-                .surface(currentTournament.getSurface())
-                .maxPlayers(currentTournament.getMaxPlayers())
-                .location(currentTournament.getLocation())
+        Tournament updatedTournament = currentTournament.toBuilder()
                 .state(newStatus)
-                .createdBy(currentTournament.getCreatedBy())
-                .events(currentTournament.getEvents())
                 .build();
 
         return tournamentRepository.save(updatedTournament);
+    }
+
+    private void createInitialCourts(UUID tournamentId, Integer courtCount) {
+        if (courtCount == null || courtCount == 0) {
+            return;
+        }
+        if (courtCount < 0) {
+            throw new InvalidArgumentException("El número de pistas no puede ser negativo.");
+        }
+
+        for (int courtNumber = 1; courtNumber <= courtCount; courtNumber++) {
+            String courtName = "Pista " + courtNumber;
+            if (courtRepository.existsByTournamentIdAndName(tournamentId, courtName)) {
+                continue;
+            }
+
+            courtRepository.save(Court.builder()
+                    .id(UUID.randomUUID())
+                    .tournamentId(tournamentId)
+                    .name(courtName)
+                    .active(true)
+                    .build());
+        }
     }
 }

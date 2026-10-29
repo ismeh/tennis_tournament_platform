@@ -1,5 +1,5 @@
-.gemini*
-.github*
+.env*
+!.env.example
 
 # Angular specific
 /dist/
@@ -214,3 +214,8 @@ indent.log
 *~
 *.swp
 *.swo
+
+.gemini*
+.ai
+.codex
+AGENTS*

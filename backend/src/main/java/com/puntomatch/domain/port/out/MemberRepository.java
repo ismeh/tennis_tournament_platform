@@ -8,7 +8,9 @@ public interface MemberRepository {
     Member save(Member member);
     Optional<Member> findByEmail(String email);
     Optional<Member> findById(UUID id);
+    Optional<Member> findByEmailConfirmationTokenHash(String tokenHash);
     void updateTokenHash(UUID id, String tokenHash);
+    void updateEmailConfirmation(UUID id, boolean emailVerified, String tokenHash, java.time.LocalDateTime expiresAt);
     void updatePersonId(UUID id, UUID personId);
     Optional<Member> findByEmailWithPersonId(String email);
 }

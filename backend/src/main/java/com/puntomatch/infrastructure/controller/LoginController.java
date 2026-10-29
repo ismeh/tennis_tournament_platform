@@ -1,5 +1,6 @@
 package com.puntomatch.infrastructure.controller;
 
+import com.puntomatch.application.commands.CompleteProfileCommand;
 import com.puntomatch.application.services.AuthService;
 import com.puntomatch.infrastructure.controller.dto.LoginRequest;
 import com.puntomatch.infrastructure.controller.dto.LoginResponse;
@@ -13,10 +14,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,14 +38,26 @@ public class LoginController {
 
     @PostMapping("/api/auth/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest registerRequest) {
-        AuthService.AuthTokens tokens = authService.register(
+        AuthService.RegistrationResult result = authService.register(
                 registerRequest.email(),
                 registerRequest.password(),
                 registerRequest.name()
         );
         log.info("User registered: {}", registerRequest.email());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new RegisterResponse(tokens.accessToken(), tokens.refreshToken()));
+                .body(new RegisterResponse(result.emailVerificationRequired(), result.message()));
+    }
+
+    @GetMapping("/api/auth/confirm-email")
+    public ResponseEntity<RegisterResponse> confirmEmail(@RequestParam String token) {
+        AuthService.EmailConfirmationResult result = authService.confirmEmail(token);
+        return ResponseEntity.ok(new RegisterResponse(false, result.message()));
+    }
+
+    @PostMapping("/api/auth/resend-confirmation")
+    public ResponseEntity<RegisterResponse> resendConfirmation(@RequestBody RegisterRequest request) {
+        AuthService.EmailConfirmationResult result = authService.resendEmailConfirmation(request.email());
+        return ResponseEntity.ok(new RegisterResponse(result.success(), result.message()));
     }
 
     @PostMapping("/api/auth/refresh")
@@ -67,18 +80,16 @@ public class LoginController {
 
     @PutMapping("/api/auth/profile")
     public ResponseEntity<ProfileResponse> completeProfile(Principal principal, @RequestBody ProfileRequest request) {
-        AuthService.UserProfile profile = authService.completeProfile(principal.getName(), request);
+        CompleteProfileCommand command = new CompleteProfileCommand(
+                request.firstName(),
+                request.lastName(),
+                request.gender(),
+                request.birthDate(),
+                request.nationality(),
+                request.federationLicense()
+        );
+        AuthService.UserProfile profile = authService.completeProfile(principal.getName(), command);
         return ResponseEntity.ok(toProfileResponse(profile));
-    }
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<String> handleConflict(IllegalStateException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleUnauthorized(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 
     private ProfileResponse toProfileResponse(AuthService.UserProfile profile) {

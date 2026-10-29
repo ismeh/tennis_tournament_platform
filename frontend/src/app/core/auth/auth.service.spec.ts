@@ -4,6 +4,12 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { AuthService } from './auth.service';
 import { AppSettings } from '../../shared/constants';
 
+function createJwt(payload: Record<string, unknown>): string {
+  const encodedHeader = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const encodedPayload = btoa(JSON.stringify(payload));
+  return `${encodedHeader}.${encodedPayload}.signature`;
+}
+
 describe('AuthService', () => {
   let service: AuthService;
   let httpMock: HttpTestingController;
@@ -39,15 +45,29 @@ describe('AuthService', () => {
     expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('refresh-token');
   });
 
-  it('stores token after register', () => {
-    service.register({ email: 'new@example.com', password: 'secret123', name: 'New User' }).subscribe();
+  it('does not create a session after register until email is confirmed', () => {
+    service.register({ email: 'new@example.com', password: 'secret123' }).subscribe();
 
     const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/register`);
     expect(req.request.method).toBe('POST');
-    req.flush({ accessToken: 'registered-token', refreshToken: 'register-refresh-token' });
+    req.flush({
+      emailVerificationRequired: true,
+      message: 'Cuenta creada. Revisa tu correo para confirmar el email.'
+    });
 
-    expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('registered-token');
-    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('register-refresh-token');
+    expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBeNull();
+    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBeNull();
+  });
+
+  it('confirms email with token', () => {
+    service.confirmEmail('confirmation-token').subscribe();
+
+    const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/confirm-email?token=confirmation-token`);
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      emailVerificationRequired: false,
+      message: 'Email confirmado correctamente.'
+    });
   });
 
   it('refreshes token when refresh token is available', () => {
@@ -63,5 +83,64 @@ describe('AuthService', () => {
 
     expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('new-access-token');
     expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('new-refresh-token');
+  });
+
+  it('refreshes the access token when it has less than five minutes remaining', () => {
+    const nearExpiryToken = createJwt({
+      exp: Math.floor(Date.now() / 1000) + 240
+    });
+    localStorage.setItem(AppSettings.TOKEN_KEY, nearExpiryToken);
+    localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'soon-refresh-token');
+
+    let emittedToken: string | null | undefined;
+    service.getAccessTokenForRequest().subscribe(token => {
+      emittedToken = token;
+    });
+
+    const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/refresh`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ refreshToken: 'soon-refresh-token' });
+
+    req.flush({ accessToken: 'fresh-access-token', refreshToken: 'fresh-refresh-token' });
+
+    expect(emittedToken).toBe('fresh-access-token');
+    expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('fresh-access-token');
+    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('fresh-refresh-token');
+  });
+
+  it('returns expired token without clearing session', () => {
+    const expiredToken = createJwt({
+      exp: Math.floor(Date.now() / 1000) - 60
+    });
+    localStorage.setItem(AppSettings.TOKEN_KEY, expiredToken);
+    localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'refresh-token');
+    localStorage.setItem(AppSettings.USER_NAME_KEY, 'Old Name');
+
+    expect(service.getToken()).toBe(expiredToken);
+    expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe(expiredToken);
+    expect(localStorage.getItem(AppSettings.REFRESH_TOKEN_KEY)).toBe('refresh-token');
+    expect(localStorage.getItem(AppSettings.USER_NAME_KEY)).toBe('Old Name');
+  });
+
+  it('allows reactive refresh when access token is completely expired but refresh token is valid', () => {
+    const completelyExpiredToken = createJwt({
+      exp: Math.floor(Date.now() / 1000) - 600
+    });
+    localStorage.setItem(AppSettings.TOKEN_KEY, completelyExpiredToken);
+    localStorage.setItem(AppSettings.REFRESH_TOKEN_KEY, 'still-valid-refresh');
+
+    let emittedToken: string | null | undefined;
+    service.getAccessTokenForRequest().subscribe(token => {
+      emittedToken = token;
+    });
+
+    const req = httpMock.expectOne(`${AppSettings.API_URL}/auth/refresh`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ refreshToken: 'still-valid-refresh' });
+
+    req.flush({ accessToken: 'brand-new-access-token', refreshToken: 'brand-new-refresh-token' });
+
+    expect(emittedToken).toBe('brand-new-access-token');
+    expect(localStorage.getItem(AppSettings.TOKEN_KEY)).toBe('brand-new-access-token');
   });
 });

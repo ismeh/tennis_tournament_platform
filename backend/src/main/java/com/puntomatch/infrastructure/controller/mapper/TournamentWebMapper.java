@@ -2,7 +2,13 @@ package com.puntomatch.infrastructure.controller.mapper;
 
 import com.puntomatch.domain.models.Tournament;
 import com.puntomatch.domain.models.TournamentPeriod;
+import com.puntomatch.domain.models.Stage;
+import com.puntomatch.domain.models.Draw;
+import com.puntomatch.domain.models.Match;
 import com.puntomatch.infrastructure.controller.dto.TournamentRequest;
+import com.puntomatch.infrastructure.controller.dto.DrawResponse;
+import com.puntomatch.infrastructure.controller.dto.MatchResponse;
+import com.puntomatch.infrastructure.controller.dto.StageResponse;
 import com.puntomatch.infrastructure.controller.dto.TournamentEventResponse;
 import com.puntomatch.infrastructure.controller.dto.TournamentResponse;
 import com.puntomatch.infrastructure.persistence.entity.EventEntity;
@@ -25,6 +31,7 @@ public interface TournamentWebMapper {
     @Mapping(target = "state", ignore = true)
     @Mapping(target = "name", source = "formalName")
     @Mapping(target = "playPeriod", expression = "java(toPeriod(request.playStartDate(), request.playEndDate()))")
+    @Mapping(target = "startTime", source = "tournamentStartTime")
     @Mapping(target = "inscriptionPeriod", expression = "java(toPeriod(request.inscriptionStartDate(), request.inscriptionEndDate()))")
     @Mapping(target = "surface", source = "surfaceCategory")
     Tournament toDomain(TournamentRequest request);
@@ -32,6 +39,7 @@ public interface TournamentWebMapper {
     @Mapping(target = "formalName", source = "name")
     @Mapping(target = "playStartDate", source = "playPeriod.startDate")
     @Mapping(target = "playEndDate", source = "playPeriod.endDate")
+    @Mapping(target = "tournamentStartTime", source = "startTime")
     @Mapping(target = "inscriptionStartDate", source = "inscriptionPeriod.startDate")
     @Mapping(target = "inscriptionEndDate", source = "inscriptionPeriod.endDate")
     @Mapping(target = "surfaceCategory", source = "surface")
@@ -53,6 +61,7 @@ public interface TournamentWebMapper {
                 .id(t.getId())
                 .name(t.getName())
                 .playPeriod(t.getPlayPeriod())
+                .startTime(t.getStartTime())
                 .inscriptionPeriod(t.getInscriptionPeriod())
                 .surface(t.getSurface())
                 .maxPlayers(t.getMaxPlayers())
@@ -65,6 +74,8 @@ public interface TournamentWebMapper {
 
     default Event toDomain(EventEntity entity) {
         return Event.builder()
+                .id(entity.getId())
+                .tournamentId(entity.getTournament() != null ? entity.getTournament().getId() : null)
                 .categoryId(entity.getAgeCategory() != null ? entity.getAgeCategory().getId() : null)
                 .gender(entity.getGender())
                 .build();
@@ -83,7 +94,66 @@ public interface TournamentWebMapper {
         }
 
         return events.stream()
-                .map(event -> new TournamentEventResponse(event.getCategoryId(), event.getGender()))
+            .map(event -> new TournamentEventResponse(
+                    event.getId(),
+                    event.getCategoryId(),
+                    event.getGender(),
+                    toStageResponses(event.getStages())
+            ))
+                .toList();
+    }
+
+    default List<StageResponse> toStageResponses(List<Stage> stages) {
+        if (stages == null) {
+            return List.of();
+        }
+
+        return stages.stream()
+            .map(stage -> new StageResponse(
+                stage.getId(),
+                stage.getEventId(),
+                stage.getStageType(),
+                stage.getStageNumber(),
+                stage.getDescription(),
+                toDrawResponses(stage.getDraws())
+            ))
+                .toList();
+    }
+
+    default List<DrawResponse> toDrawResponses(List<Draw> draws) {
+        if (draws == null) {
+            return List.of();
+        }
+
+        return draws.stream()
+                .map(draw -> new DrawResponse(
+                    draw.getId(),
+                    draw.getStageId(),
+                    draw.getDrawType(),
+                    draw.getLabel(),
+                    toMatchResponses(draw.getMatches())
+                ))
+                .toList();
+    }
+
+    default List<MatchResponse> toMatchResponses(List<Match> matches) {
+        if (matches == null) {
+            return List.of();
+        }
+
+        return matches.stream()
+                .map(match -> new MatchResponse(
+                    match.getId(),
+                    match.getFirstInscriptionId(),
+                    match.getSecondInscriptionId(),
+                    match.getWinnerId(),
+                    match.getRoundNumber(),
+                    match.getScheduledAt(),
+                    match.getScheduleTimeType() != null ? match.getScheduleTimeType().name() : null,
+                    match.getCourtId(),
+                    match.getCourt(),
+                    match.getResult()
+                ))
                 .toList();
     }
 

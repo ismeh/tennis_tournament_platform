@@ -1,7 +1,14 @@
-.env.dev
-.env
-.env.prod
+.env*
+!.env.example
 logs
+
+src/main/resources/*
+!src/main/resources/db/
+!src/main/resources/db/migration/
+!src/main/resources/db/migration/*.sql
+!src/main/resources/db/seed/
+!src/main/resources/db/seed/*.sql
+src/main/java/com/puntomatch/application/architecture
 
 HELP.md
 target/

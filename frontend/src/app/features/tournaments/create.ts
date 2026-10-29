@@ -4,8 +4,10 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize, of, switchMap } from 'rxjs';
 import { TournamentService } from '../../data/services/tournament.service';
+import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import {
   getTournamentEventGenderLabel,
+  getTournamentStageTypeLabel,
   getTournamentSurfaceCategoryLabel,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
@@ -13,6 +15,7 @@ import {
   TournamentEventSelection,
   TournamentEventsConfigRequest,
   TournamentResponse,
+  TournamentStageType,
   TournamentSurfaceCategory
 } from '../../data/interfaces/tournament.model';
 
@@ -31,24 +34,24 @@ import {
         <aside class="rounded-3xl border border-white/60 bg-white/80 p-8 shadow-xl shadow-primary-100 backdrop-blur">
           <p class="text-sm font-semibold uppercase tracking-[0.25em] text-primary-600">Nuevo torneo</p>
           <h1 class="mt-4 text-4xl font-black leading-tight text-neutral-900 sm:text-5xl">
-            Crea el torneo y configura sus eventos.
+            Crea el torneo y define sus pruebas.
           </h1>
           <p class="mt-5 text-base leading-7 text-neutral-600">
-            Primero se crea el torneo y después se asocian los eventos seleccionados desde catálogo, con género editable por evento.
+            Primero se crea el torneo y después se añaden las pruebas: categoría, modalidad y formato de cuadro.
           </p>
 
           <div class="mt-8 grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
             <div class="rounded-2xl border border-primary-100 bg-primary-50 p-4">
-              <p class="text-xs font-semibold uppercase tracking-widest text-primary-700">Catálogo</p>
-              <p class="mt-2 text-sm text-neutral-700">Los eventos se recuperan desde backend y quedan listos para selección múltiple.</p>
+              <p class="text-xs font-semibold uppercase tracking-widest text-primary-700">Pruebas</p>
+              <p class="mt-2 text-sm text-neutral-700">Selecciona las categorías que se jugarán en el torneo.</p>
             </div>
             <div class="rounded-2xl border border-accent-100 bg-accent-50 p-4">
-              <p class="text-xs font-semibold uppercase tracking-widest text-accent-700">Lista</p>
-              <p class="mt-2 text-sm text-neutral-700">Cada evento elegido se muestra en una lista con género editable antes de enviar.</p>
+              <p class="text-xs font-semibold uppercase tracking-widest text-accent-700">Modalidades</p>
+              <p class="mt-2 text-sm text-neutral-700">Marca si la prueba será masculina, femenina o mixta.</p>
             </div>
             <div class="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p class="text-xs font-semibold uppercase tracking-widest text-neutral-600">Asociación</p>
-              <p class="mt-2 text-sm text-neutral-700">Se enviará la lista al endpoint del torneo para incluir sus events.</p>
+              <p class="text-xs font-semibold uppercase tracking-widest text-neutral-600">Cuadros</p>
+              <p class="mt-2 text-sm text-neutral-700">Elige las fases que tendrá cada prueba antes de abrir inscripciones.</p>
             </div>
           </div>
         </aside>
@@ -98,8 +101,19 @@ import {
                 <input type="date" formControlName="playStartDate" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
               </label>
               <label class="block">
+                <span class="mb-1 block text-sm font-medium text-neutral-700">Hora de inicio</span>
+                <input type="time" formControlName="tournamentStartTime" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
+              </label>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <label class="block">
                 <span class="mb-1 block text-sm font-medium text-neutral-700">Fin del torneo</span>
                 <input type="date" formControlName="playEndDate" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-sm font-medium text-neutral-700">Número de pistas</span>
+                <input type="number" formControlName="courtCount" min="0" step="1" class="w-full rounded-2xl border border-neutral-300 bg-neutral-50 px-4 py-3 outline-none transition focus:border-primary-500 focus:bg-white" placeholder="4" />
               </label>
             </div>
 
@@ -127,15 +141,15 @@ import {
             </div>
 
             <div class="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-              El organizador se toma del usuario autenticado. El torneo se crea en estado <span class="font-semibold text-neutral-900">DRAFT</span> y después se asocian los eventos.
+              El organizador se toma del usuario autenticado. El torneo se crea como <span class="font-semibold text-neutral-900">borrador</span> y después se añaden sus pruebas.
             </div>
 
             <div class="rounded-3xl border border-neutral-200 bg-white p-5">
               <div class="flex items-start justify-between gap-4">
                 <div>
-                  <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Eventos del torneo</p>
-                  <h3 class="mt-2 text-xl font-bold text-neutral-900">Selecciona varios eventos desde catálogo</h3>
-                  <p class="mt-2 text-sm text-neutral-600">Cada evento seleccionado se añade a la lista y puedes marcar uno o varios géneros antes de guardar.</p>
+                  <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Pruebas del torneo</p>
+                  <h3 class="mt-2 text-xl font-bold text-neutral-900">Selecciona las categorías del cuadro</h3>
+                  <p class="mt-2 text-sm text-neutral-600">Cada categoría seleccionada puede jugarse en una o varias modalidades.</p>
                 </div>
                 <span class="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary-700">
                   {{ selectedEvents().length }} seleccionados
@@ -144,7 +158,7 @@ import {
 
               @if (isLoadingEvents()) {
                 <div class="mt-4 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-                  Cargando catálogo de eventos...
+                  Cargando catálogo de categorías...
                 </div>
               }
 
@@ -156,7 +170,7 @@ import {
 
               <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
                 <label class="block">
-                  <span class="mb-1 block text-sm font-medium text-neutral-700">Catálogo disponible</span>
+                  <span class="mb-1 block text-sm font-medium text-neutral-700">Categorías disponibles</span>
                   <div class="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-neutral-300 bg-neutral-50 p-3">
                     @for (event of eventCatalog(); track event.id) {
                       <label class="flex cursor-pointer items-center gap-3 rounded-xl bg-white px-3 py-2 hover:bg-primary-50">
@@ -174,7 +188,7 @@ import {
 
                 <div class="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-4">
                   @if (selectedEvents().length === 0) {
-                    <p class="text-sm text-neutral-500">No hay eventos seleccionados todavía.</p>
+                    <p class="text-sm text-neutral-500">No hay pruebas seleccionadas todavía.</p>
                   } @else {
                     <div class="space-y-3">
                       @for (event of selectedEvents(); track event.categoryId) {
@@ -186,11 +200,11 @@ import {
 
                             <div class="min-w-52">
                                 <div class="mb-2 flex items-center gap-2">
-                                  <span class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Géneros</span>
+                                  <span class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Modalidades</span>
                                   <span
                                     class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-bold text-neutral-500"
-                                    title="Por cada género seleccionado se creará un evento extra."
-                                    aria-label="Información sobre géneros"
+                                    title="Por cada modalidad seleccionada se creará una prueba."
+                                    aria-label="Información sobre modalidades"
                                   >
                                     i
                                   </span>
@@ -208,6 +222,72 @@ import {
                                   </label>
                                 }
                               </div>
+                            </div>
+                          </div>
+
+                          <div class="mt-4 rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 p-4">
+                            <div class="flex items-center justify-between gap-3">
+                              <div>
+                                <p class="text-xs font-semibold uppercase tracking-widest text-neutral-500">Formato de cuadro</p>
+                                <p class="mt-1 text-sm text-neutral-600">Ordena las fases que se jugarán en esta prueba.</p>
+                              </div>
+                              <button
+                                type="button"
+                                class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700"
+                                (click)="addEventStage(event.categoryId)"
+                              >
+                                Añadir fase
+                              </button>
+                            </div>
+
+                            <div class="mt-4 space-y-3">
+                              @for (stage of event.stages; track $index; let stageIndex = $index) {
+                                <div class="rounded-xl border border-neutral-200 bg-white p-3 shadow-sm">
+                                  <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div class="flex-1">
+                                      <label class="block">
+                                        <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Tipo de fase {{ stageIndex + 1 }}</span>
+                                        <select
+                                          class="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:bg-white"
+                                          [value]="stage.stageType"
+                                          (change)="updateEventStageType(event.categoryId, stageIndex, $any($event.target).value)"
+                                        >
+                                          @for (option of stageOptions; track option) {
+                                            <option [value]="option">{{ getStageLabel(option) }}</option>
+                                          }
+                                        </select>
+                                      </label>
+                                    </div>
+
+                                    <div class="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        [disabled]="stageIndex === 0"
+                                        (click)="moveEventStage(event.categoryId, stageIndex, 'up')"
+                                      >
+                                        Subir
+                                      </button>
+                                      <button
+                                        type="button"
+                                        class="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-400 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        [disabled]="stageIndex === event.stages.length - 1"
+                                        (click)="moveEventStage(event.categoryId, stageIndex, 'down')"
+                                      >
+                                        Bajar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                        [disabled]="event.stages.length === 1"
+                                        (click)="removeEventStage(event.categoryId, stageIndex)"
+                                      >
+                                        Eliminar
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              }
                             </div>
                           </div>
                         </div>
@@ -243,7 +323,7 @@ import {
                 class="rounded-2xl bg-gradient-to-r from-primary-600 to-accent-600 px-5 py-3 font-semibold text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.01] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
                 [disabled]="form.invalid || isSubmitting() || isLoadingEvents()"
               >
-                {{ isSubmitting() ? 'Guardando...' : 'Crear torneo y guardar eventos' }}
+                {{ isSubmitting() ? 'Guardando...' : 'Crear torneo y guardar pruebas' }}
               </button>
             </div>
           </form>
@@ -271,7 +351,7 @@ import {
                   <p class="font-semibold text-neutral-900">{{ createdTournament()?.location }}</p>
                 </div>
                 <div>
-                  <p class="text-xs uppercase tracking-widest text-neutral-500">Eventos enviados</p>
+                  <p class="text-xs uppercase tracking-widest text-neutral-500">Pruebas seleccionadas</p>
                   <p class="font-semibold text-neutral-900">{{ selectedEvents().length }}</p>
                 </div>
               </div>
@@ -289,8 +369,10 @@ export class CreateTournamentComponent {
 
   readonly surfaceOptions: TournamentSurfaceCategory[] = ['CLAY', 'HARD', 'GRASS', 'CARPET'];
   readonly eventGenderOptions: TournamentEventGender[] = ['MALE', 'FEMALE', 'MIXED'];
+  readonly stageOptions: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
   readonly getSurfaceLabel = getTournamentSurfaceCategoryLabel;
   readonly getGenderLabel = getTournamentEventGenderLabel;
+  readonly getStageLabel = getTournamentStageTypeLabel;
   readonly isSubmitting = signal(false);
   readonly isLoadingEvents = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -303,9 +385,11 @@ export class CreateTournamentComponent {
   readonly form = this.fb.nonNullable.group({
     formalName: ['', [Validators.required, Validators.minLength(3)]],
     ...this.buildInitialDateValues(),
+    tournamentStartTime: ['09:00', [Validators.required]],
     surfaceCategory: ['CLAY' as TournamentSurfaceCategory, [Validators.required]],
     maxPlayers: [32, [Validators.required, Validators.min(2)]],
-    location: ['', [Validators.required, Validators.minLength(3)]]
+    location: ['', [Validators.required, Validators.minLength(3)]],
+    courtCount: [4, [Validators.required, Validators.min(0)]]
   });
 
   constructor() {
@@ -322,7 +406,12 @@ export class CreateTournamentComponent {
     const configuredEvents = this.selectedEvents();
 
     if (configuredEvents.some(event => event.genders.length === 0)) {
-      this.errorMessage.set('Debes seleccionar al menos un género en cada evento antes de guardar.');
+      this.errorMessage.set('Debes seleccionar al menos una modalidad en cada prueba antes de guardar.');
+      return;
+    }
+
+    if (configuredEvents.some(event => event.stages.length === 0)) {
+      this.errorMessage.set('Debes definir al menos una fase en cada prueba antes de guardar.');
       return;
     }
 
@@ -343,8 +432,10 @@ export class CreateTournamentComponent {
           const eventPayload: TournamentEventsConfigRequest = {
             events: configuredEvents.flatMap(event =>
               event.genders.map(gender => ({
+                id: null,
                 categoryId: event.categoryId,
-                gender
+                gender,
+                stages: event.stages.map(stage => stage.stageType)
               }))
             )
           };
@@ -359,11 +450,11 @@ export class CreateTournamentComponent {
       )
       .subscribe({
         next: tournament => {
-          this.successMessage.set('Torneo creado correctamente y eventos preparados para guardar en backend.');
+          this.successMessage.set('Torneo creado correctamente con sus pruebas.');
           void this.router.navigate(['/torneos', tournament.id]);
         },
-        error: () => {
-          this.errorMessage.set('No se pudo crear el torneo o guardar sus eventos. Revisa los datos e inténtalo de nuevo.');
+        error: (error) => {
+          this.errorMessage.set(getApiErrorMessage(error, 'No se pudo crear el torneo o guardar sus pruebas. Revisa los datos e inténtalo de nuevo.'));
         }
       });
   }
@@ -372,9 +463,11 @@ export class CreateTournamentComponent {
     this.form.reset({
       formalName: '',
       ...this.buildInitialDateValues(),
+      tournamentStartTime: '09:00',
       surfaceCategory: 'CLAY',
       maxPlayers: 32,
-      location: ''
+      location: '',
+      courtCount: 4
     });
     this.errorMessage.set(null);
     this.eventCatalogError.set(null);
@@ -394,7 +487,13 @@ export class CreateTournamentComponent {
         {
           categoryId: catalogEvent.id,
           eventCategory: catalogEvent.category,
-          genders: []
+          eventsByGender: [],
+          genders: [],
+          stages: [
+            {
+              stageType: 'SINGLE_ELIMINATION'
+            }
+          ]
         }
       ]);
       return;
@@ -412,6 +511,70 @@ export class CreateTournamentComponent {
             genders: checked
               ? Array.from(new Set([...event.genders, gender]))
               : event.genders.filter(currentGender => currentGender !== gender)
+          }
+          : event
+      )
+    );
+  }
+
+  addEventStage(categoryId: number): void {
+    this.selectedEvents.update(events =>
+      events.map(event =>
+        event.categoryId === categoryId
+          ? {
+            ...event,
+            stages: [...event.stages, { stageType: 'SINGLE_ELIMINATION' }]
+          }
+          : event
+      )
+    );
+  }
+
+  removeEventStage(categoryId: number, stageIndex: number): void {
+    this.selectedEvents.update(events =>
+      events.map(event => {
+        if (event.categoryId !== categoryId || event.stages.length <= 1) {
+          return event;
+        }
+
+        return {
+          ...event,
+          stages: event.stages.filter((_, index) => index !== stageIndex)
+        };
+      })
+    );
+  }
+
+  moveEventStage(categoryId: number, stageIndex: number, direction: 'up' | 'down'): void {
+    this.selectedEvents.update(events =>
+      events.map(event => {
+        if (event.categoryId !== categoryId) {
+          return event;
+        }
+
+        const targetIndex = direction === 'up' ? stageIndex - 1 : stageIndex + 1;
+        if (targetIndex < 0 || targetIndex >= event.stages.length) {
+          return event;
+        }
+
+        const stages = [...event.stages];
+        [stages[stageIndex], stages[targetIndex]] = [stages[targetIndex], stages[stageIndex]];
+
+        return {
+          ...event,
+          stages
+        };
+      })
+    );
+  }
+
+  updateEventStageType(categoryId: number, stageIndex: number, stageType: TournamentStageType): void {
+    this.selectedEvents.update(events =>
+      events.map(event =>
+        event.categoryId === categoryId
+          ? {
+            ...event,
+            stages: event.stages.map((stage, index) => (index === stageIndex ? { stageType } : stage))
           }
           : event
       )
@@ -441,9 +604,9 @@ export class CreateTournamentComponent {
         this.eventCatalog.set(catalog);
         this.isLoadingEvents.set(false);
       },
-      error: () => {
+      error: (error) => {
         this.eventCatalog.set([]);
-        this.eventCatalogError.set('No se pudo cargar el catálogo de eventos desde backend.');
+        this.eventCatalogError.set(getApiErrorMessage(error, 'No se pudo cargar el catálogo de categorías.'));
         this.isLoadingEvents.set(false);
       }
     });
