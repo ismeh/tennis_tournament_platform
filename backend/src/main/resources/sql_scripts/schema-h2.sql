@@ -1,4 +1,4 @@
--- Database Schema for Tennis Tournament Platform (H2 Compatible)
+-- Database Schema for PuntoMatch (H2 Compatible)
 
 DROP TABLE IF EXISTS rankings;
 DROP TABLE IF EXISTS sets;

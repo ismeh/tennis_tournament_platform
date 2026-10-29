@@ -1,6 +1,6 @@
-# Frontend - Tennis Tournament Platform
+# Frontend - PuntoMatch
 
-Aplicación web en Angular 20 con SSR (Server-Side Rendering) para la plataforma de torneos de tenis.
+Aplicación web en Angular 20 con SSR (Server-Side Rendering) para PuntoMatch, la plataforma de torneos de tenis.
 
 ## Requisitos
 
@@ -47,12 +47,12 @@ Notas:
 npm run build
 ```
 
-Esto genera los artefactos en `dist/tfm_front/`.
+Esto genera los artefactos en `dist/puntomatch/`.
 
 ### 2) Ejecutar servidor SSR de producción
 
 ```bash
-npm run serve:ssr:tfm_front
+npm run serve:ssr:puntomatch
 ```
 
 Por defecto escucha en `http://localhost:4000`.
@@ -60,7 +60,7 @@ Por defecto escucha en `http://localhost:4000`.
 Para cambiar el puerto:
 
 ```bash
-PORT=8080 npm run serve:ssr:tfm_front
+PORT=8080 npm run serve:ssr:puntomatch
 ```
 
 ## Entornos y configuración de logs
@@ -127,7 +127,7 @@ Resumen del flujo:
 - Errores CORS o llamadas API fallando
 	- Verifica que el backend esté activo en el puerto esperado (`8085` en dev).
 - Build funciona pero no arranca SSR
-	- Ejecuta primero `npm run build` y después `npm run serve:ssr:tfm_front`.
+	- Ejecuta primero `npm run build` y después `npm run serve:ssr:puntomatch`.
 
 ## Mejoras recomendadas para este README
 

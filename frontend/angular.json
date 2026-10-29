@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "tfm_front": {
+    "puntomatch": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -65,10 +65,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "tfm_front:build:production"
+              "buildTarget": "puntomatch:build:production"
             },
             "development": {
-              "buildTarget": "tfm_front:build:development"
+              "buildTarget": "puntomatch:build:development"
             }
           },
           "defaultConfiguration": "development"

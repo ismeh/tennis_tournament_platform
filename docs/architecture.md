@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Tennis Tournament Platform follows a **hexagonal architecture** (also known as Ports & Adapters) on the backend, and a **feature-based standalone component architecture** on the frontend.
+PuntoMatch follows a **hexagonal architecture** (also known as Ports & Adapters) on the backend, and a **feature-based standalone component architecture** on the frontend.
 
 ---
 
@@ -41,7 +41,7 @@ models and services for those concepts are planned.
 ### Package Structure
 
 ```
-com.tfm.tennis_platform
+com.puntomatch
 ├── domain/
 │   ├── models/          Pure domain objects (no framework annotations)
 │   │                    Tournament, TournamentPeriod, Event, Member, Person

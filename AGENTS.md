@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Tennis Tournament Platform — a Master's thesis project (TFM). Java/Spring Boot backend plus an
+PuntoMatch — a Master's thesis project (TFM). Java/Spring Boot backend plus an
 Angular frontend.
 
 Verified against the code on 2026-10-27. Where this file and `docs/` disagree, this file reflects

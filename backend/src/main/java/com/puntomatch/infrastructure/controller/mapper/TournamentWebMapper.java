@@ -1,0 +1,104 @@
+package com.puntomatch.infrastructure.controller.mapper;
+
+import com.puntomatch.domain.models.Tournament;
+import com.puntomatch.domain.models.TournamentPeriod;
+import com.puntomatch.infrastructure.controller.dto.TournamentRequest;
+import com.puntomatch.infrastructure.controller.dto.TournamentEventResponse;
+import com.puntomatch.infrastructure.controller.dto.TournamentResponse;
+import com.puntomatch.infrastructure.persistence.entity.EventEntity;
+import com.puntomatch.domain.models.Event;
+import com.puntomatch.infrastructure.persistence.entity.RefAgeCategoryEntity;
+import com.puntomatch.infrastructure.persistence.entity.TournamentEntity;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.factory.Mappers;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface TournamentWebMapper {
+    TournamentWebMapper INSTANCE = Mappers.getMapper(TournamentWebMapper.class);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "events", ignore = true)
+    @Mapping(target = "state", ignore = true)
+    @Mapping(target = "name", source = "formalName")
+    @Mapping(target = "playPeriod", expression = "java(toPeriod(request.playStartDate(), request.playEndDate()))")
+    @Mapping(target = "inscriptionPeriod", expression = "java(toPeriod(request.inscriptionStartDate(), request.inscriptionEndDate()))")
+    @Mapping(target = "surface", source = "surfaceCategory")
+    Tournament toDomain(TournamentRequest request);
+
+    @Mapping(target = "formalName", source = "name")
+    @Mapping(target = "playStartDate", source = "playPeriod.startDate")
+    @Mapping(target = "playEndDate", source = "playPeriod.endDate")
+    @Mapping(target = "inscriptionStartDate", source = "inscriptionPeriod.startDate")
+    @Mapping(target = "inscriptionEndDate", source = "inscriptionPeriod.endDate")
+    @Mapping(target = "surfaceCategory", source = "surface")
+    @Mapping(target = "status", source = "state")
+    @Mapping(target = "providerOrganisationId", source = "createdBy")
+    @Mapping(target = "events", expression = "java(toEventResponses(domain.getEvents()))")
+    TournamentResponse toResponse(Tournament domain);
+
+    @Mapping(target = "events", ignore = true)
+    Tournament toDomain(TournamentEntity entity);
+
+    @Mapping(target = "events", ignore = true)
+    TournamentEntity toEntity(Tournament domain);
+
+    default Tournament toDomain(TournamentEntity entity, List<EventEntity> eventEntities) {
+        Tournament t = toDomain(entity);
+        List<Event> events = eventEntities != null ? eventEntities.stream().map(this::toDomain).toList() : List.of();
+        return Tournament.builder()
+                .id(t.getId())
+                .name(t.getName())
+                .playPeriod(t.getPlayPeriod())
+                .inscriptionPeriod(t.getInscriptionPeriod())
+                .surface(t.getSurface())
+                .maxPlayers(t.getMaxPlayers())
+                .location(t.getLocation())
+                .state(t.getState())
+                .createdBy(t.getCreatedBy())
+                .events(events)
+                .build();
+    }
+
+    default Event toDomain(EventEntity entity) {
+        return Event.builder()
+                .categoryId(entity.getAgeCategory() != null ? entity.getAgeCategory().getId() : null)
+                .gender(entity.getGender())
+                .build();
+    }
+
+    default EventEntity toEntity(Event domain) {
+        return EventEntity.builder()
+                .ageCategory(mapRefAgeCategory(domain.getCategoryId()))
+                .gender(domain.getGender())
+                .build();
+    }
+
+    default List<TournamentEventResponse> toEventResponses(List<Event> events) {
+        if (events == null) {
+            return List.of();
+        }
+
+        return events.stream()
+                .map(event -> new TournamentEventResponse(event.getCategoryId(), event.getGender()))
+                .toList();
+    }
+
+    default RefAgeCategoryEntity mapRefAgeCategory(Integer ageCategoryId) {
+        if (ageCategoryId == null) {
+            return null;
+        }
+
+        return RefAgeCategoryEntity.builder().id(ageCategoryId).build();
+    }
+
+    default TournamentPeriod toPeriod(java.time.LocalDate startDate, java.time.LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            return null;
+        }
+        return new TournamentPeriod(startDate, endDate);
+    }
+}

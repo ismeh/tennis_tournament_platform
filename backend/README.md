@@ -1,7 +1,7 @@
-# Tennis Tournament Platform - Backend
+# PuntoMatch - Backend
 
 ## Structure
-The backend of the Tennis Tournament Platform is built using Java with Spring Boot. It provides RESTful APIs for managing tournaments, players, matches, and scores. The following packages are included:
+The backend of PuntoMatch is built using Java with Spring Boot. It provides RESTful APIs for managing tournaments, players, matches, and scores. The following packages are included:
 - domain: Contains domain entities, classes representing the data model. Also includes repository interfaces (ports) for data access.
 - application: Contains the application-level logic (use cases/services) that orchestrates the domain models.
 - infrastructure: Contains configurations and implementations for data persistence (@Entity, JPA Repositories and adapters), security, and other infrastructural concerns.

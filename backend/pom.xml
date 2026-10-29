@@ -8,11 +8,11 @@
 		<version>4.0.0</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.tfm</groupId>
-	<artifactId>tennis_platform</artifactId>
+	<groupId>com.puntomatch</groupId>
+	<artifactId>puntomatch</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>tennis_platform</name>
-	<description>TFM - Tennis web platform</description>
+	<name>PuntoMatch</name>
+	<description>PuntoMatch - Tennis tournament management platform (TFM)</description>
 	<url/>
 	<licenses>
 		<license/>
