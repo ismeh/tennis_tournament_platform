@@ -4,13 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/auth/auth.service';
+import { UserRole } from '../../core/auth/auth.model';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import {
   PlayerMatchCalendarResponse,
   TournamentCalendarFilters,
   TournamentCalendarResponse,
+  TournamentStatus,
   TournamentSurfaceCategory,
-  getTournamentSurfaceCategoryLabel
+  getTournamentSurfaceCategoryLabel,
+  getSurfaceBackgroundImage
 } from '../../data/interfaces/tournament.model';
 import { TournamentService } from '../../data/services/tournament.service';
 
@@ -26,90 +29,13 @@ type TournamentCalendarGroup = {
   template: `
     <section class="min-h-[calc(100vh-4rem)] bg-neutral-50 py-8 sm:py-10">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <header class="flex flex-col gap-4 border-b border-neutral-200 pb-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Calendario</p>
-            <h1 class="mt-2 text-3xl font-black text-neutral-950 sm:text-4xl">Torneos y partidos</h1>
-            <p class="mt-2 max-w-2xl text-sm text-neutral-600">
-              Próximos torneos publicados y horarios asignados a tus partidos.
-            </p>
-          </div>
-
-          <a
-            routerLink="/torneos"
-            class="inline-flex w-fit items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 shadow-sm transition hover:border-primary-300 hover:text-primary-700"
-          >
-            Gestionar torneos
-          </a>
+        <header class="border-b border-neutral-200 pb-6">
+          <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary-600">Torneos</p>
+          <h1 class="mt-2 text-3xl font-black text-neutral-950 sm:text-4xl">Calendario de torneos</h1>
+          <p class="mt-2 max-w-2xl text-sm text-neutral-600">
+            Busca torneos por fecha, nombre, lugar, estado y tipo de participantes.
+          </p>
         </header>
-
-        <form class="mt-6 grid gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1fr_1.4fr_auto]" (ngSubmit)="applyFilters()">
-          <label class="block">
-            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Desde</span>
-            <input
-              type="date"
-              class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
-              [ngModel]="fromDate()"
-              (ngModelChange)="fromDate.set($event)"
-              name="fromDate"
-            />
-          </label>
-
-          <label class="block">
-            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Hasta</span>
-            <input
-              type="date"
-              class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
-              [ngModel]="toDate()"
-              (ngModelChange)="toDate.set($event)"
-              name="toDate"
-            />
-          </label>
-
-          <label class="block">
-            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Superficie</span>
-            <select
-              class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
-              [ngModel]="surface() ?? ''"
-              (ngModelChange)="onSurfaceChange($event)"
-              name="surface"
-            >
-              <option value="">Todas</option>
-              @for (option of surfaceOptions; track option) {
-                <option [value]="option">{{ getSurfaceLabel(option) }}</option>
-              }
-            </select>
-          </label>
-
-          <label class="block">
-            <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Ubicación</span>
-            <input
-              type="search"
-              class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
-              placeholder="Club, ciudad o sede"
-              [ngModel]="location()"
-              (ngModelChange)="location.set($event)"
-              name="location"
-            />
-          </label>
-
-          <div class="flex items-end gap-2">
-            <button
-              type="submit"
-              class="h-11 rounded-lg bg-primary-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
-              [disabled]="isLoadingTournaments() || isLoadingMatches()"
-            >
-              Filtrar
-            </button>
-            <button
-              type="button"
-              class="h-11 rounded-lg border border-neutral-300 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
-              (click)="resetFilters()"
-            >
-              Limpiar
-            </button>
-          </div>
-        </form>
 
         @if (dateRangeError()) {
           <div class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ dateRangeError() }}</div>
@@ -117,11 +43,34 @@ type TournamentCalendarGroup = {
 
         <div class="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <section class="min-w-0">
-            <div class="flex items-center justify-between gap-4">
-              <div>
-                <h2 class="text-xl font-bold text-neutral-950">Próximos torneos publicados</h2>
-                <p class="mt-1 text-sm text-neutral-600">{{ tournaments().length }} torneos en la ventana seleccionada</p>
-              </div>
+            <div class="flex items-center gap-3">
+              <h2 class="text-xl font-bold text-neutral-950">Torneos</h2>
+              <div class="h-6 w-px bg-neutral-300"></div>
+              <span class="text-sm text-neutral-500">{{ totalElements() }} torneos</span>
+              <div class="flex-1"></div>
+              <button
+                type="button"
+                (click)="filterPanelOpen.set(true)"
+                class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white shadow-sm transition hover:bg-neutral-800"
+                title="Filtros"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="14"></line>
+                  <line x1="4" y1="10" x2="4" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12" y2="3"></line>
+                  <line x1="20" y1="21" x2="20" y2="16"></line>
+                  <line x1="20" y1="12" x2="20" y2="3"></line>
+                  <line x1="1" y1="14" x2="7" y2="14"></line>
+                  <line x1="9" y1="8" x2="15" y2="8"></line>
+                  <line x1="17" y1="16" x2="23" y2="16"></line>
+                </svg>
+                @if (activeFilterCount() > 0) {
+                  <span class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-bold text-white">
+                    {{ activeFilterCount() }}
+                  </span>
+                }
+              </button>
             </div>
 
             @if (isLoadingTournaments()) {
@@ -130,8 +79,8 @@ type TournamentCalendarGroup = {
               <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-700">{{ tournamentsError() }}</div>
             } @else if (tournamentGroups().length === 0) {
               <div class="mt-4 rounded-lg border border-neutral-200 bg-white p-8 text-center shadow-sm">
-                <p class="text-base font-semibold text-neutral-950">No hay torneos publicados</p>
-                <p class="mt-1 text-sm text-neutral-600">Ajusta las fechas o filtros para ampliar la búsqueda.</p>
+                <p class="text-base font-semibold text-neutral-950">No hay torneos</p>
+                <p class="mt-1 text-sm text-neutral-600">Ajusta las fechas o filtros para ampliar la busqueda.</p>
               </div>
             } @else {
               <div class="mt-4 space-y-5">
@@ -144,25 +93,24 @@ type TournamentCalendarGroup = {
                       @for (tournament of group.tournaments; track tournament.id) {
                         <a
                           [routerLink]="['/torneos', tournament.id]"
-                          class="grid gap-4 px-5 py-4 transition hover:bg-primary-50/60 md:grid-cols-[1fr_auto]"
+                          class="surface-card-bg flex items-end justify-between gap-3 rounded-lg px-5 py-4 transition hover:brightness-110"
+                          [style.backgroundImage]="'url(' + getSurfaceImage(tournament.surfaceCategory) + ')'"
                         >
                           <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                              <span class="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">{{ getStatusLabel(tournament.status) }}</span>
-                              <span class="text-xs font-medium text-neutral-500">{{ getSurfaceLabel(tournament.surfaceCategory) }}</span>
-                            </div>
-                            <h4 class="mt-2 truncate text-lg font-bold text-neutral-950">{{ tournament.formalName }}</h4>
-                            <p class="mt-1 text-sm text-neutral-600">{{ tournament.location }}</p>
+                            <h4 class="text-lg font-bold text-white drop-shadow-md">{{ tournament.formalName }}</h4>
+                            <p class="mt-1 text-sm text-white/85 drop-shadow-sm">{{ tournament.location }}</p>
                           </div>
-
-                          <div class="grid grid-cols-2 gap-3 text-sm md:min-w-52">
-                            <div>
-                              <p class="text-xs uppercase tracking-widest text-neutral-500">Juego</p>
-                              <p class="mt-1 font-semibold text-neutral-900">{{ tournament.playStartDate | date: 'dd/MM' }} - {{ tournament.playEndDate | date: 'dd/MM' }}</p>
+                          <div class="flex shrink-0 flex-col items-end gap-1">
+                            <div class="text-xs text-white/80">
+                              <span class="font-semibold text-white drop-shadow-sm">{{ tournament.playStartDate | date: 'dd/MM' }} - {{ tournament.playEndDate | date: 'dd/MM' }}</span>
+                              <span class="mx-1.5 text-white/40">|</span>
+                              <span class="font-semibold text-white drop-shadow-sm">{{ tournament.tournamentStartTime?.substring(0, 5) || 'Por definir' }}</span>
                             </div>
-                            <div>
-                              <p class="text-xs uppercase tracking-widest text-neutral-500">Inicio</p>
-                              <p class="mt-1 font-semibold text-neutral-900">{{ tournament.tournamentStartTime || 'Por definir' }}</p>
+                            <div class="flex items-center gap-2">
+                              <span class="rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm {{ getStatusColorClasses(tournament.status) }}">{{ getStatusLabel(tournament.status) }}</span>
+                              @if (tournament.professionalTournament) {
+                                <span class="rounded-full bg-white/25 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">PRO</span>
+                              }
                             </div>
                           </div>
                         </a>
@@ -171,6 +119,32 @@ type TournamentCalendarGroup = {
                   </div>
                 }
               </div>
+
+              @if (totalTournamentPages() > 1) {
+                <nav class="mt-6 flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+                  <span class="text-sm text-neutral-600">
+                    Pagina {{ currentPage() + 1 }} de {{ totalTournamentPages() }}
+                  </span>
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      (click)="goToPreviousPage()"
+                      [disabled]="!canGoPrevious()"
+                      class="h-9 rounded-lg border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      (click)="goToNextPage()"
+                      [disabled]="!canGoNext()"
+                      class="h-9 rounded-lg border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </nav>
+              }
             }
           </section>
 
@@ -178,65 +152,268 @@ type TournamentCalendarGroup = {
             <div class="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <h2 class="text-xl font-bold text-neutral-950">Mis partidos</h2>
-                  <p class="mt-1 text-sm text-neutral-600">Partidos con horario asignado dentro del rango.</p>
+                  <h2 class="text-xl font-bold text-neutral-950">
+                    {{ isOrganizer() ? 'Mis torneos' : (isUmpire() ? 'Mis arbitrajes' : 'Mis partidos') }}
+                  </h2>
+                  <p class="mt-1 text-sm text-neutral-600">
+                    {{ isOrganizer() ? 'Torneos que has creado.' : (isUmpire() ? 'Torneos asignados para arbitrar.' : 'Partidos con horario asignado dentro del rango.') }}
+                  </p>
                 </div>
-                <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ myMatches().length }}</span>
+                <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ sidebarItems().length }}</span>
               </div>
 
               @if (!isLoggedIn()) {
                 <div class="mt-4 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  Inicia sesión para ver tus partidos asignados.
+                  {{ isOrganizer() ? 'Inicia sesion para ver tus torneos.' : (isUmpire() ? 'Inicia sesion para ver tus torneos a arbitrar.' : 'Inicia sesion para ver tus partidos asignados.') }}
                 </div>
-              } @else if (isLoadingMatches()) {
-                <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">Cargando partidos...</div>
-              } @else if (matchesError()) {
-                <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ matchesError() }}</div>
-              } @else if (myMatches().length === 0) {
+              } @else if (isLoadingSidebar()) {
+                <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                  {{ isOrganizer() ? 'Cargando torneos...' : (isUmpire() ? 'Cargando arbitrajes...' : 'Cargando partidos...') }}
+                </div>
+              } @else if (sidebarError()) {
+                <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ sidebarError() }}</div>
+              } @else if (sidebarItems().length === 0) {
                 <div class="mt-4 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  No tienes partidos programados en estas fechas.
+                  {{ isOrganizer() ? 'No tienes torneos creados en estas fechas.' : (isUmpire() ? 'No tienes torneos asignados para arbitrar en estas fechas.' : 'No tienes partidos programados en estas fechas.') }}
                 </div>
               } @else {
+                <div class="mt-3 mb-3">
+                  <select
+                    class="h-9 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                    [ngModel]="sidebarSortOrder()"
+                    (ngModelChange)="sidebarSortOrder.set($event); sortSidebarItems()"
+                  >
+                    <option value="newest">Mas recientes primero</option>
+                    <option value="oldest">Mas antiguos primero</option>
+                  </select>
+                </div>
                 <div class="mt-4 space-y-3">
-                  @for (match of myMatches(); track match.matchId) {
-                    <a
-                      [routerLink]="['/torneos', match.tournamentId]"
-                      class="block rounded-lg border border-neutral-200 bg-neutral-50 p-4 transition hover:border-primary-300 hover:bg-primary-50"
-                    >
-                      <div class="flex items-start justify-between gap-3">
+                  @if (isOrganizer() || isUmpire()) {
+                    @for (tournament of (isOrganizer() ? paginatedSidebarTournaments() : paginatedSidebarUmpireTournaments()); track tournament.id) {
+                      <a
+                        [routerLink]="['/torneos', tournament.id]"
+                        class="surface-card-bg flex items-end justify-between gap-3 rounded-lg px-4 py-4 transition hover:brightness-110"
+                        [style.backgroundImage]="'url(' + getSurfaceImage(tournament.surfaceCategory) + ')'"
+                      >
                         <div class="min-w-0">
-                          <p class="truncate text-sm font-bold text-neutral-950">{{ match.tournamentName }}</p>
-                          <p class="mt-1 truncate text-xs font-medium uppercase tracking-widest text-neutral-500">{{ match.eventName }}</p>
+                          <h4 class="text-lg font-bold text-white drop-shadow-md">{{ tournament.formalName }}</h4>
+                          <p class="mt-1 text-sm text-white/85 drop-shadow-sm">{{ tournament.location }}</p>
                         </div>
-                        <span class="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700">R{{ match.roundNumber }}</span>
-                      </div>
+                        <div class="flex shrink-0 flex-col items-end gap-1">
+                          <div class="text-xs text-white/80">
+                            <span class="font-semibold text-white drop-shadow-sm">{{ tournament.playStartDate | date: 'dd/MM' }} - {{ tournament.playEndDate | date: 'dd/MM' }}</span>
+                            <span class="mx-1.5 text-white/40">|</span>
+                            <span class="font-semibold text-white drop-shadow-sm">{{ tournament.tournamentStartTime?.substring(0, 5) || 'Por definir' }}</span>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <span class="rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm {{ getStatusColorClasses(tournament.status) }}">{{ getStatusLabel(tournament.status) }}</span>
+                            @if (tournament.professionalTournament) {
+                              <span class="rounded-full bg-white/25 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">PRO</span>
+                            }
+                          </div>
+                        </div>
+                      </a>
+                    }
+                  } @else {
+                    @for (match of paginatedSidebarMatches(); track match.matchId) {
+                      <a
+                        [routerLink]="['/torneos', match.tournamentId]"
+                        class="block rounded-lg border border-neutral-200 bg-neutral-50 p-4 transition hover:border-primary-300 hover:bg-primary-50"
+                      >
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <p class="truncate text-sm font-bold text-neutral-950">{{ match.tournamentName }}</p>
+                            <p class="mt-1 truncate text-xs font-medium uppercase tracking-widest text-neutral-500">{{ match.eventName }}</p>
+                          </div>
+                          <span class="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700">R{{ match.roundNumber }}</span>
+                        </div>
 
-                      <div class="mt-3 text-sm text-neutral-700">
-                        <p class="font-semibold text-neutral-950">{{ match.firstParticipantName }}</p>
-                        <p class="text-neutral-600">{{ match.secondParticipantName }}</p>
-                      </div>
+                        <div class="mt-3 text-sm text-neutral-700">
+                          <p class="font-semibold text-neutral-950">{{ match.firstParticipantName }}</p>
+                          <p class="text-neutral-600">{{ match.secondParticipantName }}</p>
+                        </div>
 
-                      <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p class="text-xs uppercase tracking-widest text-neutral-500">Horario</p>
-                          <p class="mt-1 font-semibold text-neutral-900">
-                            {{ getSchedulePrefix(match.scheduleTimeType) }} {{ match.scheduledAt | date: 'dd/MM HH:mm' }}
-                          </p>
+                        <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p class="text-xs uppercase tracking-widest text-neutral-500">Horario</p>
+                            <p class="mt-1 font-semibold text-neutral-900">
+                              {{ getSchedulePrefix(match.scheduleTimeType) }} {{ match.scheduledAt | date: 'dd/MM HH:mm' }}
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-xs uppercase tracking-widest text-neutral-500">Pista</p>
+                            <p class="mt-1 font-semibold text-neutral-900">{{ match.court || 'Por definir' }}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p class="text-xs uppercase tracking-widest text-neutral-500">Pista</p>
-                          <p class="mt-1 font-semibold text-neutral-900">{{ match.court || 'Por definir' }}</p>
-                        </div>
-                      </div>
-                    </a>
+                      </a>
+                    }
                   }
                 </div>
+
+                @if (totalSidebarPages() > 1) {
+                  <nav class="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3">
+                    <span class="text-xs text-neutral-500">
+                      Pagina {{ currentSidebarPage() + 1 }} de {{ totalSidebarPages() }}
+                    </span>
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        (click)="sidebarPrevPage()"
+                        [disabled]="!canSidebarGoPrevious()"
+                        class="h-8 rounded-md border border-neutral-300 bg-white px-2.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Ant
+                      </button>
+                      <button
+                        type="button"
+                        (click)="sidebarNextPage()"
+                        [disabled]="!canSidebarGoNext()"
+                        class="h-8 rounded-md border border-neutral-300 bg-white px-2.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Sig
+                      </button>
+                    </div>
+                  </nav>
+                }
               }
             </div>
           </aside>
         </div>
       </div>
     </section>
+
+    @if (filterPanelOpen()) {
+      <div class="fixed inset-0 z-50 flex justify-end">
+        <div class="absolute inset-0 bg-black/40" (click)="filterPanelOpen.set(false)"></div>
+        <div class="relative flex h-full w-full max-w-md flex-col bg-white shadow-xl">
+          <div class="flex items-center justify-between border-b border-neutral-200 px-6 py-4">
+            <h2 class="text-lg font-bold text-neutral-950">Filtros</h2>
+            <button
+              type="button"
+              (click)="filterPanelOpen.set(false)"
+              class="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto px-6 py-5">
+            <form (ngSubmit)="applyFilters()" class="space-y-5">
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Desde</span>
+                <input
+                  type="date"
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="fromDate()"
+                  (ngModelChange)="fromDate.set($event)"
+                  name="fromDate"
+                />
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Hasta</span>
+                <input
+                  type="date"
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="toDate()"
+                  (ngModelChange)="toDate.set($event)"
+                  name="toDate"
+                />
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Superficie</span>
+                <select
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="surface() ?? ''"
+                  (ngModelChange)="onSurfaceChange($event)"
+                  name="surface"
+                >
+                  <option value="">Todas</option>
+                  @for (option of surfaceOptions; track option) {
+                    <option [value]="option">{{ getSurfaceLabel(option) }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Nombre</span>
+                <input
+                  type="search"
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  placeholder="Nombre del torneo"
+                  [ngModel]="name()"
+                  (ngModelChange)="name.set($event)"
+                  name="name"
+                />
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Ubicacion</span>
+                <input
+                  type="search"
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  placeholder="Club, ciudad o sede"
+                  [ngModel]="location()"
+                  (ngModelChange)="location.set($event)"
+                  name="location"
+                />
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Estado</span>
+                <select
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="status() ?? ''"
+                  (ngModelChange)="onStatusChange($event)"
+                  name="status"
+                >
+                  <option value="">Todos</option>
+                  @for (option of statusOptions; track option) {
+                    <option [value]="option">{{ getStatusLabel(option) }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-widest text-neutral-500">Partido pro</span>
+                <select
+                  class="h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500"
+                  [ngModel]="professionalTournamentFilter()"
+                  (ngModelChange)="onProfessionalTournamentChange($event)"
+                  name="professionalTournament"
+                >
+                  <option value="">Todos</option>
+                  <option value="true">PRO</option>
+                  <option value="false">No PRO</option>
+                </select>
+              </label>
+            </form>
+          </div>
+
+          <div class="flex gap-3 border-t border-neutral-200 px-6 py-4">
+            <button
+              type="button"
+              (click)="resetFilters(); filterPanelOpen.set(false)"
+              class="h-11 flex-1 rounded-lg border border-neutral-300 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+            >
+              Limpiar
+            </button>
+            <button
+              type="button"
+              (click)="applyFilters(); filterPanelOpen.set(false)"
+              [disabled]="isLoadingTournaments() || isLoadingSidebar()"
+              class="h-11 flex-1 rounded-lg bg-primary-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Aplicar
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `
 })
 export class CalendarComponent implements OnInit {
@@ -245,34 +422,112 @@ export class CalendarComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly surfaceOptions: TournamentSurfaceCategory[] = ['CLAY', 'HARD', 'GRASS', 'CARPET'];
+  readonly statusOptions: TournamentStatus[] = ['DRAFT', 'OPEN', 'CLOSED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
   readonly fromDate = signal(this.toDateInputValue(new Date()));
   readonly toDate = signal(this.toDateInputValue(this.addDays(new Date(), 90)));
   readonly surface = signal<TournamentSurfaceCategory | null>(null);
+  readonly status = signal<TournamentStatus | null>(null);
+  readonly professionalTournament = signal<boolean | null>(null);
+  readonly professionalTournamentFilter = signal('');
+  readonly name = signal('');
   readonly location = signal('');
   readonly tournaments = signal<TournamentCalendarResponse[]>([]);
   readonly myMatches = signal<PlayerMatchCalendarResponse[]>([]);
+  readonly myTournaments = signal<TournamentCalendarResponse[]>([]);
+  readonly myUmpireTournaments = signal<TournamentCalendarResponse[]>([]);
   readonly isLoadingTournaments = signal(false);
-  readonly isLoadingMatches = signal(false);
+  readonly isLoadingSidebar = signal(false);
   readonly tournamentsError = signal<string | null>(null);
-  readonly matchesError = signal<string | null>(null);
+  readonly sidebarError = signal<string | null>(null);
   readonly dateRangeError = signal<string | null>(null);
   readonly isLoggedIn = signal(false);
+  readonly userRole = signal<UserRole | null>(null);
+  readonly sidebarSortOrder = signal<'newest' | 'oldest'>('newest');
+  readonly filterPanelOpen = signal(false);
+
+  readonly currentPage = signal(0);
+  readonly totalElements = signal(0);
+  readonly totalPages = signal(0);
+  readonly pageSize = 10;
+
+  readonly sidebarPageSize = 5;
+  readonly sidebarPage = signal(0);
+
+  readonly isOrganizer = computed(() => this.userRole() === 'ORGANIZER');
+  readonly isUmpire = computed(() => this.userRole() === 'UMPIRE');
+
+  readonly sidebarItems = computed(() => {
+    if (this.isOrganizer()) {
+      return this.myTournaments();
+    } else if (this.isUmpire()) {
+      return this.myUmpireTournaments();
+    } else {
+      return this.myMatches();
+    }
+  });
+
+  readonly sortedSidebarTournaments = signal<TournamentCalendarResponse[]>([]);
+  readonly sortedSidebarUmpireTournaments = signal<TournamentCalendarResponse[]>([]);
+  readonly sortedSidebarMatches = signal<PlayerMatchCalendarResponse[]>([]);
 
   readonly tournamentGroups = computed<TournamentCalendarGroup[]>(() => {
     const groups = new Map<string, TournamentCalendarResponse[]>();
-
     for (const tournament of this.tournaments()) {
       const date = tournament.playStartDate;
       groups.set(date, [...(groups.get(date) ?? []), tournament]);
     }
-
     return Array.from(groups.entries()).map(([date, tournaments]) => ({
       date,
       tournaments
     }));
   });
 
+  readonly totalTournamentPages = computed(() => this.totalPages());
+  readonly canGoPrevious = computed(() => this.currentPage() > 0);
+  readonly canGoNext = computed(() => this.currentPage() + 1 < this.totalTournamentPages());
+
+  readonly totalSidebarPages = computed(() => {
+    return Math.max(1, Math.ceil(this.sidebarItems().length / this.sidebarPageSize));
+  });
+
+  readonly currentSidebarPage = computed(() => {
+    return Math.min(this.sidebarPage(), this.totalSidebarPages() - 1);
+  });
+
+  readonly canSidebarGoPrevious = computed(() => this.currentSidebarPage() > 0);
+  readonly canSidebarGoNext = computed(() => this.currentSidebarPage() + 1 < this.totalSidebarPages());
+
+  readonly paginatedSidebarTournaments = computed(() => {
+    const start = this.currentSidebarPage() * this.sidebarPageSize;
+    return this.sortedSidebarTournaments().slice(start, start + this.sidebarPageSize);
+  });
+
+  readonly paginatedSidebarUmpireTournaments = computed(() => {
+    const start = this.currentSidebarPage() * this.sidebarPageSize;
+    return this.sortedSidebarUmpireTournaments().slice(start, start + this.sidebarPageSize);
+  });
+
+  readonly paginatedSidebarMatches = computed(() => {
+    const start = this.currentSidebarPage() * this.sidebarPageSize;
+    return this.sortedSidebarMatches().slice(start, start + this.sidebarPageSize);
+  });
+
+  readonly activeFilterCount = computed(() => {
+    let count = 0;
+    const today = this.toDateInputValue(new Date());
+    const defaultTo = this.toDateInputValue(this.addDays(new Date(), 90));
+    if (this.fromDate() !== today) count++;
+    if (this.toDate() !== defaultTo) count++;
+    if (this.surface()) count++;
+    if (this.status()) count++;
+    if (this.professionalTournament() !== null) count++;
+    if (this.name().trim()) count++;
+    if (this.location().trim()) count++;
+    return count;
+  });
+
   getSurfaceLabel = getTournamentSurfaceCategoryLabel;
+  getSurfaceImage = getSurfaceBackgroundImage;
 
   ngOnInit(): void {
     this.loadTournaments();
@@ -281,11 +536,25 @@ export class CalendarComponent implements OnInit {
       .subscribe(isLoggedIn => {
         this.isLoggedIn.set(isLoggedIn);
         if (isLoggedIn) {
-          this.loadMatches();
+          this.loadSidebarData();
         } else {
           this.myMatches.set([]);
-          this.matchesError.set(null);
-          this.isLoadingMatches.set(false);
+          this.myTournaments.set([]);
+          this.myUmpireTournaments.set([]);
+          this.sortedSidebarMatches.set([]);
+          this.sortedSidebarTournaments.set([]);
+          this.sortedSidebarUmpireTournaments.set([]);
+          this.sidebarError.set(null);
+          this.isLoadingSidebar.set(false);
+        }
+      });
+
+    this.authService.role$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(role => {
+        this.userRole.set(role);
+        if (this.isLoggedIn()) {
+          this.loadSidebarData();
         }
       });
   }
@@ -294,10 +563,11 @@ export class CalendarComponent implements OnInit {
     if (!this.isDateRangeValid()) {
       return;
     }
-
+    this.currentPage.set(0);
+    this.sidebarPage.set(0);
     this.loadTournaments();
     if (this.isLoggedIn()) {
-      this.loadMatches();
+      this.loadSidebarData();
     }
   }
 
@@ -305,12 +575,78 @@ export class CalendarComponent implements OnInit {
     this.fromDate.set(this.toDateInputValue(new Date()));
     this.toDate.set(this.toDateInputValue(this.addDays(new Date(), 90)));
     this.surface.set(null);
+    this.status.set(null);
+    this.professionalTournament.set(null);
+    this.professionalTournamentFilter.set('');
+    this.name.set('');
     this.location.set('');
     this.applyFilters();
   }
 
   onSurfaceChange(value: string): void {
     this.surface.set(value ? value as TournamentSurfaceCategory : null);
+  }
+
+  onStatusChange(value: string): void {
+    this.status.set(value ? value as TournamentStatus : null);
+  }
+
+  onProfessionalTournamentChange(value: string): void {
+    this.professionalTournamentFilter.set(value);
+    this.professionalTournament.set(value === '' ? null : value === 'true');
+  }
+
+  goToPreviousPage(): void {
+    if (this.canGoPrevious()) {
+      this.currentPage.update(p => p - 1);
+      this.loadTournaments();
+    }
+  }
+
+  goToNextPage(): void {
+    if (this.canGoNext()) {
+      this.currentPage.update(p => p + 1);
+      this.loadTournaments();
+    }
+  }
+
+  sidebarPrevPage(): void {
+    if (this.canSidebarGoPrevious()) {
+      this.sidebarPage.update(p => p - 1);
+    }
+  }
+
+  sidebarNextPage(): void {
+    if (this.canSidebarGoNext()) {
+      this.sidebarPage.update(p => p + 1);
+    }
+  }
+
+  sortSidebarItems(): void {
+    const order = this.sidebarSortOrder();
+    this.sidebarPage.set(0);
+    if (this.isOrganizer()) {
+      const sorted = [...this.myTournaments()].sort((a, b) => {
+        const dateA = new Date(a.playStartDate).getTime();
+        const dateB = new Date(b.playStartDate).getTime();
+        return order === 'newest' ? dateB - dateA : dateA - dateB;
+      });
+      this.sortedSidebarTournaments.set(sorted);
+    } else if (this.isUmpire()) {
+      const sorted = [...this.myUmpireTournaments()].sort((a, b) => {
+        const dateA = new Date(a.playStartDate).getTime();
+        const dateB = new Date(b.playStartDate).getTime();
+        return order === 'newest' ? dateB - dateA : dateA - dateB;
+      });
+      this.sortedSidebarUmpireTournaments.set(sorted);
+    } else {
+      const sorted = [...this.myMatches()].sort((a, b) => {
+        const dateA = new Date(a.scheduledAt).getTime();
+        const dateB = new Date(b.scheduledAt).getTime();
+        return order === 'newest' ? dateB - dateA : dateA - dateB;
+      });
+      this.sortedSidebarMatches.set(sorted);
+    }
   }
 
   getDateGroupLabel(date: string): string {
@@ -323,12 +659,26 @@ export class CalendarComponent implements OnInit {
 
   getStatusLabel(status: string): string {
     const labels: Record<string, string> = {
+      DRAFT: 'Borrador',
       OPEN: 'Inscripciones abiertas',
       CLOSED: 'Inscripciones cerradas',
-      IN_PROGRESS: 'En juego'
+      IN_PROGRESS: 'En juego',
+      COMPLETED: 'Finalizado',
+      CANCELLED: 'Cancelado'
     };
-
     return labels[status] ?? status;
+  }
+
+  getStatusColorClasses(status: string): string {
+    const colors: Record<string, string> = {
+      DRAFT: 'bg-neutral-400/30 text-neutral-100 border border-neutral-300/30',
+      OPEN: 'bg-blue-500/30 text-blue-100 border border-blue-400/30',
+      CLOSED: 'bg-amber-500/30 text-amber-100 border border-amber-400/30',
+      IN_PROGRESS: 'bg-sky-500/30 text-sky-100 border border-sky-400/30',
+      COMPLETED: 'bg-emerald-500/30 text-emerald-100 border border-emerald-400/30',
+      CANCELLED: 'bg-red-500/30 text-red-100 border border-red-400/30'
+    };
+    return colors[status] ?? 'bg-primary-500/30 text-primary-100 border border-primary-400/30';
   }
 
   getSchedulePrefix(scheduleTimeType: string | null | undefined): string {
@@ -343,9 +693,15 @@ export class CalendarComponent implements OnInit {
     this.isLoadingTournaments.set(true);
     this.tournamentsError.set(null);
 
-    this.tournamentService.getPublishedTournamentCalendar(this.currentFilters()).subscribe({
-      next: tournaments => {
-        this.tournaments.set(tournaments);
+    this.tournamentService.getPublishedTournamentCalendar({
+      ...this.currentFilters(),
+      page: this.currentPage(),
+      size: this.pageSize
+    }).subscribe({
+      next: result => {
+        this.tournaments.set(result.content);
+        this.totalElements.set(result.totalElements);
+        this.totalPages.set(result.totalPages);
         this.isLoadingTournaments.set(false);
       },
       error: error => {
@@ -355,22 +711,73 @@ export class CalendarComponent implements OnInit {
     });
   }
 
-  private loadMatches(): void {
+  private loadSidebarData(): void {
     if (!this.isDateRangeValid()) {
       return;
     }
 
-    this.isLoadingMatches.set(true);
-    this.matchesError.set(null);
+    this.isLoadingSidebar.set(true);
+    this.sidebarError.set(null);
 
+    if (this.isOrganizer()) {
+      this.loadMyTournaments();
+    } else if (this.isUmpire()) {
+      this.loadMyUmpireTournaments();
+    } else {
+      this.loadMyMatches();
+    }
+  }
+
+  private loadMyUmpireTournaments(): void {
+    this.tournamentService.getUmpireTournaments().subscribe({
+      next: tournaments => {
+        const mapped: TournamentCalendarResponse[] = tournaments.map(t => ({
+          id: t.id,
+          formalName: t.formalName,
+          playStartDate: t.playStartDate,
+          playEndDate: t.playEndDate,
+          tournamentStartTime: t.tournamentStartTime,
+          location: t.location,
+          surfaceCategory: t.surfaceCategory,
+          maxPlayers: t.maxPlayers,
+          status: t.status,
+          professionalTournament: t.professionalTournament ?? false
+        }));
+        this.myUmpireTournaments.set(mapped);
+        this.sortSidebarItems();
+        this.isLoadingSidebar.set(false);
+      },
+      error: error => {
+        this.sidebarError.set(getApiErrorMessage(error, 'No se pudieron cargar tus arbitrajes.'));
+        this.isLoadingSidebar.set(false);
+      }
+    });
+  }
+
+  private loadMyMatches(): void {
     this.tournamentService.getMyMatchCalendar(this.currentFilters()).subscribe({
       next: matches => {
         this.myMatches.set(matches);
-        this.isLoadingMatches.set(false);
+        this.sortSidebarItems();
+        this.isLoadingSidebar.set(false);
       },
       error: error => {
-        this.matchesError.set(getApiErrorMessage(error, 'No se pudieron cargar tus partidos.'));
-        this.isLoadingMatches.set(false);
+        this.sidebarError.set(getApiErrorMessage(error, 'No se pudieron cargar tus partidos.'));
+        this.isLoadingSidebar.set(false);
+      }
+    });
+  }
+
+  private loadMyTournaments(): void {
+    this.tournamentService.getMyTournamentCalendar(this.currentFilters()).subscribe({
+      next: tournaments => {
+        this.myTournaments.set(tournaments);
+        this.sortSidebarItems();
+        this.isLoadingSidebar.set(false);
+      },
+      error: error => {
+        this.sidebarError.set(getApiErrorMessage(error, 'No se pudieron cargar tus torneos.'));
+        this.isLoadingSidebar.set(false);
       }
     });
   }
@@ -380,7 +787,10 @@ export class CalendarComponent implements OnInit {
       from: this.fromDate(),
       to: this.toDate(),
       surface: this.surface(),
-      location: this.location()
+      location: this.location(),
+      name: this.name(),
+      professionalTournament: this.professionalTournament(),
+      status: this.status()
     };
   }
 
@@ -389,7 +799,6 @@ export class CalendarComponent implements OnInit {
       this.dateRangeError.set('La fecha final debe ser posterior a la fecha inicial.');
       return false;
     }
-
     this.dateRangeError.set(null);
     return true;
   }

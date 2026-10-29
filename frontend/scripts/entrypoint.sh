@@ -1,11 +1,11 @@
 #!/bin/sh
 set -eu
 
-TEMPLATE_PATH="/app/dist/puntomatch/browser/config.template.json"
-CONFIG_PATH="/app/dist/puntomatch/browser/config.json"
+TEMPLATE_PATH="/app/dist/tfm_front/browser/config.template.json"
+CONFIG_PATH="/app/dist/tfm_front/browser/config.json"
 
 if [ -f "$TEMPLATE_PATH" ]; then
   envsubst < "$TEMPLATE_PATH" > "$CONFIG_PATH"
 fi
 
-exec node dist/puntomatch/server/server.mjs
+exec node dist/tfm_front/server/server.mjs

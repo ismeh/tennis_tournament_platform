@@ -9,5 +9,5 @@ import { AppLayoutComponent } from './layout/app-layout';
   styleUrl: './app.css'
 })
 export class App {
-  protected readonly title = signal('PuntoMatch');
+  protected readonly title = signal('tfm_front');
 }

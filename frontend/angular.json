@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "puntomatch": {
+    "tfm_front": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -22,8 +22,11 @@
               }
             ],
             "styles": [
+              "src/fonts.css",
               "src/custom-theme.scss",
-              "src/styles.css"
+              "src/styles.css",
+              "node_modules/leaflet/dist/leaflet.css",
+              "src/flag-icons.scss"
             ],
             "server": "src/main.server.ts",
             "outputMode": "server",
@@ -36,8 +39,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "1.5MB",
+                  "maximumError": "2.2MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -65,10 +68,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "puntomatch:build:production"
+              "buildTarget": "tfm_front:build:production"
             },
             "development": {
-              "buildTarget": "puntomatch:build:development"
+              "buildTarget": "tfm_front:build:development"
             }
           },
           "defaultConfiguration": "development"

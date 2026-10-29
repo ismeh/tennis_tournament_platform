@@ -1,90 +1,89 @@
 # Frontend - Tennis Tournament Platform
 
-Aplicación web en Angular 20 con SSR (Server-Side Rendering) para la plataforma de torneos de tenis.
+Angular 20 SSR application for the Tennis Tournament Platform user interface.
 
-## Requisitos
+## Requirements
 
-- Node.js 20+
+- Node.js 24 (recommended)
 - npm 10+
 
-Comprobar versiones:
+Check versions:
 
 ```bash
 node -v
 npm -v
 ```
 
-## Instalación
+## Installation
 
-Desde la carpeta `frontend/`:
+From the `frontend/` folder:
 
 ```bash
-npm install
+npm ci
 ```
 
-## Puesta en marcha en desarrollo
+## Run in Development
 
-1. Arrancar el frontend:
+1. Start the frontend:
 
 ```bash
 npm run start
 ```
 
-2. Abrir en navegador:
+2. Open in the browser:
 
 - `http://localhost:4200`
 
-Notas:
+Notes:
 
-- `start` usa la configuración `development` (definida en `angular.json`).
-- El frontend lee la API desde `public/config.json` en runtime.
-- Puedes usar `http://localhost:8080/api` para desarrollo local, sin recompilar Angular para cambiarlo.
+- `start` uses the `development` configuration defined in `angular.json`.
+- The frontend API target is currently `http://localhost:8080/api` (`src/app/shared/constants.ts` and runtime `public/config.json`), matching the default backend port for Docker Compose, `dev`, and `devH2`.
 
-## Build y ejecución en producción
+## Production Build and SSR Runtime
 
-### 1) Generar build de producción
+### 1) Build production assets
 
 ```bash
 npm run build
 ```
 
-Esto genera los artefactos en `dist/puntomatch/`.
+Artifacts are generated in `dist/tfm_front/`.
 
-### 2) Ejecutar servidor SSR de producción
-
-```bash
-npm run serve:ssr:puntomatch
-```
-
-Por defecto escucha en `http://localhost:4000`.
-
-Para cambiar el puerto:
+### 2) Run SSR server
 
 ```bash
-PORT=8080 npm run serve:ssr:puntomatch
+npm run serve:ssr:tfm_front
 ```
 
-## Entornos y configuración de logs
+Default URL: `http://localhost:4000`
 
-Se usa el enfoque nativo de Angular con archivos de entorno:
+Change port:
 
-- Producción: `src/environments/environment.ts`
-- Desarrollo: `src/environments/environment.development.ts`
+```bash
+PORT=8080 npm run serve:ssr:tfm_front
+```
 
-Configuración actual del logger:
+## Environments and Logging
 
-- Desarrollo:
-	- `enableConsole: true`
-	- `minLogLevel: INFO`
-- Producción:
-	- `enableConsole: false`
-	- `minLogLevel: ERROR`
+The project uses native Angular environment files:
 
-El reemplazo de archivos por entorno está configurado en `angular.json` con `fileReplacements` para `development`.
+- Production: `src/environments/environment.ts`
+- Development: `src/environments/environment.development.ts`
 
-## Configuración runtime de API (local + Docker)
+Current logger behavior:
 
-El frontend lee la URL de API en runtime desde `public/config.json`:
+- Development:
+  - `enableConsole: true`
+  - `minLogLevel: INFO`
+- Production:
+  - `enableConsole: false`
+  - `minLogLevel: ERROR`
+
+Environment file replacement is configured in `angular.json` via `fileReplacements`.
+
+## Runtime API Configuration (Local + Docker)
+
+The frontend reads the API URL at runtime from `public/config.json`:
 
 ```json
 {
@@ -93,63 +92,226 @@ El frontend lee la URL de API en runtime desde `public/config.json`:
 }
 ```
 
-- En local (`npm run start`): se usa directamente `public/config.json`.
-- En Docker: se usa `public/config.template.json` y el contenedor genera `config.json` al arrancar con variables de entorno (`API_URL`, `PRODUCTION`).
+- Local (`npm run start`): uses `public/config.json` directly.
+- Docker: uses `public/config.template.json` and the container generates `config.json` at startup using environment variables (`API_URL`, `PRODUCTION`).
 
-El script de arranque de contenedor está en `scripts/entrypoint.sh`.
+The container startup script is located at `scripts/entrypoint.sh`.
 
-## Scripts útiles
+## Useful Scripts
 
 ```bash
-# Servidor de desarrollo
+# Development server
 npm run start
 
-# Build de producción
+# Production build
 npm run build
 
-# Build en modo desarrollo (watch)
+# Development build with watch
 npm run watch
 
-# Tests unitarios
+# Unit tests
 npm run test
+
+# CI-style tests
+npm run test:ci
+
+# Performance testing
+npm run lighthouse              # Run all Lighthouse tests
+npm run lighthouse:collect     # Collect Lighthouse data
+npm run lighthouse:assert      # Assert performance thresholds
+./run-lighthouse-tests.sh      # Full performance test suite
+
+# Formatting
+npm run format
 ```
 
-## Estructura principal
+## Testing
+
+The frontend uses Jasmine and Karma for unit testing, with Angular's testing utilities for component and service validation.
+
+### Test Types
+
+**Unit Tests** (`*.spec.ts` files):
+- Component logic and event handling
+- Service method behavior
+- Pipe transformations
+- Route guard logic
+
+**Component Tests**:
+- Template binding validation
+- Input/output property testing
+- Lifecycle hook behavior
+- Dependency injection verification
+
+**Performance Tests** (Lighthouse):
+- Core Web Vitals (FCP, LCP, CLS, TBT)
+- Performance scoring
+- Accessibility auditing
+- SEO optimization checks
+
+### Running Tests
+
+```bash
+# Single run with coverage (CI mode)
+npm run test:ci
+
+# Watch mode for development
+npm run test
+
+# Run specific test file
+ng test --include='**/header.component.spec.ts'
+
+# Run with code coverage
+ng test --code-coverage
+
+# Headless browser (CI environments)
+CHROME_BIN=$(which chromium-browser) npm run test:ci
+```
+
+### Performance Testing with Lighthouse
+
+Lighthouse audits measure performance, accessibility, best practices, and SEO metrics.
+
+```bash
+# Build frontend and run Lighthouse
+./run-lighthouse-tests.sh
+
+# Or run manually:
+npm run build
+npm run serve:ssr:tfm_front &
+# Wait for server to start
+npx lhci autorun
+```
+
+**Lighthouse Metrics Tracked**:
+- Performance score (target: >70)
+- First Contentful Paint (FCP): <3s
+- Largest Contentful Paint (LCP): <4s
+- Total Blocking Time (TBT): <500ms
+- Cumulative Layout Shift (CLS): <0.1
+- Accessibility score (target: >80)
+- Best Practices score (target: >80)
+- SEO score (target: >80)
+
+**Configuration**: See `lighthouserc.json` for test URLs and thresholds.
+
+**Reports**: Generated in `lighthouse-reports/` directory.
+
+### Writing New Tests
+
+**For components**:
+```typescript
+describe('ComponentNameComponent', () => {
+  let component: ComponentNameComponent;
+  let fixture: ComponentFixture<ComponentNameComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ComponentNameComponent],
+      // Add providers, mock services
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ComponentNameComponent);
+    component = fixture.componentInstance;
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should handle input change', () => {
+    component.inputProperty = 'test';
+    fixture.detectChanges();
+    expect(component.output).toEqual('expected');
+  });
+});
+```
+
+**For services**:
+```typescript
+describe('ServiceNameService', () => {
+  let service: ServiceNameService;
+  let httpClient: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [ServiceNameService],
+      imports: [HttpClientTestingModule]
+    });
+
+    service = TestBed.inject(ServiceNameService);
+    httpClient = TestBed.inject(HttpTestingController);
+  });
+
+  it('should make HTTP call', () => {
+    service.getData().subscribe(data => {
+      expect(data).toEqual(expectedData);
+    });
+
+    const req = httpClient.expectOne('/api/data');
+    req.flush(expectedData);
+  });
+});
+```
+
+### Test Configuration
+
+**Karma Config** (`karma.conf.js`):
+- Chrome/Chromium browser launcher
+- Jasmine framework
+- Angular CLI builder
+- Coverage reporters (lcov, text)
+
+**Angular Test Config** (`angular.json`):
+- Test builder: `@angular-devkit/build-angular:karma`
+- TypeScript compilation for tests
+- Source maps for debugging
+
+### Current Coverage
+
+The frontend includes 69 tests covering:
+- Core authentication flows
+- Shared components (header, footer)
+- Data services
+- Route guards
+- Utility functions and pipes
+
+### Troubleshooting Tests
+
+**Common issues**:
+- **Browser not found**: Set `CHROME_BIN` environment variable
+- **Memory issues**: Use `--no-watch` flag or increase Node memory
+- **Flaky tests**: Ensure proper async handling with `async/await`
+- **Import errors**: Verify all dependencies are installed with `npm ci`
+
+## Main Structure
 
 ```text
 src/app/
-	core/         # Auth, interceptores y servicios globales
-	data/         # Interfaces y servicios HTTP
-	features/     # Páginas funcionales
-	components/   # Componentes compartidos de UI
-	layout/       # Layout base
-	shared/       # Constantes y utilidades reutilizables
+  core/         # Authentication, interceptors, global services
+  data/         # Interfaces and HTTP services
+  features/     # Feature/page components
+  components/   # Shared UI components
+  layout/       # Base application layout
+  shared/       # Constants and reusable utilities
 ```
 
-## Diagrama de arquitectura frontend
+## Frontend Architecture
 
-![arquitectura-front](docs/images/frontend-data-flow.png)
+Flow summary:
 
-Resumen del flujo:
+1. Router loads the active feature view.
+2. Feature components call `data/services` for API interactions.
+3. Auth interceptor adds JWT tokens to outgoing HTTP requests.
+4. API responses are rendered by the component layer.
 
-1. El router carga la feature según la ruta activa.
-2. La feature usa servicios de la capa data para solicitar datos.
-3. El interceptor añade token JWT a las peticiones HTTP.
-4. La API responde y los datos vuelven al componente para renderizar UI.
+See full system architecture in [`../docs/architecture.md`](../docs/architecture.md).
 
-## Troubleshooting rápido
+## Troubleshooting
 
 - `EADDRINUSE: address already in use`
-	- El puerto está ocupado. Cambia el puerto o cierra el proceso previo.
-- Errores CORS o llamadas API fallando
-	- Verifica que el backend esté activo en el puerto esperado (`8085` en dev).
-- Build funciona pero no arranca SSR
-	- Ejecuta primero `npm run build` y después `npm run serve:ssr:puntomatch`.
-
-## Mejoras recomendadas para este README
-
-1. Añadir diagrama simple de arquitectura frontend (routing, auth interceptor, capa data).
-2. Incluir una sección "Primer flujo funcional" (login -> listado torneos -> detalle).
-3. Documentar estrategia de despliegue (PM2, Docker o reverse proxy) para producción real.
-4. Añadir tabla de compatibilidad de versiones (Node, Angular CLI, npm).
-5. Incluir checklist de validación antes de PR (`npm run build` y `npm run test`).
+  - The port is already occupied. Change the port or stop the existing process.
+- CORS errors or failing API requests
+  - Verify that backend is running on the configured API URL (`http://localhost:8080/api`).
+- SSR does not start after a successful build
+  - Run `npm run build` first, then `npm run serve:ssr:tfm_front`.

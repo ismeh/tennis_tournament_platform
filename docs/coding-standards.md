@@ -25,7 +25,7 @@ All agents and contributors must follow these standards.
 | Methods | camelCase | `findById`, `createTournament` |
 | Variables | camelCase | `tournamentList` |
 | Constants | UPPER_SNAKE_CASE | `MAX_PARTICIPANTS` |
-| Packages | lowercase, dot-separated | `com.puntomatch.application.services` |
+| Packages | lowercase, dot-separated | `com.tfm.tennis_platform.application.services` |
 | Test methods | snake_case describing behavior | `should_return_tournament_when_found_by_id` |
 
 ### Class Structure

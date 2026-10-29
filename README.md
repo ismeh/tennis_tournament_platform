@@ -1,219 +1,223 @@
-# PuntoMatch
+# Tennis Tournament Platform
 
-**Every tennis tournament, in one place.**
+[![Build](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/build.yml/badge.svg)](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/build.yml)
+[![Tests](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/test.yml/badge.svg)](https://github.com/ismeh/tennis_tournament_platform/actions/workflows/test.yml)
+[![Live Website](https://img.shields.io/website?label=live%20website&up_message=available&down_message=down&url=https%3A%2F%2Fpuntomatch.istr.es%2F)](https://puntomatch.istr.es/)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ismeh/tennis_tournament_platform)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-Spreadsheets, WhatsApp groups, a sign-up sheet taped to the clubhouse door. That is how most tennis
-tournaments are still run. **PuntoMatch** replaces all of it with a single, clean workspace where a
-club or an organiser can publish a tournament, configure its draws, open inscriptions and schedule
-every match on the right court at the right time.
+Web platform for managing tennis tournaments, participants, and match workflows.
 
-PuntoMatch was presented as a **Master's Final Project (TFM)** for the Master's Degree in
-Engineering.
+## Purpose
 
-![PuntoMatch home page](docs/screenshots/home.png)
+This project provides a full-stack baseline for running tennis competitions with:
 
-## Why organisers choose PuntoMatch
+- Tournament creation and listing
+- Authentication (JWT)
+- Participant and event management foundations
+- SSR frontend for user-facing flows
 
-- **Publish a tournament in minutes.** Name it, pick the surface, set the venue, the courts and the
-  dates, say how many players fit. PuntoMatch takes care of the inscription window, the competition
-  state and who owns the tournament.
-- **Build the whole competition, not just a list.** Choose the categories (absolute, veterans,
-  cadets, juniors…), decide whether each one is men's, women's or mixed, and let PuntoMatch generate
-  the stages and the single-elimination brackets for you.
-- **Schedule it on real courts.** Define the club's courts and assign every match a court and a
-  time. Players get their own agenda in the calendar view.
-- **Take inscriptions seriously.** Players apply from their account, organisers can register
-  participants manually, and professional players can be pulled in from the RFET ranking import.
-- **Never lose track of where you are.** Every tournament moves through a clear lifecycle
-  (_draft → open → closed → in progress → completed_), and only the transitions that make sense are
-  offered. Consolation brackets keep first-round losers playing.
-- **Accounts that mean something.** Sign-up with email confirmation, a profile linked to a real
-  person (name, nationality, birth date, federation licence) and a JWT session that survives
-  refreshes.
-- **Made for Spanish tennis.** The whole experience is in Spanish — from the routes to the labels —
-  so club staff and players feel at home from the first click.
+## Audience
 
-![PuntoMatch features](docs/screenshots/home-features.png)
+- Coaches, clubs, and organizers who need tournament operations tooling
+- Developers extending a reference full-stack architecture (Angular + Spring Boot + PostgreSQL)
 
-## Screenshots
+## Key Features
 
-| Tournaments list | Tournament detail |
-|---|---|
-| ![Tournaments list](docs/screenshots/tournaments.png) | ![Tournament detail](docs/screenshots/tournament-detail.png) |
+- Angular 20 frontend with SSR
+- Spring Boot backend following hexagonal architecture principles
+- PostgreSQL persistence (with seed data for local startup)
+- Docker Compose orchestration for local environments
 
-**Create a tournament** — dates, courts, capacity and the categories it will host:
+## Architecture at a Glance
 
-![Create tournament](docs/screenshots/tournament-create.png)
+- **Frontend**: Angular SSR app (`/frontend`)
+- **Backend**: Spring Boot REST API (`/backend`)
+- **Database**: PostgreSQL container
+- **Orchestration**: Docker Compose (`/compose.yaml`)
 
-| Sign in | Create an account |
-|---|---|
-| ![Login](docs/screenshots/login.png) | ![Register](docs/screenshots/register.png) |
+Detailed architecture: [`/docs/architecture.md`](./docs/architecture.md)
 
-> Screenshots taken from a local run with the sample data shipped in
-> `backend/src/main/resources/db/seed/V1000__seed_dev_data.sql`.
+## Quick Start (Docker)
 
-## Try it in five minutes
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/ismeh/tennis_tournament_platform.git
+   cd tennis_tournament_platform
+   ```
+2. Create environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+3. Start all services using the published backend and frontend images:
+   ```bash
+   docker compose up
+   ```
 
-### What you need
-
-| Tool | Version | Notes |
-|---|---|---|
-| Docker | with Compose v2 | runs PostgreSQL, the API and the Angular app |
-| JDK | 25 | only for running the backend outside Docker |
-| Node.js | 20.19+ / 22.12+ / 24 | only for running the frontend outside Docker |
-
-### Start everything with Docker
+To build the backend and frontend images from the current local source code instead of pulling the published images, add the local override:
 
 ```bash
-cp .env.example .env      # adjust secrets if you like
-docker compose up --build
+docker compose -f compose.yaml -f compose.local.yaml up --build
 ```
 
-That brings up:
+In this mode, `compose.yaml` remains the base orchestration file for PostgreSQL, ports, environment variables, dependencies, and published image defaults. `compose.local.yaml` only overrides the backend and frontend services with local Docker builds and `pull_policy: build`, so Docker Compose builds the local images instead of trying to pull `tennis-backend:local` or `tennis-frontend:local` from a registry:
 
-| Service | URL | Notes |
-|---|---|---|
-| Frontend | http://localhost:4200 | Angular app served with SSR |
-| Backend API | http://localhost:8080/api | Spring Boot |
-| PostgreSQL | localhost:5432 | schema created by Flyway migrations |
+- Backend: `./backend/Dockerfile`
+- Frontend: `./frontend/Dockerfile`
 
-The template already sets `EMAIL_CONFIRMATION_REQUIRED=false`, so accounts created locally can sign
-in without waiting for a confirmation email.
+For HTTPS local development, a public Nginx demo, or a production AWS EC2 setup, follow the guide in [`/docs/deployment-https.md`](./docs/deployment-https.md). The important rule is that `FRONTEND_API_URL` must match the public URL used by the browser: `http://localhost:8080/api` for plain local HTTP, `https://localhost/api` for local Nginx HTTPS, or `https://your-domain/api` for public/EC2 deployments.
 
-### Or run it from source
+### Default Docker Compose URLs
 
-```bash
-# 1. database only
-docker compose up -d postgres
-
-# 2. API (http://localhost:8080)
-cd backend
-export JAVA_HOME=/path/to/jdk-25
-export DATASOURCE_URL=jdbc:postgresql://localhost:5432/demo-tfm
-export DB_USER=postgres-tfm
-export DB_PASSWORD=secret
-export EMAIL_CONFIRMATION_REQUIRED=false
-# optional: also load the sample tournament and players
-export SPRING_FLYWAY_LOCATIONS='classpath:db/migration,classpath:db/seed'
-./mvnw spring-boot:run
-
-# 3. frontend (http://localhost:4200) — reads the API URL from public/config.json
-cd frontend
-npm install
-npm start
-```
-
-### Demo accounts
-
-The seed data creates one account per sample player, all with the password `password`:
-
-| Email | Tier |
+| Service | URL |
 |---|---|
-| `rafa@example.com` | `ADVANCED` |
-| `roger@example.com` | `ADVANCED` |
-| `serena@example.com` | `ADVANCED` |
-| `iga@example.com` | `ADVANCED` |
-| `novak@example.com` | `ADVANCED` |
-| `coco@example.com` | `INTERMEDIATE` |
+| Frontend | http://localhost:4200 |
+| Backend API | http://localhost:8080/api |
+| PostgreSQL | localhost:5432 |
 
-Sign in as `rafa@example.com` to find the _Open de Primavera 2026_ tournament already configured
-with its categories, stages and draws.
+For non-Docker local development, the backend PostgreSQL `dev` profile and `devH2` profile default to `http://localhost:8080`, unless `BACKEND_PORT` is set.
 
----
+### Default Credentials
 
-## Under the hood
+Sample users are seeded from SQL scripts, but plaintext passwords are not documented in the repository. For local login, use the public registration/login endpoints described in [`/docs/api-spec.md`](./docs/api-spec.md) (`http://localhost:8080` with Docker Compose, local PostgreSQL `dev`, `devH2`, or the configured `BACKEND_PORT`).
 
-Everything below is for developers and reviewers.
+## Local Development (Without Docker)
 
-### Stack
+### Supported Toolchain Matrix
 
-| Layer | Stack |
+| Component | Version |
 |---|---|
-| Backend | Java 25, Spring Boot 4.0, Spring Security (JWT), Spring Data JPA, Flyway, MapStruct, PostgreSQL 18 |
-| Frontend | Angular 20 (standalone components, SSR, zoneless change detection), TailwindCSS 3, Angular Material |
-| Tooling | Maven wrapper, npm, Docker Compose, Karma + Jasmine, JUnit 5 + Mockito |
-
-```
-backend/     Java 25 + Spring Boot API (hexagonal: domain ← application ← infrastructure)
-frontend/    Angular 20 SPA with SSR
-docs/        architecture, domain model, API spec, coding standards, screenshots
-compose.yaml PostgreSQL + API + frontend for local use
-```
+| Java | 25 |
+| Maven | 3.8+ |
+| Node.js | 24 (recommended) |
+| npm | 10+ |
+| Angular | 20.x |
+| PostgreSQL | 18 (container default) |
 
 ### Backend
 
-Hexagonal architecture, with the dependency rule `domain ← application ← infrastructure`:
-
-- `domain/port/in/` — use cases, `domain/port/out/` — repository ports
-- `application/services/` — `TournamentService`, `AuthService`, `InscriptionService`,
-  `MatchGenerationService`, `CalendarService`, `ProPlayerQueryService`…
-- `infrastructure/` — REST controllers and DTOs, JPA entities, adapters, mappers, security
-- `resources/db/migration/` — Flyway migrations; `resources/db/seed/` — optional sample data
-
-The flow for a new feature is: port out → persistence adapter → service → controller + DTO, mapping
-across layer boundaries with MapStruct.
+```bash
+cd backend
+./mvnw clean install
+./mvnw spring-boot:run
+```
 
 ### Frontend
 
-Feature-based standalone components, routed from `frontend/src/app/app.routes.ts`:
-
-| Route | Page |
-|---|---|
-| `/` | Landing page |
-| `/torneos` | Tournament list (requires session) |
-| `/torneos/crear` | Tournament creation form with categories, modalities and stages |
-| `/torneos/:id` | Tournament detail: overview, configuration, inscriptions, registered players, draws |
-| `/calendario` | Calendar of published tournaments and the player's scheduled matches |
-| `/perfil` | Complete the player profile |
-| `/login`, `/register`, `/confirmar-email` | Authentication and email confirmation |
-| `/como-funciona`, `/contacto` | Placeholder pages |
-
-HTTP services live in `app/data/services/`, return `Observable`s and never subscribe internally.
-Change detection is zoneless: the views update through signals and the `async` pipe. The API URL is
-resolved at runtime from `public/config.json` (or the `API_URL` environment variable when running
-SSR in Docker).
-
-### Commands
-
-**Backend**
-
 ```bash
-./mvnw test
-./mvnw test -Dtest=TournamentServiceTest
-./mvnw compile
+cd frontend
+npm ci
+npm run start
 ```
 
-**Frontend**
+## Repository Map
+
+| Path | Ownership / Responsibility |
+|---|---|
+| [`/backend`](./backend) | Spring Boot API, domain/application/infrastructure layers, persistence, security |
+| [`/frontend`](./frontend) | Angular SSR UI, feature routes, auth flows, API client layer |
+| [`/docs`](./docs) | Architecture, API specification, domain model, coding standards |
+| [`/compose.yaml`](./compose.yaml) | Base multi-service orchestration using published frontend/backend images |
+| [`/compose.local.yaml`](./compose.local.yaml) | Docker Compose override that builds frontend/backend images locally |
+| [`/.env.example`](./.env.example) | Environment variable template for local setup |
+
+Component-specific guides:
+
+- Backend: [`/backend/README.md`](./backend/README.md)
+- Frontend: [`/frontend/README.md`](./frontend/README.md)
+- HTTPS local and cheap demo deployment: [`/docs/deployment-https.md`](./docs/deployment-https.md)
+
+## Contributing
+
+### Common Commands
 
 ```bash
-npm run build              # production build with SSR
-npm run test:headless      # single run; `npm test` stays in watch mode
-npm run test:ci            # single run with coverage
-npm run format             # Prettier
+# Backend
+cd backend && ./mvnw test
+
+# Frontend
+cd frontend && npm run test:ci
+cd frontend && npm run build
+cd frontend && npm run format
 ```
 
-`test:headless` and `test:ci` use the `ChromeHeadlessNoSandbox` launcher. Set `CHROME_BIN` if
-Chrome is not on `PATH`.
+### Testing
 
-### Documentation
+The project includes multiple test types:
 
-| Document | Content |
-|---|---|
-| [`docs/architecture.md`](./docs/architecture.md) | Hexagonal backend and frontend layering |
-| [`docs/domain-model.md`](./docs/domain-model.md) | Entities, relationships and enums |
-| [`docs/api-spec.md`](./docs/api-spec.md) | REST API reference |
-| [`docs/coding-standards.md`](./docs/coding-standards.md) | Code conventions |
+#### Backend Tests
 
-### Conventions
+**Unit Tests** (no external dependencies):
+- Service layer logic
+- Domain model validation
+- Utility functions
 
-- **Identifiers in English**; **UI strings, routes and domain vocabulary in Spanish**.
-- Backend test methods use **snake_case** (`should_create_tournament_when_found`).
-- `@RequiredArgsConstructor` for constructor injection, `@Builder` for domain models, `record` for
-  DTOs.
-- Frontend: standalone components, dependency injection via `inject()`, zoneless change detection,
-  SSR enabled.
-- Branches: `develop` is the working branch, `main` is the default. Commits in the imperative mood.
+**Integration Tests** (require H2 database, automatically configured):
+- Controller endpoints with MockMvc
+- Security configurations and JWT authentication
+- Database migrations with Flyway
 
-### License
+**API Contract Tests** (REST Docs):
+- Request/response documentation generation
+- API specification validation
 
-Released under the [MIT License](./LICENSE).
+**Performance Tests** (Gatling):
+- Load testing scenarios for tournament operations
+- Concurrent user simulations
+
+Run all backend tests:
+```bash
+cd backend
+./mvnw test                    # All tests
+./mvnw test -Dtest="*IT"       # Integration tests only
+./mvnw gatling:test            # Performance tests (requires separate setup)
+```
+
+#### Frontend Tests
+
+**Unit Tests** (Jasmine/Karma):
+- Component logic and interactions
+- Service methods
+- Pipe transformations
+
+**Performance Tests** (Lighthouse):
+- Core Web Vitals measurement
+- Performance scoring and optimization
+- Accessibility auditing
+
+**E2E Tests** (planned):
+- User flow validation
+- Cross-component integration
+
+Run frontend tests:
+```bash
+cd frontend
+npm run test:ci                # Single run with coverage
+npm run test                   # Watch mode
+npm run build                  # Verify production build
+./run-lighthouse-tests.sh      # Performance testing
+```
+
+Current coverage: 69 tests (components, services, pipes, guards)
+
+### Branch and PR Workflow
+
+1. Create a branch from `main`
+2. Keep changes scoped and test locally
+3. Open a PR with a clear summary and checklist
+4. Merge only after review and green validations
+
+### Where to Find More Information
+
+- API spec: [`/docs/api-spec.md`](./docs/api-spec.md)
+- Architecture: [`/docs/architecture.md`](./docs/architecture.md)
+- Troubleshooting: [`/backend/README.md`](./backend/README.md), [`/frontend/README.md`](./frontend/README.md)
+
+## Known Limitations / Roadmap
+
+- API coverage is partial; several endpoints are planned but not implemented yet
+- Deployment automation is planned, but repository workflow wiring, secrets, and AWS setup are still required
+
+## License
+
+This project is licensed under the MIT License. See [`LICENSE`](./LICENSE).

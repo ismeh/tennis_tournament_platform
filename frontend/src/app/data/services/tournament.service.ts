@@ -1,6 +1,7 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { AppSettings } from '../../shared/constants';
 import {
   CourtCreateRequest,
@@ -11,15 +12,29 @@ import {
   ManualEventInscriptionRequest,
   MatchScheduleRequest,
   MatchResponse,
+  MatchStatus,
+  SetScoreResponse,
+  ParticipantDetailUpdateRequest,
+  ParticipantPointsUpdateRequest,
+  PlayerInscriptionResponse,
   PlayerMatchCalendarResponse,
+  ReorganizeMatchPlayersRequest,
+  SwapMatchSchedulesRequest,
+  ScheduleConfigRequest,
+  ScheduleConfigResponse,
   TournamentCalendarFilters,
+  TournamentCalendarPageResponse,
   TournamentCalendarResponse,
   TournamentCreateRequest,
   TournamentEventCatalogItem,
   TournamentEventsConfigRequest,
+  TournamentGeneralInfoUpdateRequest,
   TournamentInscriptionsResponse,
   TournamentStatusUpdateRequest,
-  TournamentResponse
+  TournamentResponse,
+  TournamentUmpireResponse,
+  TournamentUmpireSearchResponse,
+  TournamentUmpireRequest
 } from '../interfaces/tournament.model';
 
 @Injectable({
@@ -32,14 +47,31 @@ export class TournamentService {
     return this.http.get<TournamentResponse[]>(this.apiUrl);
   }
 
-  getPublishedTournamentCalendar(filters: TournamentCalendarFilters = {}): Observable<TournamentCalendarResponse[]> {
-    return this.http.get<TournamentCalendarResponse[]>(this.calendarTournamentsUrl, {
+  getUmpireTournaments(): Observable<TournamentResponse[]> {
+    return this.http.get<TournamentResponse[]>(`${this.umpiresUrl}/me/tournaments`);
+  }
+
+  getPublishedTournamentCalendar(filters: TournamentCalendarFilters = {}): Observable<TournamentCalendarPageResponse> {
+    return this.http.get<TournamentCalendarPageResponse>(this.calendarTournamentsUrl, {
       params: this.toCalendarParams(filters)
     });
   }
 
   getMyMatchCalendar(filters: TournamentCalendarFilters = {}): Observable<PlayerMatchCalendarResponse[]> {
     return this.http.get<PlayerMatchCalendarResponse[]>(this.myMatchesCalendarUrl, {
+      params: this.toCalendarParams({
+        from: filters.from,
+        to: filters.to
+      })
+    });
+  }
+
+  getMyInscriptions(): Observable<PlayerInscriptionResponse[]> {
+    return this.http.get<PlayerInscriptionResponse[]>(this.myInscriptionsUrl);
+  }
+
+  getMyTournamentCalendar(filters: TournamentCalendarFilters = {}): Observable<TournamentCalendarResponse[]> {
+    return this.http.get<TournamentCalendarResponse[]>(this.myTournamentsCalendarUrl, {
       params: this.toCalendarParams({
         from: filters.from,
         to: filters.to
@@ -75,12 +107,20 @@ export class TournamentService {
     return this.http.get<TournamentEventCatalogItem[]>(this.eventCatalogUrl);
   }
 
+  getEventCatalogAll(): Observable<TournamentEventCatalogItem[]> {
+    return this.http.get<TournamentEventCatalogItem[]>(this.eventCatalogAllUrl);
+  }
+
   saveTournamentEvents(tournamentId: string, payload: TournamentEventsConfigRequest): Observable<TournamentResponse> {
     return this.http.post<TournamentResponse>(`${this.apiUrl}/${tournamentId}/events`, payload);
   }
 
   updateTournamentStatus(tournamentId: string, payload: TournamentStatusUpdateRequest): Observable<TournamentResponse> {
     return this.http.patch<TournamentResponse>(`${this.apiUrl}/${tournamentId}/status`, payload);
+  }
+
+  updateTournamentGeneralInfo(tournamentId: string, payload: TournamentGeneralInfoUpdateRequest): Observable<TournamentResponse> {
+    return this.http.patch<TournamentResponse>(`${this.apiUrl}/${tournamentId}/general-info`, payload);
   }
 
   requestInscription(tournamentId: string, eventId: string, payload: EventInscriptionRequest): Observable<EventInscriptionResponse> {
@@ -106,7 +146,15 @@ export class TournamentService {
   submitMatchResult(
     tournamentId: string,
     matchId: string,
-    payload: { winnerId: string; scoreString: string }
+    payload: {
+      winnerId?: string | null;
+      scoreString: string;
+      sets?: SetScoreResponse[] | null;
+      notes?: string | null;
+      firstPlayerPoints?: string | null;
+      secondPlayerPoints?: string | null;
+      status?: MatchStatus;
+    }
   ): Observable<MatchResponse> {
     return this.http.post<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/result`, payload);
   }
@@ -119,6 +167,64 @@ export class TournamentService {
     return this.http.patch<MatchResponse>(`${this.apiUrl}/${tournamentId}/matches/${matchId}/schedule`, payload);
   }
 
+  reorganizeMatchPlayers(tournamentId: string, payload: ReorganizeMatchPlayersRequest): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${tournamentId}/matches/reorganize`, payload);
+  }
+
+  swapMatchSchedules(tournamentId: string, matchId1: string, matchId2: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${tournamentId}/matches/swap-schedule`, { matchId1, matchId2 });
+  }
+
+  exportTournamentPdf(tournamentId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${tournamentId}/export/pdf`, {
+      responseType: 'blob',
+      observe: 'response'
+    }).pipe(
+      map((response: HttpResponse<Blob>) => response.body as Blob)
+    );
+  }
+
+  updateParticipantsPoints(tournamentId: string, updates: ParticipantPointsUpdateRequest[]): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${tournamentId}/participants/points`, updates);
+  }
+
+  updateParticipantDetails(tournamentId: string, update: ParticipantDetailUpdateRequest): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${tournamentId}/participants/details`, update);
+  }
+
+  getScheduleConfig(tournamentId: string): Observable<ScheduleConfigResponse> {
+    return this.http.get<ScheduleConfigResponse>(`${this.apiUrl}/${tournamentId}/schedule-config`);
+  }
+
+  saveScheduleConfig(tournamentId: string, payload: ScheduleConfigRequest): Observable<ScheduleConfigResponse> {
+    return this.http.put<ScheduleConfigResponse>(`${this.apiUrl}/${tournamentId}/schedule-config`, payload);
+  }
+
+  searchUmpires(query?: string, roles?: string[]): Observable<TournamentUmpireSearchResponse[]> {
+    let params = new HttpParams();
+    if (query) {
+      params = params.set('query', query);
+    }
+    if (roles && roles.length > 0) {
+      roles.forEach(role => {
+        params = params.append('roles', role);
+      });
+    }
+    return this.http.get<TournamentUmpireSearchResponse[]>(this.umpiresUrl, { params });
+  }
+
+  getTournamentUmpires(tournamentId: string): Observable<TournamentUmpireResponse[]> {
+    return this.http.get<TournamentUmpireResponse[]>(`${this.apiUrl}/${tournamentId}/umpires`);
+  }
+
+  addTournamentUmpire(tournamentId: string, payload: TournamentUmpireRequest): Observable<TournamentUmpireResponse> {
+    return this.http.post<TournamentUmpireResponse>(`${this.apiUrl}/${tournamentId}/umpires`, payload);
+  }
+
+  removeTournamentUmpire(tournamentId: string, umpireId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${tournamentId}/umpires/${umpireId}`);
+  }
+
   private get apiUrl(): string {
     return `${AppSettings.API_URL}/tournaments`;
   }
@@ -127,12 +233,28 @@ export class TournamentService {
     return `${AppSettings.API_URL}/age-categories`;
   }
 
+  private get eventCatalogAllUrl(): string {
+    return `${AppSettings.API_URL}/age-categories/all`;
+  }
+
   private get calendarTournamentsUrl(): string {
     return `${AppSettings.API_URL}/calendar/tournaments`;
   }
 
   private get myMatchesCalendarUrl(): string {
     return `${AppSettings.API_URL}/calendar/my-matches`;
+  }
+
+  private get myInscriptionsUrl(): string {
+    return `${AppSettings.API_URL}/calendar/my-inscriptions`;
+  }
+
+  private get myTournamentsCalendarUrl(): string {
+    return `${AppSettings.API_URL}/calendar/my-tournaments`;
+  }
+
+  private get umpiresUrl(): string {
+    return `${AppSettings.API_URL}/umpires`;
   }
 
   private toCalendarParams(filters: TournamentCalendarFilters): HttpParams {
@@ -149,6 +271,21 @@ export class TournamentService {
     }
     if (filters.location?.trim()) {
       params = params.set('location', filters.location.trim());
+    }
+    if (filters.name?.trim()) {
+      params = params.set('name', filters.name.trim());
+    }
+    if (filters.professionalTournament !== null && filters.professionalTournament !== undefined) {
+      params = params.set('professionalTournament', String(filters.professionalTournament));
+    }
+    if (filters.status) {
+      params = params.set('status', filters.status);
+    }
+    if (filters.page !== undefined && filters.page !== null) {
+      params = params.set('page', String(filters.page));
+    }
+    if (filters.size !== undefined && filters.size !== null) {
+      params = params.set('size', String(filters.size));
     }
 
     return params;

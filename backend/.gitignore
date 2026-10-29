@@ -8,7 +8,7 @@ src/main/resources/*
 !src/main/resources/db/migration/*.sql
 !src/main/resources/db/seed/
 !src/main/resources/db/seed/*.sql
-src/main/java/com/puntomatch/application/architecture
+src/main/java/com/tfm/tennis_platform/application/architecture
 
 HELP.md
 target/
@@ -43,3 +43,5 @@ build/
 
 ### VS Code ###
 .vscode/
+
+.github/

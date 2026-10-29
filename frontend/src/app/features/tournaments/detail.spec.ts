@@ -1,11 +1,16 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { PersonService } from '../../data/services/person.service';
 import { ProPlayerService } from '../../data/services/pro-player.service';
 import { MemberService } from '../../data/services/member.service';
+import { TournamentUpdateEvent } from '../../data/interfaces/tournament.model';
+import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
 import { TournamentService } from '../../data/services/tournament.service';
+import { ReferenceDataService } from '../../data/services/reference-data.service';
+import { ClubService } from '../../data/services/club.service';
+import { InvitationService } from '../../core/services/invitation.service';
 import { TournamentDetailComponent } from './detail';
 
 describe('TournamentDetailComponent', () => {
@@ -16,11 +21,17 @@ describe('TournamentDetailComponent', () => {
   let authServiceSpy: jasmine.SpyObj<AuthService>;
   let personServiceSpy: jasmine.SpyObj<PersonService>;
   let proPlayerServiceSpy: jasmine.SpyObj<ProPlayerService>;
+  let referenceDataServiceSpy: jasmine.SpyObj<ReferenceDataService>;
+  let clubServiceSpy: jasmine.SpyObj<ClubService>;
+  let invitationServiceSpy: jasmine.SpyObj<InvitationService>;
+  let tournamentLiveUpdatesServiceSpy: jasmine.SpyObj<TournamentLiveUpdatesService>;
+  let liveUpdatesSubject: Subject<TournamentUpdateEvent>;
 
   beforeEach(async () => {
     tournamentServiceSpy = jasmine.createSpyObj<TournamentService>('TournamentService', [
       'getTournamentById',
       'getEventCatalog',
+      'getEventCatalogAll',
       'saveTournamentEvents',
       'requestInscription',
       'addManualInscription',
@@ -31,23 +42,80 @@ describe('TournamentDetailComponent', () => {
       'updateCourt',
       'deleteCourt',
       'submitMatchResult',
-      'scheduleMatch'
+      'scheduleMatch',
+      'getScheduleConfig',
+      'getTournamentUmpires',
+      'searchUmpires',
+      'addTournamentUmpire',
+      'removeTournamentUmpire',
+      'updateTournamentGeneralInfo',
+      'exportTournamentPdf',
+      'updateParticipantsPoints',
+      'generateDraws',
+      'saveScheduleConfig'
     ]);
     memberServiceSpy = jasmine.createSpyObj<MemberService>('MemberService', ['getMemberByEmail', 'getMyProfile']);
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUserEmail']);
     personServiceSpy = jasmine.createSpyObj<PersonService>('PersonService', ['searchPersons']);
     proPlayerServiceSpy = jasmine.createSpyObj<ProPlayerService>('ProPlayerService', ['searchProPlayers']);
+    referenceDataServiceSpy = jasmine.createSpyObj<ReferenceDataService>('ReferenceDataService', ['getNationalities']);
+    clubServiceSpy = jasmine.createSpyObj<ClubService>('ClubService', ['searchClubs']);
+    clubServiceSpy.searchClubs.and.returnValue(of([]));
+    invitationServiceSpy = jasmine.createSpyObj<InvitationService>('InvitationService', [
+      'previewInvitation',
+      'generateInvitation',
+      'claimInvitation',
+      'storePendingToken',
+      'consumePendingToken',
+      'hasPendingToken'
+    ]);
+    invitationServiceSpy.generateInvitation.and.returnValue(of({ invitationUrl: 'http://test-url' }));
+    tournamentLiveUpdatesServiceSpy = jasmine.createSpyObj<TournamentLiveUpdatesService>('TournamentLiveUpdatesService', ['watchTournament']);
+    liveUpdatesSubject = new Subject<TournamentUpdateEvent>();
+    tournamentLiveUpdatesServiceSpy.watchTournament.and.returnValue(liveUpdatesSubject.asObservable());
 
     tournamentServiceSpy.getEventCatalog.and.returnValue(of([
       {
         id: 1,
         category: 'Absoluto Individual Masculino',
-        description: 'Individual masculino open'
+        description: 'Individual masculino open',
+        custom: false
       },
       {
         id: 2,
         category: 'Absoluto Dobles Mixto',
-        description: 'Dobles mixto open'
+        description: 'Dobles mixto open',
+        custom: false
+      }
+    ]));
+    tournamentServiceSpy.getEventCatalogAll.and.returnValue(of([
+      {
+        id: 1,
+        category: 'Absoluto Individual Masculino',
+        description: 'Individual masculino open',
+        custom: false
+      },
+      {
+        id: 2,
+        category: 'Absoluto Dobles Mixto',
+        description: 'Dobles mixto open',
+        custom: false
+      }
+    ]));
+    tournamentServiceSpy.getScheduleConfig.and.returnValue(of({
+      id: null,
+      tournamentId: 'tournament-id',
+      matchDurationMinutes: 60,
+      timeSlots: []
+    }));
+    referenceDataServiceSpy.getNationalities.and.returnValue(of([
+      {
+        code: 'ESP',
+        name: 'España'
+      },
+      {
+        code: 'SUI',
+        name: 'Suiza'
       }
     ]));
     tournamentServiceSpy.getTournamentById.and.returnValue(of({
@@ -166,6 +234,7 @@ describe('TournamentDetailComponent', () => {
       inscriptions: [
         {
           inscriptionId: 'inscription-1',
+          participantId: 'participant-1',
           eventId: 'event-1',
           categoryId: 1,
           category: 'Absoluto',
@@ -201,6 +270,55 @@ describe('TournamentDetailComponent', () => {
           gender: 'MIXED'
         }
       ]
+    }));
+
+    tournamentServiceSpy.getTournamentUmpires.and.returnValue(of([]));
+    tournamentServiceSpy.searchUmpires.and.returnValue(of([]));
+    tournamentServiceSpy.addTournamentUmpire.and.returnValue(of({
+      id: 'umpire-1',
+      tournamentId: 'tournament-id',
+      umpireId: 'umpire-member-id',
+      umpireFirstName: 'Test',
+      umpireLastName: 'Umpire',
+      umpireEmail: 'umpire@test.com',
+      assignedAt: '2026-04-01T00:00:00Z'
+    }));
+    tournamentServiceSpy.removeTournamentUmpire.and.returnValue(of(void 0));
+    tournamentServiceSpy.updateTournamentGeneralInfo.and.returnValue(of({
+      id: 'tournament-id',
+      formalName: 'Open de Primavera',
+      status: 'DRAFT',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      providerOrganisationId: 'member-id',
+      events: []
+    }));
+    tournamentServiceSpy.exportTournamentPdf.and.returnValue(of(new Blob()));
+    tournamentServiceSpy.updateParticipantsPoints.and.returnValue(of(void 0));
+    tournamentServiceSpy.generateDraws.and.returnValue(of({
+      id: 'tournament-id',
+      formalName: 'Open de Primavera',
+      status: 'DRAFT',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      providerOrganisationId: 'member-id',
+      events: []
+    }));
+    tournamentServiceSpy.saveScheduleConfig.and.returnValue(of({
+      id: null,
+      tournamentId: 'tournament-id',
+      matchDurationMinutes: 60,
+      timeSlots: []
     }));
 
     authServiceSpy.getCurrentUserEmail.and.returnValue('organizer@example.com');
@@ -241,6 +359,7 @@ describe('TournamentDetailComponent', () => {
       memberId: 'member-id',
       email: 'organizer@example.com',
       tier: 'ADVANCED',
+      role: 'ORGANIZER',
       registeredAt: '2025-01-01T00:00:00Z',
       personId: 'person-id',
       firstName: 'Organizer',
@@ -248,7 +367,9 @@ describe('TournamentDetailComponent', () => {
       gender: 'MALE',
       birthDate: '1990-01-01',
       nationality: 'ESP',
-      federationLicense: 'LIC-01'
+      federationLicense: 'LIC-01',
+      clubId: null,
+      clubName: null
     }));
 
     await TestBed.configureTestingModule({
@@ -259,6 +380,10 @@ describe('TournamentDetailComponent', () => {
         { provide: AuthService, useValue: authServiceSpy },
         { provide: PersonService, useValue: personServiceSpy },
         { provide: ProPlayerService, useValue: proPlayerServiceSpy },
+        { provide: ReferenceDataService, useValue: referenceDataServiceSpy },
+        { provide: ClubService, useValue: clubServiceSpy },
+        { provide: InvitationService, useValue: invitationServiceSpy },
+        { provide: TournamentLiveUpdatesService, useValue: tournamentLiveUpdatesServiceSpy },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -279,21 +404,54 @@ describe('TournamentDetailComponent', () => {
 
   it('should load event catalog and tournament on init', () => {
     expect(component.eventCatalog().length).toBe(2);
+    expect(component.nationalities().map(nationality => nationality.code)).toEqual(['ESP', 'SUI']);
     expect(component.tournament()?.id).toBe('tournament-id');
-    expect(component.selectedEvents().length).toBe(1);
-    expect(component.selectedEvents()[0].genders).toEqual(['MALE', 'MIXED']);
+    expect(component.selectedEvents().length).toBe(2);
+    expect(component.selectedEvents()[0].genders).toEqual(['MALE']);
+    expect(component.selectedEvents()[1].genders).toEqual(['MIXED']);
     expect(component.isLoading()).toBeFalse();
     expect(component.isLoadingEvents()).toBeFalse();
     expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledWith('tournament-id', undefined);
+    expect(tournamentLiveUpdatesServiceSpy.watchTournament).toHaveBeenCalledWith('tournament-id');
   });
 
-  it('should replace the previous winner in the next round when editing a match result', () => {
+  it('should refresh tournament detail when a live match update arrives', () => {
+    const initialLoadCount = tournamentServiceSpy.getTournamentById.calls.count();
+    tournamentServiceSpy.getTournamentById.and.returnValue(of({
+      id: 'tournament-id',
+      formalName: 'Open de Primavera Actualizado',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      status: 'DRAFT',
+      providerOrganisationId: 'member-id',
+      events: []
+    }));
+
+    liveUpdatesSubject.next({
+      type: 'MATCH_RESULT_UPDATED',
+      tournamentId: 'tournament-id',
+      matchId: 'match-1',
+      occurredAt: '2026-06-11T10:00:00'
+    });
+
+    expect(tournamentServiceSpy.getTournamentById.calls.count()).toBe(initialLoadCount + 1);
+    expect(component.tournament()?.formalName).toBe('Open de Primavera Actualizado');
+    expect(component.actionMessage()).toBe('Cuadro actualizado');
+  });
+
+  it('should keep the optimistic result without reloading the tournament after saving a match result', () => {
     tournamentServiceSpy.submitMatchResult.and.returnValue(of({
       id: 'match-1',
       firstInscriptionId: 'inscription-1',
       secondInscriptionId: 'inscription-2',
       winnerId: 'inscription-2',
       roundNumber: 1,
+      bracketPosition: 0,
       scheduledAt: null,
       scheduleTimeType: null,
       courtId: null,
@@ -314,6 +472,7 @@ describe('TournamentDetailComponent', () => {
               stageType: 'SINGLE_ELIMINATION',
               order: 1,
               description: 'Principal',
+              strategyName: null,
               draws: [
                 {
                   id: 'draw-1',
@@ -327,11 +486,15 @@ describe('TournamentDetailComponent', () => {
                       secondInscriptionId: 'inscription-2',
                       winnerId: 'inscription-1',
                       roundNumber: 1,
+                      bracketPosition: 0,
                       scheduledAt: null,
                       scheduleTimeType: null,
                       courtId: null,
                       court: null,
-                      result: '6-4 6-4'
+                      result: '6-4 6-4',
+                      professionalMatch: true,
+                      firstWinPoints: 30,
+                      secondWinPoints: 20
                     },
                     {
                       id: 'match-2',
@@ -339,11 +502,15 @@ describe('TournamentDetailComponent', () => {
                       secondInscriptionId: 'inscription-4',
                       winnerId: 'inscription-3',
                       roundNumber: 1,
+                      bracketPosition: 1,
                       scheduledAt: null,
                       scheduleTimeType: null,
                       courtId: null,
                       court: null,
-                      result: '6-2 6-2'
+                      result: '6-2 6-2',
+                      professionalMatch: true,
+                      firstWinPoints: 15,
+                      secondWinPoints: 40
                     },
                     {
                       id: 'match-3',
@@ -351,6 +518,91 @@ describe('TournamentDetailComponent', () => {
                       secondInscriptionId: 'inscription-3',
                       winnerId: null,
                       roundNumber: 2,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: null,
+                      professionalMatch: true,
+                      firstWinPoints: 40,
+                      secondWinPoints: 20
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    const initialTournamentLoadCount = tournamentServiceSpy.getTournamentById.calls.count();
+
+    component.onMatchResultSaved({ matchId: 'match-1', winnerId: 'inscription-2', result: '7-5 6-4', status: 'COMPLETED' });
+
+    expect(tournamentServiceSpy.submitMatchResult).toHaveBeenCalledWith('tournament-id', 'match-1', {
+      winnerId: 'inscription-2',
+      scoreString: '7-5 6-4',
+      sets: undefined,
+      notes: undefined,
+      firstPlayerPoints: undefined,
+      secondPlayerPoints: undefined,
+      status: 'COMPLETED'
+    });
+    expect(tournamentServiceSpy.getTournamentById.calls.count()).toBe(initialTournamentLoadCount);
+    const nextMatch = component.tournament()!.events![0].stages![0].draws![0].matches!.find(match => match.id === 'match-3')!;
+    expect(nextMatch.firstInscriptionId).toBe('inscription-2');
+    expect(nextMatch.firstWinPoints).toBe(40);
+    expect(nextMatch.secondWinPoints).toBe(30);
+    expect(component.actionMessage()).toContain('Resultado guardado');
+  });
+
+  it('should optimistically advance the winner and roll back when saving a result fails', () => {
+    const saveResultResponse = new Subject<any>();
+    tournamentServiceSpy.submitMatchResult.and.returnValue(saveResultResponse.asObservable());
+    component.tournament.set({
+      ...component.tournament()!,
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          gender: 'MALE',
+          stages: [
+            {
+              id: 'stage-1',
+              eventId: 'event-1',
+              stageType: 'SINGLE_ELIMINATION',
+              order: 1,
+              description: 'Principal',
+              strategyName: null,
+              draws: [
+                {
+                  id: 'draw-1',
+                  stageId: 'stage-1',
+                  drawType: 'ELIMINATION',
+                  label: 'Principal',
+                  matches: [
+                    {
+                      id: 'match-1',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-2',
+                      winnerId: null,
+                      roundNumber: 1,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: null
+                    },
+                    {
+                      id: 'match-3',
+                      firstInscriptionId: null,
+                      secondInscriptionId: null,
+                      winnerId: null,
+                      roundNumber: 2,
+                      bracketPosition: 0,
                       scheduledAt: null,
                       scheduleTimeType: null,
                       courtId: null,
@@ -366,12 +618,19 @@ describe('TournamentDetailComponent', () => {
       ]
     });
 
-    component.onMatchResultSaved({ matchId: 'match-1', winnerId: 'inscription-2', result: '7-5 6-4' });
+    component.onMatchResultSaved({ matchId: 'match-1', winnerId: 'inscription-2', result: '7-5 6-4', status: 'COMPLETED' });
 
-    const matches = component.tournament()!.events![0].stages![0].draws![0].matches!;
-    const nextMatch = matches.find(match => match.id === 'match-3')!;
-    expect(nextMatch.firstInscriptionId).toBe('inscription-2');
-    expect(nextMatch.secondInscriptionId).toBe('inscription-3');
+    const optimisticMatches = component.tournament()!.events![0].stages![0].draws![0].matches!;
+    expect(optimisticMatches.find(match => match.id === 'match-1')!.winnerId).toBe('inscription-2');
+    expect(optimisticMatches.find(match => match.id === 'match-3')!.firstInscriptionId).toBe('inscription-2');
+
+    saveResultResponse.error(new Error('save failed'));
+
+    const rolledBackMatches = component.tournament()!.events![0].stages![0].draws![0].matches!;
+    expect(rolledBackMatches.find(match => match.id === 'match-1')!.winnerId).toBeNull();
+    expect(rolledBackMatches.find(match => match.id === 'match-3')!.firstInscriptionId).toBeNull();
+    expect(component.actionError()).toBeTruthy();
+    expect(component.savingResultMatchId()).toBeNull();
   });
 
   it('should filter and sort match schedule rows', () => {
@@ -403,6 +662,7 @@ describe('TournamentDetailComponent', () => {
               stageType: 'SINGLE_ELIMINATION',
               order: 1,
               description: 'Principal',
+              strategyName: null,
               draws: [
                 {
                   id: 'draw-1',
@@ -451,6 +711,7 @@ describe('TournamentDetailComponent', () => {
               stageType: 'SINGLE_ELIMINATION',
               order: 1,
               description: 'Principal',
+              strategyName: null,
               draws: [
                 {
                   id: 'draw-2',
@@ -479,7 +740,7 @@ describe('TournamentDetailComponent', () => {
       ]
     });
 
-    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-3', 'match-2', 'match-1']);
+    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-2', 'match-3', 'match-1']);
 
     component.matchScheduleEventFilter.set('Absoluto Individual Masculino - Masculino');
     expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-2', 'match-1']);
@@ -493,37 +754,35 @@ describe('TournamentDetailComponent', () => {
 
     component.clearMatchScheduleFilters();
     component.setMatchScheduleSort('scheduledAt');
-    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-2', 'match-3', 'match-1']);
+    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-1', 'match-3', 'match-2']);
 
     const match1 = component.filteredTournamentMatchScheduleRows().find(row => row.match.id === 'match-1')!.match;
     component.updateMatchScheduleDate(match1, '2026-04-30T08:00');
     component.updateMatchScheduleCourt(match1, 'court-1');
-    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-2', 'match-3', 'match-1']);
+    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-1', 'match-3', 'match-2']);
     expect(component.getMatchScheduleDraft(match1).scheduledAt).toBe('2026-04-30T08:00');
 
     component.matchScheduleCourtFilter.set('court-1');
-    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-2', 'match-3']);
+    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-3', 'match-2']);
 
     component.matchScheduleCourtFilter.set('');
     component.setMatchScheduleSort('scheduledAt');
-    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-1', 'match-3', 'match-2']);
+    expect(component.filteredTournamentMatchScheduleRows().map(row => row.match.id)).toEqual(['match-2', 'match-3', 'match-1']);
   });
 
-  it('should add and remove events using checkbox toggle', () => {
-    component.toggleCatalogEvent(
-      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open' },
-      true
+  it('should add and remove events using add/remove buttons', () => {
+    const initialCount = component.selectedEvents().length;
+    component.addCatalogCategory(
+      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open', custom: false }
     );
 
-    expect(component.selectedEvents().length).toBe(1);
+    expect(component.selectedEvents().length).toBe(initialCount + 1);
     expect(component.getEventLabelById(1)).toBe('Absoluto Individual Masculino');
 
-    component.toggleCatalogEvent(
-      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open' },
-      false
-    );
+    const uniqueId = component.selectedEvents()[initialCount].uniqueId!;
+    component.removeSelectedEvent(uniqueId);
 
-    expect(component.selectedEvents().length).toBe(0);
+    expect(component.selectedEvents().length).toBe(initialCount);
   });
 
   it('should save selected tournament events', () => {
@@ -548,12 +807,12 @@ describe('TournamentDetailComponent', () => {
         }
       ]
     }));
-    component.clearSelectedEvents();
-    component.toggleCatalogEvent(
-      { id: 2, category: 'Absoluto Dobles Mixto', description: 'Dobles mixto open' },
-      true
+    component.selectedEvents.set([]);
+    component.addCatalogCategory(
+      { id: 2, category: 'Absoluto Dobles Mixto', description: 'Dobles mixto open', custom: false }
     );
-    component.toggleEventGender(2, 'MIXED', true);
+    const uniqueId = component.selectedEvents()[0].uniqueId!;
+    component.changeEventGender(uniqueId, 'MIXED');
 
     component.saveTournamentEvents();
 
@@ -567,41 +826,114 @@ describe('TournamentDetailComponent', () => {
         }
       ]
     });
-    expect(component.eventsSuccessMessage()).toContain('guardados correctamente');
+    expect(component.eventsSuccessMessage()).toContain('guardadas correctamente');
     expect(component.tournament()?.events?.[0].eventId).toBe('event-3');
     expect(component.selectedInscriptionCategoryId()).toBe(2);
     expect(tournamentServiceSpy.getTournamentInscriptions).toHaveBeenCalledTimes(2);
   });
 
-  it('should show validation error when saving with no selected events', () => {
-    component.clearSelectedEvents();
-    component.saveTournamentEvents();
+  it('should update eventsByGender when changing gender', () => {
+    component.selectedEvents.set([]);
+    component.addCatalogCategory(
+      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open', custom: false }
+    );
 
-    expect(tournamentServiceSpy.saveTournamentEvents).not.toHaveBeenCalled();
-    expect(component.eventsErrorMessage()).toContain('Selecciona al menos una prueba');
+    const event = () => component.selectedEvents()[0];
+    const uniqueId = event().uniqueId!;
+    expect(event().eventsByGender).toEqual([{ gender: 'MALE', eventId: null }]);
+
+    component.changeEventGender(uniqueId, 'FEMALE');
+    expect(event().eventsByGender).toEqual([
+      { gender: 'MALE', eventId: null },
+      { gender: 'FEMALE', eventId: null }
+    ]);
+
+    component.changeEventGender(uniqueId, 'MIXED');
+    expect(event().eventsByGender).toEqual([
+      { gender: 'MALE', eventId: null },
+      { gender: 'FEMALE', eventId: null },
+      { gender: 'MIXED', eventId: null }
+    ]);
   });
 
-  it('should require at least one gender per selected event before saving', () => {
-    component.clearSelectedEvents();
-    component.toggleCatalogEvent(
-      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open' },
-      true
+  it('should preserve eventId in eventsByGender after hydration when changing genders', () => {
+    component.selectedEvents.set([]);
+    component.addCatalogCategory(
+      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open', custom: false }
+    );
+    const uniqueId = component.selectedEvents()[0].uniqueId!;
+
+    component.selectedEvents.update(events =>
+      events.map(event =>
+        event.uniqueId === uniqueId
+          ? {
+              ...event,
+              eventsByGender: [
+                { gender: 'MALE', eventId: 'saved-male-id' },
+                { gender: 'FEMALE', eventId: 'saved-female-id' }
+              ]
+            }
+          : event
+      )
+    );
+
+    component.changeEventGender(uniqueId, 'FEMALE');
+    const eventAfterChange = component.selectedEvents()[0];
+    expect(eventAfterChange.genders).toEqual(['FEMALE']);
+    expect(eventAfterChange.eventsByGender).toEqual([
+      { gender: 'MALE', eventId: 'saved-male-id' },
+      { gender: 'FEMALE', eventId: 'saved-female-id' }
+    ]);
+
+    component.changeEventGender(uniqueId, 'MALE');
+    const eventAfterReChange = component.selectedEvents()[0];
+    expect(eventAfterReChange.genders).toEqual(['MALE']);
+    expect(eventAfterReChange.eventsByGender).toEqual([
+      { gender: 'MALE', eventId: 'saved-male-id' },
+      { gender: 'FEMALE', eventId: 'saved-female-id' }
+    ]);
+  });
+
+  it('should save an empty events configuration when all categories are removed', () => {
+    tournamentServiceSpy.saveTournamentEvents.and.returnValue(of({
+      id: 'tournament-id',
+      formalName: 'Open de Primavera',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      tournamentStartTime: '09:00',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      status: 'DRAFT',
+      providerOrganisationId: 'member-id',
+      events: []
+    }));
+
+    component.selectedEvents.set([]);
+    component.saveTournamentEvents();
+
+    expect(tournamentServiceSpy.saveTournamentEvents).toHaveBeenCalledWith('tournament-id', { events: [] });
+    expect(component.eventsSuccessMessage()).toContain('guardadas correctamente');
+    expect(component.eventsErrorMessage()).toBeNull();
+  });
+
+  it('should require at least one stage per selected event before saving', () => {
+    component.selectedEvents.set([]);
+    component.addCatalogCategory(
+      { id: 1, category: 'Absoluto Individual Masculino', description: 'Individual masculino open', custom: false }
+    );
+
+    // Clear stages
+    component.selectedEvents.update(events =>
+      events.map(event => ({ ...event, stages: [] }))
     );
 
     component.saveTournamentEvents();
 
     expect(tournamentServiceSpy.saveTournamentEvents).not.toHaveBeenCalled();
-    expect(component.eventsErrorMessage()).toContain('al menos una modalidad en cada prueba');
-  });
-
-  it('should update tournament status when a valid transition is selected', () => {
-    component.onSelectedStatusChange('OPEN');
-
-    component.updateTournamentStatus();
-
-    expect(tournamentServiceSpy.updateTournamentStatus).toHaveBeenCalledWith('tournament-id', { status: 'OPEN' });
-    expect(component.tournament()?.status).toBe('OPEN');
-    expect(component.actionMessage()).toContain('Estado del torneo actualizado');
+    expect(component.eventsErrorMessage()).toContain('Debes definir al menos un cuadro');
   });
 
   it('should detect creator when backend sends provider organisation as object', () => {
@@ -627,11 +959,292 @@ describe('TournamentDetailComponent', () => {
     expect(component.isCreator()).toBeTrue();
   });
 
+  it('should update draws and matches when draws are regenerated and they were already generated, even if the backend returns duplicate stages', () => {
+    // Initial tournament state with an old match
+    const initialTournament = {
+      id: 'tournament-id',
+      formalName: 'Open de Primavera',
+      status: 'OPEN',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      providerOrganisationId: 'member-id',
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          gender: 'MALE',
+          stages: [
+            {
+              id: 'stage-1',
+              eventId: 'event-1',
+              stageType: 'SINGLE_ELIMINATION',
+              order: 1,
+              description: 'Principal',
+              strategyName: null,
+              draws: [
+                {
+                  id: 'draw-1',
+                  stageId: 'stage-1',
+                  drawType: 'ELIMINATION',
+                  label: 'Principal',
+                  matches: [
+                    {
+                      id: 'match-1',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-2',
+                      winnerId: 'inscription-1',
+                      roundNumber: 1,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: '6-4 6-4'
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    component.tournament.set(initialTournament as any);
+
+    // Mock response with duplicate stages: Stage 1 (old) and Stage 1 (new)
+    const regeneratedTournamentResponseWithDuplicates = {
+      ...initialTournament,
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          gender: 'MALE',
+          stages: [
+            // Stage 1 - Copy 1 (old/stale)
+            {
+              id: 'stage-1',
+              eventId: 'event-1',
+              stageType: 'SINGLE_ELIMINATION',
+              order: 1,
+              description: 'Principal',
+              strategyName: null,
+              draws: [
+                {
+                  id: 'draw-1',
+                  stageId: 'stage-1',
+                  drawType: 'ELIMINATION',
+                  label: 'Principal',
+                  matches: [
+                    {
+                      id: 'match-1',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-2',
+                      winnerId: 'inscription-1',
+                      roundNumber: 1,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: '6-4 6-4'
+                    }
+                  ]
+                }
+              ]
+            },
+            // Stage 1 - Copy 2 (newly regenerated)
+            {
+              id: 'stage-1',
+              eventId: 'event-1',
+              stageType: 'SINGLE_ELIMINATION',
+              order: 1,
+              description: 'Principal',
+              strategyName: null,
+              draws: [
+                {
+                  id: 'draw-new-id',
+                  stageId: 'stage-1',
+                  drawType: 'ELIMINATION',
+                  label: 'Principal',
+                  matches: [
+                    {
+                      id: 'match-new-id',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-2',
+                      winnerId: null,
+                      roundNumber: 1,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: null
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    tournamentServiceSpy.generateDraws.and.returnValue(of(regeneratedTournamentResponseWithDuplicates as any));
+
+    // Call onGenerateDraws
+    component.onGenerateDraws({ tournamentId: 'tournament-id', stageId: 'stage-1' }, 'event-1');
+
+    // Assertions
+    const currentTournament = component.tournament();
+    expect(currentTournament).toBeTruthy();
+    const event = currentTournament?.events?.find(e => e.eventId === 'event-1');
+    expect(event).toBeTruthy();
+    const stage = event?.stages?.[0];
+    expect(stage).toBeTruthy();
+    const draw = stage?.draws?.[0];
+    expect(draw).toBeTruthy();
+    
+    // Check that we got the new draw and match!
+    expect(draw?.id).toBe('draw-new-id');
+    expect(draw?.matches?.[0].id).toBe('match-new-id');
+  });
+
+  it('should update draws and matches when draws are regenerated and they were already generated', () => {
+    // Initial tournament state with an old match
+    const initialTournament = {
+      id: 'tournament-id',
+      formalName: 'Open de Primavera',
+      status: 'OPEN',
+      playStartDate: '2026-05-01',
+      playEndDate: '2026-05-10',
+      inscriptionStartDate: '2026-04-01',
+      inscriptionEndDate: '2026-04-20',
+      surfaceCategory: 'CLAY',
+      maxPlayers: 32,
+      location: 'Club Central',
+      providerOrganisationId: 'member-id',
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          gender: 'MALE',
+          stages: [
+            {
+              id: 'stage-1',
+              eventId: 'event-1',
+              stageType: 'SINGLE_ELIMINATION',
+              order: 1,
+              description: 'Principal',
+              strategyName: null,
+              draws: [
+                {
+                  id: 'draw-1',
+                  stageId: 'stage-1',
+                  drawType: 'ELIMINATION',
+                  label: 'Principal',
+                  matches: [
+                    {
+                      id: 'match-1',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-2',
+                      winnerId: 'inscription-1',
+                      roundNumber: 1,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: '6-4 6-4'
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    component.tournament.set(initialTournament as any);
+
+    // Mock response with a regenerated draw (new draw id and new matches)
+    const regeneratedTournamentResponse = {
+      ...initialTournament,
+      events: [
+        {
+          eventId: 'event-1',
+          categoryId: 1,
+          gender: 'MALE',
+          stages: [
+            {
+              id: 'stage-1',
+              eventId: 'event-1',
+              stageType: 'SINGLE_ELIMINATION',
+              order: 1,
+              description: 'Principal',
+              strategyName: null,
+              draws: [
+                {
+                  id: 'draw-new-id',
+                  stageId: 'stage-1',
+                  drawType: 'ELIMINATION',
+                  label: 'Principal',
+                  matches: [
+                    {
+                      id: 'match-new-id',
+                      firstInscriptionId: 'inscription-1',
+                      secondInscriptionId: 'inscription-2',
+                      winnerId: null,
+                      roundNumber: 1,
+                      bracketPosition: 0,
+                      scheduledAt: null,
+                      scheduleTimeType: null,
+                      courtId: null,
+                      court: null,
+                      result: null
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    tournamentServiceSpy.generateDraws.and.returnValue(of(regeneratedTournamentResponse as any));
+
+    // Call onGenerateDraws
+    component.onGenerateDraws({ tournamentId: 'tournament-id', stageId: 'stage-1' }, 'event-1');
+
+    // Assertions
+    const currentTournament = component.tournament();
+    expect(currentTournament).toBeTruthy();
+    const event = currentTournament?.events?.find(e => e.eventId === 'event-1');
+    expect(event).toBeTruthy();
+    const stage = event?.stages?.[0];
+    expect(stage).toBeTruthy();
+    const draw = stage?.draws?.[0];
+    expect(draw).toBeTruthy();
+    
+    // Check that we got the new draw and match!
+    expect(draw?.id).toBe('draw-new-id');
+    expect(draw?.matches?.[0].id).toBe('match-new-id');
+  });
+
   it('should render the registered players section and apply the event filter', () => {
-    component.setActiveSection('registeredPlayers');
+    component.setActiveSection('inscriptions');
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Jugadores inscritos');
+    expect(component.isRegisteredPlayersPanelExpanded()).toBeFalse();
+    expect(fixture.nativeElement.textContent).not.toContain('Carlos Lopez');
+
+    component.toggleRegisteredPlayersPanel();
+    fixture.detectChanges();
+
     expect(fixture.nativeElement.textContent).toContain('Carlos Lopez');
 
     tournamentServiceSpy.getTournamentInscriptions.calls.reset();
@@ -683,7 +1296,7 @@ describe('TournamentDetailComponent', () => {
 
     component.searchManualPlayerCandidates();
 
-    expect(proPlayerServiceSpy.searchProPlayers).toHaveBeenCalledWith('Carlos');
+    expect(proPlayerServiceSpy.searchProPlayers).toHaveBeenCalledWith('Carlos', { gender: '', category: '' });
     expect(component.manualPlayerSearchResults()[0].id).toBe('42');
 
     component.selectExistingPerson(component.manualPlayerSearchResults()[0]);

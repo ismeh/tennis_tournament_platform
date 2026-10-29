@@ -218,4 +218,19 @@ indent.log
 .gemini*
 .ai
 .codex
+
+# Local/demo TLS material
+/infra/nginx/certs/
+/infra/infra/nginx/certs/
+/infra/nginx/certbot/
+docs/
+!docs/
+docs/*
+!docs/deployment-https.md
+.gitignore
 AGENTS*
+memoria/* 
+wsl*
+.history*
+instruc*
+GIT_*

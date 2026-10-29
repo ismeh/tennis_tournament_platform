@@ -1,0 +1,43 @@
+package com.tfm.tennis_platform.infrastructure.persistence.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+@Entity
+@Table(name = "draws")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class DrawEntity {
+    @Id
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stage_id", nullable = false)
+    @JsonIgnore
+    private StageEntity stage;
+
+    @Column(name = "draw_type", nullable = false)
+    private String drawType;
+
+    @Column(name = "label")
+    private String label;
+
+    @Column(name = "group_index")
+    private Integer groupIndex;
+
+    @OneToMany(mappedBy = "draw", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("roundNumber ASC, bracketPosition ASC, id ASC")
+    @Builder.Default
+    private List<MatchEntity> matches = new ArrayList<>();
+}

@@ -11,6 +11,7 @@ export interface ProfileResponse {
   memberId: string;
   email: string;
   tier: string;
+  role: string;
   registeredAt: string;
   personId: string | null;
   firstName: string | null;
@@ -19,6 +20,8 @@ export interface ProfileResponse {
   birthDate: string | null;
   nationality: string | null;
   federationLicense: string | null;
+  clubId: string | null;
+  clubName: string | null;
 }
 
 export interface ProfileRequest {
@@ -28,4 +31,5 @@ export interface ProfileRequest {
   birthDate: string;
   nationality?: string | null;
   federationLicense?: string | null;
+  clubName?: string | null;
 }

@@ -2,9 +2,16 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TYPE user_gender AS ENUM ('H', 'M');
-CREATE TYPE category_genre AS ENUM ('H', 'M', 'X');
-CREATE TYPE category_mode AS ENUM ('SINGLE', 'DOUBLES');
 CREATE TYPE tournament_state AS ENUM ('SOON', 'INSCRIPTION', 'PLAYING', 'FINISHED');
+
+-- CLUBS
+CREATE TABLE clubs (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        VARCHAR(150) NOT NULL,
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX idx_clubs_name_lower ON clubs (LOWER(name));
 
 -- PERSONS (base entity, aligned with international tennis IDs)
 CREATE TABLE persons (
@@ -14,7 +21,8 @@ CREATE TABLE persons (
     last_name     VARCHAR(100),
     nationality   CHAR(3),                      -- ISO 3166-1 alpha-3
     birth_date    DATE,
-    gender        VARCHAR(10)                   -- MALE / FEMALE
+    gender        VARCHAR(10),                  -- MALE / FEMALE
+    club_id       UUID REFERENCES clubs(id)
 );
 
 CREATE TABLE users (
@@ -30,13 +38,6 @@ CREATE TABLE users (
     person_id     UUID REFERENCES persons(id) ON DELETE SET NULL  -- vínculo opcional
 );
 
-CREATE TABLE categories (
-    id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name    VARCHAR(255),
-    genre   VARCHAR(1),
-    mode    VARCHAR(20)
-);
-
 -- TOURNAMENTS
 CREATE TABLE tournaments (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -49,18 +50,18 @@ CREATE TABLE tournaments (
     surface                  VARCHAR(20),                -- CLAY / HARD / GRASS / CARPET
     max_players             INTEGER,
     location                VARCHAR(200),
+    location_latitude       DOUBLE PRECISION,
+    location_longitude      DOUBLE PRECISION,
+    location_place_id       VARCHAR(255),
+    location_formatted_address VARCHAR(500),
     state                   VARCHAR(20) DEFAULT 'DRAFT', -- DRAFT / OPEN / CLOSED / IN_PROGRESS / COMPLETED / CANCELLED
+    sets_per_match          INTEGER DEFAULT 3,
+    decisive_tiebreak_points INTEGER DEFAULT 7,
     version                 BIGINT NOT NULL DEFAULT 0,
     created_by              UUID REFERENCES users(id) ON DELETE SET NULL,
     venue                   VARCHAR(200),
     country                 CHAR(3),  --TO DELETE
     category                VARCHAR(50)     --TO DELETE            -- ITF / ATP / WTA / NATIONAL
-);
-
-CREATE TABLE tournament_categories (
-    tournament_id   UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
-    category_id     UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    PRIMARY KEY (tournament_id, category_id)
 );
 
 -- PARTICIPANTS (persons or pairs/teams registered in a tournament)
@@ -91,11 +92,13 @@ CREATE TABLE participant_persons (
 CREATE TABLE ref_age_category (
     id SERIAL PRIMARY KEY,
     category VARCHAR(20) NOT NULL,
-    description VARCHAR(15)
+    description VARCHAR(20),
+    display_order INTEGER
 );
 
 COMMENT ON COLUMN ref_age_category.category IS 'Nombre de la categoría';
 COMMENT ON COLUMN ref_age_category.description IS 'Comentario de la categoría';
+COMMENT ON COLUMN ref_age_category.display_order IS 'Orden de visualización de la categoría';
 
 -- EVENTS (within a tournament: singles/doubles, age categories, gender)
 CREATE TABLE events (
@@ -128,7 +131,8 @@ CREATE TABLE stages (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id        UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     stage_order     INTEGER NOT NULL,
-    stage_type      VARCHAR(30),                -- QUALIFYING / MAIN / CONSOLATION / PLAYOFF
+    stage_type      VARCHAR(30),
+    strategy_name   VARCHAR(50),
     description     VARCHAR
 );
 
@@ -158,6 +162,7 @@ CREATE TABLE matches (
     second_inscription_id   UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
     winner_id               UUID REFERENCES inscriptions(id) ON DELETE SET NULL,
     round_number            INTEGER,
+    bracket_position        INTEGER,
     next_match_id           UUID REFERENCES matches(id) ON DELETE SET NULL,
     loser_next_match_id     UUID REFERENCES matches(id) ON DELETE SET NULL,
     scheduled_at            TIMESTAMP,
@@ -165,16 +170,24 @@ CREATE TABLE matches (
     court_id                UUID REFERENCES courts(id) ON DELETE SET NULL,
     court                   VARCHAR(50),
     result                  VARCHAR(255),
+    notes                   TEXT,
+    first_player_points     VARCHAR(10),
+    second_player_points    VARCHAR(10),
+    status                  VARCHAR(20),
     version                 BIGINT NOT NULL DEFAULT 0
 );
 
--- RANKINGS (historical ranking snapshots per player)
-CREATE TABLE rankings (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    person_id       UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
-    ranking_date    DATE NOT NULL,
-    ranking_type    VARCHAR(50),               -- ITF / ATP / WTA / NATIONAL
-    rank_position   INTEGER,
-    ranking_points  NUMERIC(10,2),
-    UNIQUE (person_id, ranking_date, ranking_type)
+CREATE TABLE IF NOT EXISTS match_sets (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    match_id                UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    set_number              SMALLINT NOT NULL,
+    first_player_games      INTEGER NOT NULL DEFAULT 0,
+    second_player_games     INTEGER NOT NULL DEFAULT 0,
+    first_player_tiebreak   INTEGER,
+    second_player_tiebreak  INTEGER,
+    UNIQUE (match_id, set_number)
 );
+
+CREATE INDEX IF NOT EXISTS idx_match_sets_match ON match_sets(match_id);
+
+

@@ -1,7 +1,7 @@
-const puppeteer = require('puppeteer');
-
-// Use Puppeteer's bundled Chromium so tests do not depend on system Chrome.
-process.env.CHROME_BIN = puppeteer.executablePath();
+if (!process.env.CHROME_BIN) {
+  const puppeteer = require('puppeteer');
+  process.env.CHROME_BIN = puppeteer.executablePath();
+}
 
 module.exports = function (config) {
   config.set({
@@ -23,15 +23,23 @@ module.exports = function (config) {
       suppressAll: true
     },
     coverageReporter: {
-      dir: require('path').join(__dirname, './coverage/puntomatch'),
+      dir: require('path').join(__dirname, './coverage/tfm_front'),
       subdir: '.',
-      reporters: [{ type: 'html' }, { type: 'text-summary' }]
+      reporters: [{ type: 'html' }, { type: 'text-summary' }],
+      check: {
+        global: {
+          statements: 50,
+          branches: 40,
+          functions: 50,
+          lines: 50
+        }
+      }
     },
     reporters: ['progress', 'kjhtml'],
     customLaunchers: {
       ChromeHeadlessNoSandbox: {
         base: 'ChromeHeadless',
-        flags: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        flags: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1280,720']
       }
     },
     browsers: ['ChromeHeadlessNoSandbox'],

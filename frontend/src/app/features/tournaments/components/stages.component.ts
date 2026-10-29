@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CourtResponse, StageResponse, DrawResponse, MatchScheduleTimeType } from '../../../data/interfaces/tournament.model';
+import { CourtResponse, StageResponse, DrawResponse, MatchResponse, MatchScheduleTimeType, MatchStatus, SetScoreResponse, TournamentStatus } from '../../../data/interfaces/tournament.model';
 import { DrawsComponent } from './draws.component';
 
 type DrawGenerationFeedback = {
@@ -21,22 +21,24 @@ type DrawGenerationFeedback = {
       } @else {
         <div class="space-y-4">
           @for (stage of stages(); track stage.id) {
-            <div class="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+            <div class="rounded-xl border border-neutral-200/70 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
               <div class="flex items-center justify-between">
                 <div>
                   <h3 class="text-lg font-semibold text-neutral-900">{{ getStageTypeLabel(stage.stageType) }}</h3>
                   <p class="mt-1 text-sm text-neutral-600">{{ stage.description }}</p>
                   <p class="mt-2 text-xs text-neutral-500">Fase {{ stage.order }}</p>
                 </div>
-                <button
-                  type="button"
-                  (click)="onGenerateDraws(stage)"
-                  [disabled]="isGeneratingDraws(stage.id)"
-                  [attr.aria-busy]="isGeneratingDraws(stage.id)"
-                  [class]="getGenerateDrawsButtonClass(stage)"
-                >
-                  {{ getGenerateDrawsButtonLabel(stage) }}
-                </button>
+                @if (canManageInput) {
+                  <button
+                    type="button"
+                    (click)="onGenerateDraws(stage)"
+                    [disabled]="isGeneratingDraws(stage.id)"
+                    [attr.aria-busy]="isGeneratingDraws(stage.id)"
+                    [class]="getGenerateDrawsButtonClass(stage)"
+                  >
+                    {{ getGenerateDrawsButtonLabel(stage) }}
+                  </button>
+                }
               </div>
 
               @if (isGeneratingDraws(stage.id)) {
@@ -55,21 +57,30 @@ type DrawGenerationFeedback = {
               }
 
               @if (expandedStageId() === stage.id && (stage.draws || []).length > 0) {
-                <div class="mt-4 border-t border-neutral-200 pt-4">
+                <div class="mt-4 border-t border-neutral-100 pt-4">
                   <app-draws
                     [drawsInput]="stage.draws || []"
                     [participantNamesInput]="participantNamesInput"
                     [participantOrderInput]="participantOrderInput"
                     [courtsInput]="courtsInput"
+                    [canManageInput]="canManageInput"
+                    [tournamentStatusInput]="tournamentStatusInput"
+                    [tournamentNameInput]="tournamentNameInput"
+                    [categoryNameInput]="categoryNameInput"
+                    [setsPerMatch]="setsPerMatch"
+                    [decisiveTiebreakPoints]="decisiveTiebreakPoints"
+                    [gamesPerSet]="gamesPerSet"
                     (matchSelected)="onMatchSelected($event)"
                     (matchResultSaved)="onMatchResultSaved($event)"
                     (matchScheduleSaved)="onMatchScheduleSaved($event)"
+                    (playersSwapped)="onPlayersSwapped($event)"
+                    (swapScheduleClicked)="swapScheduleClicked.emit($event)"
                   ></app-draws>
                 </div>
               }
 
               @if (expandedStageId() === stage.id && (stage.draws || []).length === 0) {
-                <div class="mt-4 border-t border-neutral-200 pt-4 text-sm text-neutral-600">
+                <div class="mt-4 border-t border-neutral-100 pt-4 text-sm text-neutral-600">
                   Sin cuadros generados
                 </div>
               }
@@ -85,36 +96,104 @@ type DrawGenerationFeedback = {
         </div>
       }
     </div>
+
+    @if (confirmModalOpen()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" (click)="cancelRegenerate()">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" (click)="$event.stopPropagation()">
+          <div class="flex items-start gap-4">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <svg class="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-neutral-900">Regenerar cuadros</h3>
+              <p class="mt-2 text-sm text-neutral-600">
+                Se borrarán los resultados de este cuadro y se generarán nuevos emparejamientos.
+              </p>
+              <p class="mt-1 text-sm font-medium text-red-600">¿Estás seguro de que quieres continuar?</p>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              (click)="cancelRegenerate()"
+              class="rounded-xl border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              (click)="confirmRegenerate()"
+              class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+            >
+              Regenerar
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `
 })
 export class StagesComponent {
   @Input() participantNamesInput: Record<string, string> = {};
   @Input() participantOrderInput: Record<string, number> = {};
   @Input() courtsInput: CourtResponse[] = [];
+  @Input() canManageInput = false;
+  @Input() tournamentStatusInput: TournamentStatus = 'DRAFT';
+  @Input() tournamentNameInput = '';
+  @Input() categoryNameInput = '';
+  @Input() setsPerMatch = 3;
+  @Input() decisiveTiebreakPoints = 7;
+  @Input() gamesPerSet = 6;
 
   @Input() set stagesInput(value: StageResponse[]) {
     this._stages.set(value);
+    this.tryRestoreExpandedStage();
   }
   private _stages = signal<StageResponse[]>([]);
   stages = computed(() => this._stages());
 
   @Input() set tournamentIdInput(value: string) {
     this._tournamentId.set(value);
+    this.tryRestoreExpandedStage();
   }
   private _tournamentId = signal<string>('');
   tournamentId = computed(() => this._tournamentId());
 
+  private tryRestoreExpandedStage() {
+    const value = this._stages();
+    if (!this.expandedStageId() && value.length > 0) {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const expandedStage = value.find(stage => sessionStorage.getItem(`tournament_stage_expanded_${stage.id}`) === 'true');
+        if (expandedStage) {
+          this.expandedStageId.set(expandedStage.id);
+        }
+      }
+    }
+  }
+
   @Output() generateDraws = new EventEmitter<{ tournamentId: string; stageId: string }>();
   @Output() matchSelected = new EventEmitter<string>();
-  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string; result: string }>();
+  @Output() matchResultSaved = new EventEmitter<{ matchId: string; winnerId: string | null; result: string; sets?: SetScoreResponse[] | null; notes?: string | null; status: MatchStatus; keepOpen?: boolean }>();
   @Output() matchScheduleSaved = new EventEmitter<{
     matchId: string;
     courtId: string;
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
   }>();
+  @Output() playersSwapped = new EventEmitter<{
+    matchId1: string;
+    slot1: 'first' | 'second';
+    matchId2: string;
+    slot2: 'first' | 'second';
+  }>();
+  @Output() swapScheduleClicked = new EventEmitter<MatchResponse>();
 
   expandedStageId = signal<string | null>(null);
+
+  confirmModalOpen = signal(false);
+  confirmModalStage = signal<StageResponse | null>(null);
 
   @Input() set generatingDrawsForStageIdInput(value: string | null) {
     this._generatingDrawsForStageId.set(value);
@@ -129,11 +208,60 @@ export class StagesComponent {
   drawGenerationFeedback = computed(() => this._drawGenerationFeedback());
 
   toggleStage(stageId: string) {
-    this.expandedStageId.set(this.expandedStageId() === stageId ? null : stageId);
+    const prevExpandedId = this.expandedStageId();
+    const nextVal = prevExpandedId === stageId ? null : stageId;
+    this.expandedStageId.set(nextVal);
+
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      if (prevExpandedId) {
+        sessionStorage.removeItem(`tournament_stage_expanded_${prevExpandedId}`);
+      }
+      if (nextVal) {
+        sessionStorage.setItem(`tournament_stage_expanded_${nextVal}`, 'true');
+      }
+    }
   }
 
   onGenerateDraws(stage: StageResponse) {
+    if (!this.canManageInput) {
+      return;
+    }
+
+    const hasExistingDraws = (stage.draws || []).length > 0;
+    if (hasExistingDraws) {
+      this.confirmModalStage.set(stage);
+      this.confirmModalOpen.set(true);
+      return;
+    }
+
+    this.doGenerateDraws(stage);
+  }
+
+  cancelRegenerate() {
+    this.confirmModalOpen.set(false);
+    this.confirmModalStage.set(null);
+  }
+
+  confirmRegenerate() {
+    const stage = this.confirmModalStage();
+    this.confirmModalOpen.set(false);
+    this.confirmModalStage.set(null);
+    if (stage) {
+      this.doGenerateDraws(stage);
+    }
+  }
+
+  private doGenerateDraws(stage: StageResponse) {
+    const prevExpandedId = this.expandedStageId();
     this.expandedStageId.set(stage.id);
+
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      if (prevExpandedId) {
+        sessionStorage.removeItem(`tournament_stage_expanded_${prevExpandedId}`);
+      }
+      sessionStorage.setItem(`tournament_stage_expanded_${stage.id}`, 'true');
+    }
+
     this.generateDraws.emit({
       tournamentId: this.tournamentId(),
       stageId: stage.id
@@ -144,7 +272,11 @@ export class StagesComponent {
     this.matchSelected.emit(matchId);
   }
 
-  onMatchResultSaved(event: { matchId: string; winnerId: string; result: string }) {
+  onMatchResultSaved(event: { matchId: string; winnerId: string | null; result: string; sets?: SetScoreResponse[] | null; notes?: string | null; status: MatchStatus; keepOpen?: boolean }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.matchResultSaved.emit(event);
   }
 
@@ -154,7 +286,24 @@ export class StagesComponent {
     scheduledAt: string;
     scheduleTimeType: MatchScheduleTimeType;
   }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
     this.matchScheduleSaved.emit(event);
+  }
+
+  onPlayersSwapped(event: {
+    matchId1: string;
+    slot1: 'first' | 'second';
+    matchId2: string;
+    slot2: 'first' | 'second';
+  }) {
+    if (!this.canManageInput) {
+      return;
+    }
+
+    this.playersSwapped.emit(event);
   }
 
   isGeneratingDraws(stageId: string): boolean {
@@ -195,6 +344,7 @@ export class StagesComponent {
 
   getStageTypeLabel(stageType: string): string {
     const labels: Record<string, string> = {
+      MAIN: 'Cuadro Principal',
       SINGLE_ELIMINATION: 'Eliminatoria simple',
       ROUND_ROBIN: 'Liga',
       DOUBLE_ELIMINATION: 'Doble eliminación',

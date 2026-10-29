@@ -11,7 +11,30 @@ export function getTournamentSurfaceCategoryLabel(surface: TournamentSurfaceCate
   return TOURNAMENT_SURFACE_CATEGORY_LABELS[surface] ?? surface;
 }
 
-export type TournamentStatus = 'DRAFT' | 'OPEN' | 'ACTIVE' | 'CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export const SURFACE_BACKGROUND_IMAGES: Record<TournamentSurfaceCategory, string> = {
+  CLAY: 'surfaces/clay.jpg',
+  HARD: 'surfaces/hard.jpg',
+  GRASS: 'surfaces/grass.jpg',
+  CARPET: 'surfaces/carpet.jpg'
+};
+
+export function getSurfaceBackgroundImage(surface: TournamentSurfaceCategory): string {
+  return SURFACE_BACKGROUND_IMAGES[surface] ?? '';
+}
+
+export type TournamentStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+export type MatchStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'WALKOVER' | 'RETIRED' | 'CANCELLED' | 'SUSPENDED';
+
+export const MATCH_STATUS_LABELS: Record<MatchStatus, string> = {
+  PENDING: 'Pendiente',
+  IN_PROGRESS: 'En juego',
+  COMPLETED: 'Jugado',
+  WALKOVER: 'Walkover',
+  RETIRED: 'Retirada',
+  CANCELLED: 'Cancelado',
+  SUSPENDED: 'Suspendido'
+};
 
 export interface TournamentCreateRequest {
   formalName: string;
@@ -23,7 +46,33 @@ export interface TournamentCreateRequest {
   surfaceCategory: TournamentSurfaceCategory;
   maxPlayers: number;
   location: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationPlaceId?: string | null;
+  locationFormattedAddress?: string | null;
   courtCount: number;
+  setsPerMatch?: number;
+  decisiveTiebreakPoints?: number;
+  gamesPerSet?: number;
+}
+
+export interface TournamentGeneralInfoUpdateRequest {
+  formalName?: string;
+  playStartDate?: string;
+  playEndDate?: string;
+  tournamentStartTime?: string;
+  inscriptionStartDate?: string;
+  inscriptionEndDate?: string;
+  surfaceCategory?: TournamentSurfaceCategory;
+  maxPlayers?: number;
+  location?: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationPlaceId?: string | null;
+  locationFormattedAddress?: string | null;
+  setsPerMatch?: number;
+  decisiveTiebreakPoints?: number;
+  gamesPerSet?: number;
 }
 
 export interface TournamentProviderSummary {
@@ -41,9 +90,17 @@ export interface TournamentResponse {
   surfaceCategory: TournamentSurfaceCategory;
   maxPlayers: number;
   location: string;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
+  locationPlaceId?: string | null;
+  locationFormattedAddress?: string | null;
   status: TournamentStatus;
   providerOrganisationId?: string | TournamentProviderSummary | null;
   events?: TournamentEventResponse[];
+  professionalTournament?: boolean | null;
+  setsPerMatch?: number | null;
+  decisiveTiebreakPoints?: number | null;
+  gamesPerSet?: number | null;
 }
 
 export interface TournamentCalendarFilters {
@@ -51,6 +108,19 @@ export interface TournamentCalendarFilters {
   to?: string | null;
   surface?: TournamentSurfaceCategory | null;
   location?: string | null;
+  name?: string | null;
+  professionalTournament?: boolean | null;
+  status?: TournamentStatus | null;
+  page?: number;
+  size?: number;
+}
+
+export interface TournamentCalendarPageResponse {
+  content: TournamentCalendarResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 export interface TournamentCalendarResponse {
@@ -63,6 +133,7 @@ export interface TournamentCalendarResponse {
   surfaceCategory: TournamentSurfaceCategory;
   maxPlayers: number;
   status: TournamentStatus;
+  professionalTournament?: boolean | null;
 }
 
 export interface PlayerMatchCalendarResponse {
@@ -110,6 +181,7 @@ export interface StageResponse {
   eventId: string;
   stageType: string;
   order: number;
+  strategyName: string | null;
   description: string;
   draws?: DrawResponse[];
 }
@@ -119,7 +191,16 @@ export interface DrawResponse {
   stageId: string;
   drawType: string;
   label: string;
+  groupIndex?: number | null;
   matches?: MatchResponse[];
+}
+
+export interface SetScoreResponse {
+  setNumber: number;
+  firstPlayerGames: number;
+  secondPlayerGames: number;
+  firstPlayerTiebreak?: number | null;
+  secondPlayerTiebreak?: number | null;
 }
 
 export interface MatchResponse {
@@ -128,11 +209,20 @@ export interface MatchResponse {
   secondInscriptionId: string | null;
   winnerId?: string | null;
   roundNumber: number;
+  bracketPosition?: number | null;
   scheduledAt?: string | null;
   scheduleTimeType?: MatchScheduleTimeType | null;
   courtId?: string | null;
   court?: string | null;
   result?: string | null;
+  sets?: SetScoreResponse[] | null;
+  notes?: string | null;
+  professionalMatch?: boolean | null;
+  firstWinPoints?: number | null;
+  secondWinPoints?: number | null;
+  firstPlayerPoints?: string | null;
+  secondPlayerPoints?: string | null;
+  status?: MatchStatus | null;
 }
 
 export type MatchScheduleTimeType = 'EXACT' | 'NOT_BEFORE';
@@ -141,6 +231,16 @@ export interface MatchScheduleRequest {
   courtId: string;
   scheduledAt: string;
   scheduleTimeType: MatchScheduleTimeType;
+  cascade?: boolean;
+}
+
+export type TournamentUpdateType = 'MATCH_RESULT_UPDATED' | 'MATCH_SCHEDULE_UPDATED';
+
+export interface TournamentUpdateEvent {
+  type: TournamentUpdateType;
+  tournamentId: string;
+  matchId: string;
+  occurredAt: string;
 }
 
 export type TournamentEventGender = 'MALE' | 'FEMALE' | 'MIXED';
@@ -157,6 +257,12 @@ export function getTournamentEventGenderLabel(gender: TournamentEventGender): st
 
 export type TournamentStageType = 'SINGLE_ELIMINATION' | 'ROUND_ROBIN' | 'DOUBLE_ELIMINATION' | 'CONSOLATION';
 
+const VALID_STAGE_TYPES: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
+
+export function isValidStageType(value: string): value is TournamentStageType {
+  return (VALID_STAGE_TYPES as string[]).includes(value);
+}
+
 export const TOURNAMENT_STAGE_TYPE_LABELS: Record<TournamentStageType, string> = {
   SINGLE_ELIMINATION: 'Eliminatoria simple',
   ROUND_ROBIN: 'Round Robin',
@@ -168,10 +274,89 @@ export function getTournamentStageTypeLabel(stageType: TournamentStageType): str
   return TOURNAMENT_STAGE_TYPE_LABELS[stageType] ?? stageType;
 }
 
+const TRANSITION_MATRIX: Record<TournamentStageType, TournamentStageType[]> = {
+  ROUND_ROBIN: ['ROUND_ROBIN', 'SINGLE_ELIMINATION', 'DOUBLE_ELIMINATION'],
+  SINGLE_ELIMINATION: ['SINGLE_ELIMINATION', 'CONSOLATION'],
+  DOUBLE_ELIMINATION: ['ROUND_ROBIN', 'SINGLE_ELIMINATION'],
+  CONSOLATION: ['ROUND_ROBIN', 'SINGLE_ELIMINATION']
+};
+
+export interface StageValidationError {
+  rule: string;
+  message: string;
+}
+
+export function validateStageSequence(stages: TournamentStageType[]): StageValidationError[] {
+  const errors: StageValidationError[] = [];
+
+  if (stages.length === 0) {
+    errors.push({ rule: 'EMPTY', message: 'Debe haber al menos una fase definida.' });
+    return errors;
+  }
+
+  if (stages[0] === 'CONSOLATION') {
+    errors.push({ rule: 'R1', message: 'La primera fase no puede ser CONSOLATION. Requiere jugadores eliminados en una fase previa.' });
+  }
+
+  for (let i = 1; i < stages.length; i++) {
+    const current = stages[i];
+    const previous = stages[i - 1];
+
+    if (current === 'CONSOLATION' && previous !== 'SINGLE_ELIMINATION') {
+      errors.push({
+        rule: 'R2',
+        message: `CONSOLATION en la fase ${i + 1} solo es válida si la fase anterior es SINGLE_ELIMINATION (actual: ${previous}).`
+      });
+    }
+
+    if (current === 'DOUBLE_ELIMINATION' && i + 1 < stages.length && stages[i + 1] === 'CONSOLATION') {
+      errors.push({
+        rule: 'R3',
+        message: `Si la fase ${i + 1} es DOUBLE_ELIMINATION, la fase ${i + 2} no puede ser CONSOLATION.`
+      });
+    }
+  }
+
+  for (let i = 0; i < stages.length - 1; i++) {
+    const current = stages[i];
+    const next = stages[i + 1];
+    const allowed = TRANSITION_MATRIX[current];
+
+    if (!allowed || !allowed.includes(next)) {
+      errors.push({
+        rule: 'MATRIX',
+        message: allowed
+          ? `Transición inválida: '${current}' -> '${next}'. Desde ${current} solo se permite: ${allowed.join(', ')}.`
+          : `Fase desconocida: '${current}'. No se puede validar la transición.`
+      });
+    }
+  }
+
+  return errors;
+}
+
+export function isConsolationDisabled(stages: TournamentStageType[]): boolean {
+  if (stages.length === 0) {
+    return true;
+  }
+  const lastStage = stages[stages.length - 1];
+  return lastStage !== 'SINGLE_ELIMINATION';
+}
+
+export function getAvailableStageOptions(stages: TournamentStageType[], currentIndex?: number): TournamentStageType[] {
+  if (currentIndex === undefined || currentIndex === 0) {
+    return VALID_STAGE_TYPES.filter(t => t !== 'CONSOLATION');
+  }
+
+  const previous = stages[currentIndex - 1];
+  return TRANSITION_MATRIX[previous] ?? [];
+}
+
 export interface TournamentEventCatalogItem {
   id: number;
   category: string;
   description: string;
+  custom: boolean;
 }
 
 export interface TournamentEventGenderEventId {
@@ -180,6 +365,7 @@ export interface TournamentEventGenderEventId {
 }
 
 export interface TournamentEventSelection {
+  uniqueId?: string;
   categoryId: number;
   eventCategory: string;
   eventsByGender: TournamentEventGenderEventId[];
@@ -220,6 +406,9 @@ export interface ManualEventInscriptionRequest {
   nationality?: string | null;
   tennisId?: string | null;
   proPlayerId?: number | null;
+  club?: string | null;
+  points?: number | null;
+  entryStatus?: string | null;
 }
 
 export interface EventInscriptionResponse {
@@ -230,6 +419,18 @@ export interface EventInscriptionResponse {
   memberId: string;
   partnerId?: string | null;
   registeredAt: string;
+}
+
+export interface PlayerInscriptionResponse {
+  tournamentId: string;
+  tournamentName: string;
+  eventId: string;
+  eventName: string;
+  categoryName: string;
+  entryStatus: string;
+  paymentStatus: string;
+  playStartDate: string;
+  playEndDate: string;
 }
 
 export interface TournamentInscriptionsResponse {
@@ -262,6 +463,7 @@ export interface TournamentInscriptionGenderCount {
 
 export interface TournamentInscriptionPlayer {
   inscriptionId: string;
+  participantId: string;
   eventId: string;
   categoryId: number;
   category: string;
@@ -273,8 +475,81 @@ export interface TournamentInscriptionPlayer {
   firstName: string;
   lastName: string;
   gender: string;
+  points?: number | null;
+  seed?: number | null;
+  club?: string | null;
+  entryStatus?: string | null;
+  paymentStatus?: string | null;
 }
 
 export interface TournamentStatusUpdateRequest {
   status: TournamentStatus;
+}
+
+export interface ParticipantPointsUpdateRequest {
+  participantId: string;
+  points: number | null;
+  seed: number | null;
+}
+
+export interface ParticipantDetailUpdateRequest {
+  inscriptionId?: string | null;
+  participantId?: string | null;
+  clubName: string | null;
+  entryStatus: string | null;
+  paymentStatus?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  gender?: string | null;
+  eventId?: string | null;
+}
+
+export interface ReorganizeMatchPlayersRequest {
+  matchId1: string;
+  slot1: 'first' | 'second';
+  matchId2: string;
+  slot2: 'first' | 'second';
+}
+
+export interface ScheduleTimeSlot {
+  startTime: string;
+  endTime: string;
+}
+
+export interface ScheduleConfigResponse {
+  id: string | null;
+  tournamentId: string;
+  timeSlots: ScheduleTimeSlot[];
+  matchDurationMinutes: number;
+}
+
+export interface ScheduleConfigRequest {
+  timeSlots: ScheduleTimeSlot[];
+  matchDurationMinutes: number;
+}
+
+export interface TournamentUmpireResponse {
+  id: string;
+  tournamentId: string;
+  umpireId: string;
+  umpireEmail: string | null;
+  umpireFirstName: string | null;
+  umpireLastName: string | null;
+  assignedAt: string;
+}
+
+export interface TournamentUmpireSearchResponse {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+export interface TournamentUmpireRequest {
+  id: string;
+}
+
+export interface SwapMatchSchedulesRequest {
+  matchId1: string;
+  matchId2: string;
 }

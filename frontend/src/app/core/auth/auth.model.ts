@@ -1,6 +1,9 @@
+export type UserRole = 'PLAYER' | 'ORGANIZER' | 'UMPIRE';
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken?: string;
+  role: UserRole;
 }
 
 export interface LoginRequest {
@@ -11,6 +14,9 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
+  name?: string;
+  role: UserRole;
+  privacyPolicyAccepted: boolean;
 }
 
 export interface RegisterResponse {

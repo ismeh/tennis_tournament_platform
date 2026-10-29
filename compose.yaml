@@ -1,8 +1,8 @@
 services:
   postgres:
-    container_name: puntomatch-postgres
+    container_name: tfm-postgres
     image: postgres:18
-    restart: always
+    restart: unless-stopped
     ports:
       - "${DB_PORT:-5432}:5432"
     environment:
@@ -18,10 +18,10 @@ services:
       - postgres_data:/var/lib/postgresql
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: puntomatch-backend
+    image: ${DOCKER_USERNAME:-ismeh}/tennis-backend:latest
+    pull_policy: always
+    container_name: tfm-backend
+    restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8080}:${BACKEND_PORT:-8080}"
     environment:
@@ -31,7 +31,7 @@ services:
       - DATASOURCE_URL=${DATASOURCE_URL:-jdbc:postgresql://postgres:5432/demo-tfm}
       - DB_USER=${DB_USER:-postgres-tfm}
       - DB_PASSWORD=${DB_PASSWORD:-secret}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-my_very_secret_and_long_key_for_puntomatch_tfm_project}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-my_very_secret_and_long_key_for_tennis_platform_tfm_project}
       - EMAIL_CONFIRMATION_REQUIRED=${EMAIL_CONFIRMATION_REQUIRED:-true}
       - EMAIL_CONFIRMATION_ENABLED=${EMAIL_CONFIRMATION_ENABLED:-false}
       - EMAIL_FROM=${EMAIL_FROM:-no-reply@tennis-platform.local}
@@ -51,15 +51,17 @@ services:
       - PRO_PLAYERS_IMPORT_BATCH_SIZE=${PRO_PLAYERS_IMPORT_BATCH_SIZE:-1000}
       - PRO_PLAYERS_MALE_CSV_LOCATION=${PRO_PLAYERS_MALE_CSV_LOCATION:-classpath:db/seed/pro_players_male.csv}
       - PRO_PLAYERS_FEMALE_CSV_LOCATION=${PRO_PLAYERS_FEMALE_CSV_LOCATION:-classpath:db/seed/pro_players_female.csv}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
+      - GOOGLE_PLACES_BASE_URL=${GOOGLE_PLACES_BASE_URL}
     depends_on:
       postgres:
         condition: service_healthy
   
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: puntomatch-frontend
+    image: ${DOCKER_USERNAME:-ismeh}/tennis-frontend:latest
+    pull_policy: always
+    container_name: tfm-frontend
+    restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-4200}:4000"
     environment:

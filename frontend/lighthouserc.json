@@ -1,0 +1,32 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "node dist/tfm_front/server/server.mjs",
+      "startServerReadyPattern": "listening",
+      "url": [
+        "http://localhost:4000/",
+        "http://localhost:4000/torneos",
+        "http://localhost:4000/como-funciona",
+        "http://localhost:4000/contacto"
+      ],
+      "numberOfRuns": 3
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", {"minScore": 0.7}],
+        "categories:accessibility": ["warn", {"minScore": 0.8}],
+        "categories:best-practices": ["warn", {"minScore": 0.8}],
+        "categories:seo": ["warn", {"minScore": 0.8}],
+        "first-contentful-paint": ["error", {"maxNumericValue": 3000}],
+        "largest-contentful-paint": ["error", {"maxNumericValue": 4000}],
+        "total-blocking-time": ["error", {"maxNumericValue": 500}],
+        "cumulative-layout-shift": ["error", {"maxNumericValue": 0.1}]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "./lighthouse-reports",
+      "reportFilenamePattern": "lighthouse-#{url}/#{date}-#{browserName}-report.#{ext}"
+    }
+  }
+}

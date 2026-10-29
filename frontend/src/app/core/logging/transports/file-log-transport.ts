@@ -148,7 +148,11 @@ export class FileLogTransport implements LogTransport {
    */
   async getLogs(filter?: { level?: LogLevel; isRequest?: boolean; limit?: number }): Promise<any[]> {
     if (!this.db) {
-      await this.initialize();
+      try {
+        await this.initialize();
+      } catch (error) {
+        return [];
+      }
       if (!this.db) return [];
     }
 

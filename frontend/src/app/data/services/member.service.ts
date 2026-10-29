@@ -11,7 +11,7 @@ export class MemberService {
   private readonly http = inject(HttpClient);
 
   getMemberByEmail(email: string): Observable<MemberResponse> {
-    return this.http.get<MemberResponse>(`${this.baseUrl}/members/${encodeURIComponent(email)}`);
+    return this.http.get<MemberResponse>(`${AppSettings.API_URL}/members/${encodeURIComponent(email)}`);
   }
 
   getMyProfile(): Observable<ProfileResponse> {
@@ -20,10 +20,6 @@ export class MemberService {
 
   updateMyProfile(payload: ProfileRequest): Observable<ProfileResponse> {
     return this.http.put<ProfileResponse>(this.profileUrl, payload);
-  }
-
-  private get baseUrl(): string {
-    return AppSettings.API_URL.replace(/\/api\/?$/, '');
   }
 
   private get profileUrl(): string {

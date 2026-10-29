@@ -1,5 +1,5 @@
 {
-  "name": "puntomatch",
+  "name": "tfm-front",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -9,8 +9,12 @@
     "test": "ng test",
     "test:headless": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox",
     "test:ci": "ng test --watch=false --code-coverage --browsers=ChromeHeadlessNoSandbox",
-    "serve:ssr:puntomatch": "node dist/puntomatch/server/server.mjs",
-    "format": "prettier --write \"src/**/*.{html,ts,scss,css,json}\""
+    "serve:ssr:tfm_front": "node dist/tfm_front/server/server.mjs",
+    "format": "prettier --write \"src/**/*.{html,ts,scss,css,json}\"",
+    "lighthouse": "npx lhci autorun",
+    "lighthouse:collect": "npx lhci collect",
+    "lighthouse:assert": "npx lhci assert",
+    "lighthouse:upload": "npx lhci upload"
   },
   "prettier": {
     "printWidth": 100,
@@ -40,6 +44,10 @@
     "@angular/router": "^20.3.0",
     "@angular/ssr": "^20.3.0",
     "express": "^5.1.0",
+    "flag-icons": "^7.3.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
+    "leaflet": "^1.9.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
@@ -49,9 +57,11 @@
     "@angular/build": "^20.3.0",
     "@angular/cli": "^20.3.0",
     "@angular/compiler-cli": "^20.3.0",
+    "@lhci/cli": "^0.14.0",
     "@tailwindcss/typography": "^0.5.19",
     "@types/express": "^5.0.1",
     "@types/jasmine": "~5.1.0",
+    "@types/leaflet": "^1.9.16",
     "@types/node": "^20.17.19",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",

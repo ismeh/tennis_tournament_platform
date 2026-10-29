@@ -1,9 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
+
+const EMAIL_PATTERN = /^(?=.{1,254}$)(?=.{1,64}@)(?!.*\.\.)[A-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,63}$/i;
 
 @Component({
 	selector: 'app-login-page',
@@ -59,17 +61,25 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
 		</section>
 	`
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
 	private readonly fb = inject(FormBuilder);
 	private readonly authService = inject(AuthService);
 	private readonly router = inject(Router);
 	private readonly route = inject(ActivatedRoute);
 
+	ngOnInit(): void {
+		this.authService.isLoggedIn$.subscribe(loggedIn => {
+			if (loggedIn) {
+				this.router.navigateByUrl(this.getRedirectUrl());
+			}
+		});
+	}
+
 	readonly isSubmitting = signal(false);
 	readonly errorMessage = signal<string | null>(null);
 
 	readonly form = this.fb.nonNullable.group({
-		email: ['', [Validators.required, Validators.email]],
+		email: ['', [Validators.required, Validators.pattern(EMAIL_PATTERN)]],
 		password: ['', [Validators.required, Validators.minLength(6)]]
 	});
 

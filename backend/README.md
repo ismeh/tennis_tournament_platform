@@ -1,45 +1,193 @@
 # Tennis Tournament Platform - Backend
 
-## Structure
-The backend of the Tennis Tournament Platform is built using Java with Spring Boot. It provides RESTful APIs for managing tournaments, players, matches, and scores. The following packages are included:
-- domain: Contains domain entities, classes representing the data model. Also includes repository interfaces (ports) for data access.
-- application: Contains the application-level logic (use cases/services) that orchestrates the domain models.
-- infrastructure: Contains configurations and implementations for data persistence (@Entity, JPA Repositories and adapters), security, and other infrastructural concerns.
-    - persistence: 
-        - the adapter package contains the implementation of the repository interfaces defined in the domain layer using JPA and the @Entity.
-    - controllers: Contains REST controllers that expose the API endpoints and its DTOs for request and response handling.
+Spring Boot backend for tournament, participant, authentication, and match APIs.
 
-## Versions
+## Architecture and Structure
 
-- **Java**: 25
-- **Maven**: 3.8+
-- **Spring Boot**: 3.x
+The backend follows a ports-and-adapters (hexagonal) style:
 
-## Getting Started
+- `domain/`: core entities and repository contracts (ports)
+- `application/`: services and use-case orchestration
+- `infrastructure/`: adapters (REST controllers, persistence, security, configuration)
+  - `persistence/`: JPA entities, repositories, and adapters
+  - `controller/`: HTTP endpoints and request/response DTOs
+
+## Supported Versions
+
+| Tool | Version |
+|---|---|
+| Java | 25 |
+| Maven | 3.8+ |
+| Spring Boot | 4.0.0 |
+
+> The project is configured for Java 25 (`<java.version>25</java.version>` in `pom.xml`).
+
+## Getting Started (Local)
 
 ### Prerequisites
 
-- Java 17 or higher
-- Maven 3.8 or higher
+- Java 25 installed and active in your shell
+- Maven 3.8+ (or use `./mvnw`)
+- PostgreSQL configured (or run via Docker Compose from project root)
 
-### Running the Project
+### Build, Test, Run
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+```bash
+cd backend
+./mvnw clean install
+./mvnw test
+./mvnw spring-boot:run
+```
 
-2. Build the project:
-   ```bash
-   mvn clean install
-   ```
+API URL by common local setup:
 
-3. Run the application:
-   ```bash
-   mvn spring-boot:run
-   ```
+- Docker Compose or explicit `BACKEND_PORT=8080`: `http://localhost:8080/api`
+- Plain local `dev` profile default (`BACKEND_PORT` unset): `http://localhost:8080/api`
+- Plain local `devH2` profile default (`BACKEND_PORT` unset): `http://localhost:8080/api`
+- The `dev` profile requires `DATASOURCE_URL`, `DB_USER`, and `DB_PASSWORD` to be set; use `BACKEND_PROFILE=devH2` for a local H2 setup.
 
-The application will start on `http://localhost:8080` by default.
+All active HTTP controllers should be namespaced under `/api`; see [`../docs/api-spec.md`](../docs/api-spec.md) before changing any API contract.
+
+## Useful Commands
+
+```bash
+# Run all tests
+./mvnw test
+
+# Package without tests
+./mvnw clean package -DskipTests
+
+# Run app
+./mvnw spring-boot:run
+```
+
+## Testing
+
+The backend includes comprehensive test coverage across multiple layers:
+
+### Test Types
+
+**Unit Tests** (`src/test/java/.../unit/`):
+- Pure Java tests with no external dependencies
+- Fast execution for domain logic, services, and utilities
+- Example: `TournamentServiceTest`, `DrawTest`, `SetScoreTest`
+
+**Integration Tests** (`src/test/java/.../integration/`):
+- Spring Boot tests with H2 in-memory database
+- MockMvc for HTTP endpoint testing
+- JWT security validation
+- Flyway migration verification
+
+**API Contract Tests** (`src/test/java/.../docs/`):
+- REST Docs documentation generation
+- Request/response schema validation
+- API specification maintenance
+
+**Performance Tests** (`src/gatling/java/`):
+- Gatling load testing simulations
+- Tournament workflow stress testing
+- Concurrent user scenario validation
+
+### Running Tests
+
+```bash
+# All tests (unit + integration + docs)
+./mvnw test
+
+# Specific test categories
+./mvnw test -Dtest="*Test"           # Unit tests only
+./mvnw test -Dtest="*IT"             # Integration tests only
+./mvnw test -Dtest="*DocumentationTest"  # API contract tests only
+
+# Single test class
+./mvnw test -Dtest="TournamentServiceTest"
+./mvnw test -Dtest="LoginControllerIT"
+
+# Single test method
+./mvnw test -Dtest="TournamentServiceTest#shouldCreateTournament"
+
+# With coverage
+./mvnw test jacoco:report
+```
+
+### Test Configuration
+
+**H2 Database** (`application-integration-test.yaml`):
+- In-memory database for fast test execution
+- Email confirmation disabled for easier testing
+- Pre-configured JWT secret for token generation
+
+**Test Data**:
+- Each test class uses unique identifiers (UUID-based emails)
+- Tests are isolated and don't depend on execution order
+- Shared Spring context across test classes for performance
+
+### Writing New Tests
+
+**For new controllers**:
+1. Extend `IntegrationTestBase.java`
+2. Use `@AutoConfigureMockMvc` for endpoint testing
+3. Generate unique test data with `UUID.randomUUID()`
+
+**For new services**:
+1. Create unit tests in `src/test/java/.../unit/`
+2. Mock dependencies with Mockito
+3. Focus on business logic validation
+
+**For API changes**:
+1. Update `ApiContractDocumentationTest.java`
+2. Add field descriptions for new response properties
+3. Run `./mvnw test -Dtest="*DocumentationTest"` to verify
+
+### Test Metrics
+
+Current coverage (116 total tests):
+- **79 Unit Tests**: Domain, services, utilities
+- **29 Integration Tests**: Controllers, security, migrations
+- **4 API Contract Tests**: REST documentation
+- **4 Performance Tests**: Gatling simulations (not counted in Maven)
+
+### Troubleshooting Tests
+
+**Common issues**:
+- **Port conflicts**: Integration tests use MockMvc (no actual HTTP server)
+- **Database state**: Tests use H2 in-memory; no cleanup needed
+- **JWT tokens**: Use test secret from `application-integration-test.yaml`
+- **Flyway migrations**: Run automatically before integration tests
+
+## Observability
+
+The backend includes Actuator and Micrometer metrics for service execution monitoring.
+
+Service-layer methods are traced by `ServiceObservabilityAspect`, which records:
+
+- `service.start`, `service.success`, and `service.failure` logs with operation, duration, result summary, and exception type.
+- `backend.service.execution` timer tagged by `application`, `service`, `method`, `outcome`, and `exception`.
+- `backend.service.failures` counter tagged by `application`, `service`, `method`, and `exception`.
+
+Available endpoints:
+
+- `GET /actuator/health`
+- `GET /actuator/info`
+- `GET /actuator/prometheus`
+- `GET /actuator/metrics` requires authentication.
+
+Prometheus can scrape `http://<backend-host>:<port>/actuator/prometheus`.
+
+## API and Documentation
+
+- API specification: [`../docs/api-spec.md`](../docs/api-spec.md)
+- Architecture overview: [`../docs/architecture.md`](../docs/architecture.md)
+- Domain model: [`../docs/domain-model.md`](../docs/domain-model.md)
+
+## Troubleshooting
+
+- `release version 25 not supported`
+  - Your local JDK is older than 25. Switch your Java runtime to JDK 25.
+- Database connection errors on startup
+  - Verify `DB_*` and `DATASOURCE_URL` values in `.env` (or your shell env vars).
+- Port already in use
+  - Change `BACKEND_PORT` in `.env` or stop the process using that port.
 
 ## Pro Players CSV Import
 

@@ -5,10 +5,18 @@ import { LoginComponent } from './features/auth/login';
 import { RegisterComponent } from './features/auth/register';
 import { ConfirmEmailComponent } from './features/auth/confirm-email';
 import { CalendarComponent } from './features/calendar/calendar';
+import { RankingComponent } from './features/ranking/ranking';
 import { ProfileComponent } from './features/profile/profile';
 import { CreateTournamentComponent } from './features/tournaments/create';
 import { TournamentDetailComponent } from './features/tournaments/detail';
-import { TournamentsListComponent } from './features/tournaments/list';
+import { HowItWorksComponent } from './features/how-it-works';
+import { ManageCategoriesComponent } from './features/categories/manage-categories';
+import { AccountSettingsComponent } from './features/account/account-settings';
+import { PrivacyPolicyComponent } from './features/privacy/privacy-policy';
+import { TermsConditionsComponent } from './features/terms/terms-conditions';
+import { ContactComponent } from './features/contact/contact';
+import { authGuard } from './core/guards/auth.guard';
+import { organizerGuard } from './core/guards/organizer.guard';
 
 export const routes: Routes = [
   {
@@ -17,17 +25,23 @@ export const routes: Routes = [
   },
   {
     path: 'torneos',
-    component: TournamentsListComponent,
+    component: CalendarComponent,
     data: { title: 'Torneos' }
   },
   {
     path: 'calendario',
-    component: CalendarComponent,
-    data: { title: 'Calendario' }
+    redirectTo: 'torneos',
+    pathMatch: 'full'
+  },
+  {
+    path: 'ranking',
+    component: RankingComponent,
+    data: { title: 'Ranking' }
   },
   {
     path: 'torneos/crear',
     component: CreateTournamentComponent,
+    canActivate: [organizerGuard],
     data: { title: 'Crear Torneo' }
   },
   {
@@ -36,14 +50,30 @@ export const routes: Routes = [
     data: { title: 'Detalle Torneo' }
   },
   {
+    path: 'mis-categorias',
+    component: ManageCategoriesComponent,
+    canActivate: [organizerGuard],
+    data: { title: 'Mis Categorías' }
+  },
+  {
     path: 'como-funciona',
-    component: PlaceholderPage,
+    component: HowItWorksComponent,
     data: { title: 'Cómo Funciona' }
   },
   {
+    path: 'politica-privacidad',
+    component: PrivacyPolicyComponent,
+    data: { title: 'Política de Privacidad' }
+  },
+  {
+    path: 'terminos-condiciones',
+    component: TermsConditionsComponent,
+    data: { title: 'Términos y Condiciones' }
+  },
+  {
     path: 'contacto',
-    component: PlaceholderPage,
-    data: { title: 'Contáctenos' }
+    component: ContactComponent,
+    data: { title: 'Contacto' }
   },
   {
     path: 'login',
@@ -63,7 +93,14 @@ export const routes: Routes = [
   {
     path: 'perfil',
     component: ProfileComponent,
+    canActivate: [authGuard],
     data: { title: 'Completar perfil' }
+  },
+  {
+    path: 'ajustes-cuenta',
+    component: AccountSettingsComponent,
+    canActivate: [authGuard],
+    data: { title: 'Ajustes de cuenta' }
   },
   {
     path: '**',

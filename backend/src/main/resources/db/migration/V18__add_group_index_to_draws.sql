@@ -1,0 +1,1 @@
+ALTER TABLE draws ADD COLUMN group_index INTEGER;
