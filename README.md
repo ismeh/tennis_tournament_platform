@@ -117,6 +117,8 @@ npm run start
 | [`/backend`](./backend) | Spring Boot API, domain/application/infrastructure layers, persistence, security |
 | [`/frontend`](./frontend) | Angular SSR UI, feature routes, auth flows, API client layer |
 | [`/docs`](./docs) | Architecture, API specification, domain model, coding standards |
+| [`/CHANGELOG.md`](./CHANGELOG.md) | Release history following the Keep a Changelog 1.1.0 standard |
+| [`/ROADMAP.md`](./ROADMAP.md) | Current, short-, medium-, and long-term project milestones |
 | [`/compose.yaml`](./compose.yaml) | Base multi-service orchestration using published frontend/backend images |
 | [`/compose.local.yaml`](./compose.local.yaml) | Docker Compose override that builds frontend/backend images locally |
 | [`/.env.example`](./.env.example) | Environment variable template for local setup |
@@ -209,14 +211,19 @@ Current coverage: 69 tests (components, services, pipes, guards)
 
 ### Where to Find More Information
 
+- Changelog: [`/CHANGELOG.md`](./CHANGELOG.md) (Keep a Changelog 1.1.0)
+- Roadmap: [`/ROADMAP.md`](./ROADMAP.md) (short-, medium-, long-term goals)
+- Agent & Contributor guide: [`/AGENTS.md`](./AGENTS.md)
 - API spec: [`/docs/api-spec.md`](./docs/api-spec.md)
 - Architecture: [`/docs/architecture.md`](./docs/architecture.md)
 - Troubleshooting: [`/backend/README.md`](./backend/README.md), [`/frontend/README.md`](./frontend/README.md)
 
-## Known Limitations / Roadmap
+## Roadmap & Release Policy
 
-- API coverage is partial; several endpoints are planned but not implemented yet
-- Deployment automation is planned, but repository workflow wiring, secrets, and AWS setup are still required
+Project planning and version evolution follow structured standards:
+- **Roadmap**: See [`ROADMAP.md`](./ROADMAP.md) for current sprint items and short-, medium-, and long-term milestones.
+- **Changelog**: Changes are summarized following [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) in [`CHANGELOG.md`](./CHANGELOG.md). Finished roadmap tasks are added in a concise, human-readable format under `[Unreleased]`.
+- **Known Limitations**: API coverage is partial; several endpoints are planned but not implemented yet. Deployment automation is planned, with AWS workflow secrets required.
 
 ## License
 

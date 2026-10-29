@@ -228,7 +228,8 @@ docs/
 docs/*
 !docs/deployment-https.md
 .gitignore
-AGENTS*
+# AGENTS.md should be versioned as AI pair instructions
+!AGENTS.md
 memoria/* 
 wsl*
 .history*
