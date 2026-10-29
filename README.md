@@ -221,9 +221,8 @@ Current coverage: 69 tests (components, services, pipes, guards)
 ## Roadmap & Release Policy
 
 Project planning and version evolution follow structured standards:
-- **Roadmap**: See [`ROADMAP.md`](./ROADMAP.md) for current sprint items and short-, medium-, and long-term milestones.
-- **Changelog**: Changes are summarized following [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) in [`CHANGELOG.md`](./CHANGELOG.md). Finished roadmap tasks are added in a concise, human-readable format under `[Unreleased]`.
-- **Known Limitations**: API coverage is partial; several endpoints are planned but not implemented yet. Deployment automation is planned, with AWS workflow secrets required.
+- **Roadmap**: See [`ROADMAP.md`](./ROADMAP.md) for current active development and short-, medium-, and long-term milestones.
+- **Changelog**: Changes are tracked following [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) in [`CHANGELOG.md`](./CHANGELOG.md). Completed roadmap tasks are summarized under `[Unreleased]`.
 
 ## License
 

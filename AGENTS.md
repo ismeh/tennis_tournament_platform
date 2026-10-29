@@ -3,8 +3,8 @@
 Tennis Tournament Platform — a Master's thesis project (TFM). Java/Spring Boot backend plus an
 Angular frontend.
 
-Verified against the code on 2026-10-29. Where this file and `docs/` disagree, this file reflects
-the current code.
+Verified against the codebase on 2026-10-29. This guide summarizes the development environment,
+repository architecture, and project standards.
 
 ## Repository shape
 
