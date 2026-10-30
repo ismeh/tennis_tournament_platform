@@ -15,16 +15,14 @@ Tasks follow a clear progression lifecycle:
 
 ## 🚧 In Progress
 
-- [ ] **Standardized Versioning & Documentation**: Establish Keep a Changelog 1.1.0 and centralized roadmap tracking across `CHANGELOG.md`, `ROADMAP.md`, `AGENTS.md`, and `README.md`.
-- [ ] **Branch Synchronization**: Consolidate develop/main changes into `experimental` and maintain clean integration across working branches.
+- [ ] **CI/CD Pipeline Robustness**:
+  - Unify GitHub Actions workflows for automated verification on PRs (`mvn test`, `npm run test:ci`, `npm run build`).
+  - Add branch protection rules and automated badge reporting.
 
 ---
 
 ## 🎯 Short Term (Next Milestones)
 
-- [ ] **CI/CD Pipeline Robustness**:
-  - Unify GitHub Actions workflows for automated verification on PRs (`mvn test`, `npm run test:ci`, `npm run build`).
-  - Add branch protection rules and automated badge reporting.
 - [ ] **Frontend Testing & Bundle Budgets**:
   - Adjust Angular initial bundle budget warnings in `angular.json` for lazy-loaded assets.
   - Expand component unit tests for edge cases in match details and modal dialogues.
@@ -42,8 +40,6 @@ Tasks follow a clear progression lifecycle:
 - [ ] **Umpire & Live Match Scoring**:
   - Live umpire interface for point-by-point / game-by-game scoring updates in real time.
   - Enhanced SSE listener handling on client with optimistic UI updates.
-- [ ] **Notification Center**:
-  - Email and in-app notifications for match schedule updates, court reassignments, and tournament invitations.
 - [ ] **Comprehensive Exporting**:
   - Excel/CSV export of inscriptions, draw results, and match scores.
 

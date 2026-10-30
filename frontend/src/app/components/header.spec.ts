@@ -1,12 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of, BehaviorSubject } from 'rxjs';
+import { signal } from '@angular/core';
 import { HeaderComponent } from './header';
 import { AuthService } from '../core/auth/auth.service';
+import { NotificationService } from '../data/services/notification.service';
 
 describe('HeaderComponent', () => {
   let component: HeaderComponent;
   let authServiceSpy: jasmine.SpyObj<AuthService>;
+  let notificationServiceSpy: jasmine.SpyObj<NotificationService>;
 
   const isLoggedInSubject = new BehaviorSubject<boolean>(false);
   const displayNameSubject = new BehaviorSubject<string | null>(null);
@@ -25,10 +28,26 @@ describe('HeaderComponent', () => {
       nationality$: nationalitySubject.asObservable(),
     });
 
+    notificationServiceSpy = jasmine.createSpyObj('NotificationService', [
+      'fetchNotifications',
+      'fetchUnreadCount',
+      'markAsRead',
+      'markAllAsRead'
+    ], {
+      unreadCount: signal(3),
+      notifications: signal([])
+    });
+
+    notificationServiceSpy.fetchNotifications.and.returnValue(of([]));
+    notificationServiceSpy.fetchUnreadCount.and.returnValue(of({ unreadCount: 3 }));
+    notificationServiceSpy.markAsRead.and.returnValue(of(undefined));
+    notificationServiceSpy.markAllAsRead.and.returnValue(of(undefined));
+
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
       providers: [
         { provide: AuthService, useValue: authServiceSpy },
+        { provide: NotificationService, useValue: notificationServiceSpy },
         provideRouter([{ path: '**', component: HeaderComponent }]),
       ],
     }).compileComponents();
@@ -170,6 +189,41 @@ describe('HeaderComponent', () => {
       expect(authServiceSpy.logout).toHaveBeenCalled();
       expect(component.isProfileMenuOpen()).toBeFalse();
       expect(component.isMobileMenuOpen()).toBeFalse();
+    });
+  });
+
+  describe('notifications', () => {
+    it('should toggle notifications menu and fetch notifications', () => {
+      expect(component.isNotificationsOpen()).toBeFalse();
+      component.toggleNotificationsMenu();
+      expect(component.isNotificationsOpen()).toBeTrue();
+      expect(notificationServiceSpy.fetchNotifications).toHaveBeenCalled();
+
+      component.toggleNotificationsMenu();
+      expect(component.isNotificationsOpen()).toBeFalse();
+    });
+
+    it('should mark all notifications as read', () => {
+      component.markAllNotificationsAsRead();
+      expect(notificationServiceSpy.markAllAsRead).toHaveBeenCalled();
+    });
+
+    it('should handle notification click, mark as read if unread, and navigate', () => {
+      const router = TestBed.inject(Router);
+      spyOn(router, 'navigateByUrl');
+
+      component.onNotificationClick({
+        id: 'n1',
+        title: 'Partido',
+        message: 'Programado',
+        type: 'MATCH_SCHEDULED',
+        linkUrl: '/torneos/123',
+        read: false,
+        createdAt: '2026-10-30T10:00:00'
+      });
+
+      expect(notificationServiceSpy.markAsRead).toHaveBeenCalledWith('n1');
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/torneos/123');
     });
   });
 

@@ -30,6 +30,7 @@ public class Member {
     private final boolean termsConditionsAccepted;
     private final LocalDateTime termsConditionsAcceptedAt;
     private final String termsConditionsVersion;
+    private final com.tfm.tennis_platform.domain.models.enums.NotificationChannel notificationChannel;
 
     public Member withEmailConfirmation(String tokenHash, LocalDateTime expiresAt) {
         return toBuilder()

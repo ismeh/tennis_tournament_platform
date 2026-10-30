@@ -74,4 +74,9 @@ public class MemberEntity {
 
     @Column(name = "terms_conditions_version", length = 20)
     private String termsConditionsVersion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "notification_channel", length = 20, nullable = false)
+    @Builder.Default
+    private com.tfm.tennis_platform.domain.models.enums.NotificationChannel notificationChannel = com.tfm.tennis_platform.domain.models.enums.NotificationChannel.BOTH;
 }

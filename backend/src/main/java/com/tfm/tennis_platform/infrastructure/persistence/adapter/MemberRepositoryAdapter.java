@@ -37,6 +37,11 @@ public class MemberRepositoryAdapter implements MemberRepository {
     }
 
     @Override
+    public Optional<Member> findByPersonId(UUID personId) {
+        return memberRepository.findByPersonId(personId).map(mapper::toDomain);
+    }
+
+    @Override
     public Optional<Member> findByEmailConfirmationTokenHash(String tokenHash) {
         return memberRepository.findByEmailConfirmationTokenHash(tokenHash).map(mapper::toDomain);
     }
@@ -74,6 +79,11 @@ public class MemberRepositoryAdapter implements MemberRepository {
     @Override
     public void updateTermsConsent(UUID id, boolean accepted, LocalDateTime acceptedAt, String version) {
         memberRepository.updateTermsConsent(id, accepted, acceptedAt, version);
+    }
+
+    @Override
+    public void updateNotificationChannel(UUID id, com.tfm.tennis_platform.domain.models.enums.NotificationChannel channel) {
+        memberRepository.updateNotificationChannel(id, channel);
     }
 
     @Override

@@ -43,4 +43,16 @@ public interface JpaInscriptionRepository extends JpaRepository<InscriptionEntit
             @Param("tournamentId") UUID tournamentId,
             @Param("eventId") UUID eventId
     );
+
+    @Query("""
+            select distinct inscription
+            from InscriptionEntity inscription
+            join fetch inscription.event event
+            join fetch event.tournament tournament
+            join fetch inscription.participant participant
+            left join fetch participant.individualPerson
+            left join fetch participant.members
+            where inscription.id = :id
+            """)
+    java.util.Optional<InscriptionEntity> findDetailedById(@Param("id") UUID id);
 }

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Standardized release tracking using `CHANGELOG.md` following Keep a Changelog 1.1.0.
 - Central roadmap document (`ROADMAP.md`) categorizing tasks in progress, short-term, medium-term, and long-term milestones.
+- In-app notification center and multi-channel preferences (`APP`, `EMAIL`, `BOTH`, `NONE`) with automatic match scheduling alerts, interactive header bell popover, unread counter, and account settings preference controls.
 
 ## [0.1.0] - 2026-10-29
 

@@ -23,6 +23,7 @@ public interface MemberMapper {
     @Mapping(target = "termsConditionsAccepted", source = "termsConditionsAccepted")
     @Mapping(target = "termsConditionsAcceptedAt", source = "termsConditionsAcceptedAt")
     @Mapping(target = "termsConditionsVersion", source = "termsConditionsVersion")
+    @Mapping(target = "notificationChannel", source = "notificationChannel")
     Member toDomain(MemberEntity entity);
 
     @Mapping(target = "passwordHash", source = "password")
@@ -38,5 +39,6 @@ public interface MemberMapper {
     @Mapping(target = "termsConditionsAccepted", source = "termsConditionsAccepted")
     @Mapping(target = "termsConditionsAcceptedAt", source = "termsConditionsAcceptedAt")
     @Mapping(target = "termsConditionsVersion", source = "termsConditionsVersion")
+    @Mapping(target = "notificationChannel", expression = "java(domain.getNotificationChannel() != null ? domain.getNotificationChannel() : com.tfm.tennis_platform.domain.models.enums.NotificationChannel.BOTH)")
     MemberEntity toEntity(Member domain);
 }

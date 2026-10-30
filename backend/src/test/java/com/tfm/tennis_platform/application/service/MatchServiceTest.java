@@ -1,6 +1,7 @@
 package com.tfm.tennis_platform.application.service;
 
 import com.tfm.tennis_platform.application.services.MatchService;
+import com.tfm.tennis_platform.application.services.NotificationService;
 import com.tfm.tennis_platform.application.services.TournamentService;
 import com.tfm.tennis_platform.application.services.PointsCalculationService;
 import com.tfm.tennis_platform.infrastructure.controller.dto.SetScoreRequest;
@@ -86,6 +87,9 @@ class MatchServiceTest {
     @Mock
     private InscriptionRepository inscriptionRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
     private MatchService matchService;
 
     @BeforeEach
@@ -96,7 +100,7 @@ class MatchServiceTest {
         });
         when(matchRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(pointsCalculationService.calculate(any(), any(), anyInt())).thenReturn(new PointsCalculationService.PointsResult(100, 30));
-        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository, scheduleConfigRepository, tournamentUpdatePublisher, transactionTemplate, tournamentService, pointsCalculationService, drawRepository, stageRepository, inscriptionRepository);
+        matchService = new MatchService(matchRepository, tournamentRepository, courtRepository, scheduleConfigRepository, tournamentUpdatePublisher, transactionTemplate, tournamentService, pointsCalculationService, drawRepository, stageRepository, inscriptionRepository, notificationService);
     }
 
     @Test

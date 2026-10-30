@@ -21,6 +21,8 @@ public interface JpaMemberRepository extends JpaRepository<MemberEntity, UUID> {
 
     Optional<MemberEntity> findByEmail(String username);
 
+    Optional<MemberEntity> findByPersonId(UUID personId);
+
     Optional<MemberEntity> findByEmailConfirmationTokenHash(String tokenHash);
 
     @Modifying
@@ -93,6 +95,14 @@ public interface JpaMemberRepository extends JpaRepository<MemberEntity, UUID> {
             @Param("accepted") boolean accepted,
             @Param("acceptedAt") LocalDateTime acceptedAt,
             @Param("version") String version
+    );
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE MemberEntity m SET m.notificationChannel = :channel WHERE m.id = :id")
+    int updateNotificationChannel(
+            @Param("id") UUID id,
+            @Param("channel") com.tfm.tennis_platform.domain.models.enums.NotificationChannel channel
     );
 
     Optional<MemberEntity> findFirstByRole(UserRole role);

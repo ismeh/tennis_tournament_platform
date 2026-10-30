@@ -10,6 +10,7 @@ public interface MemberRepository {
     Member save(Member member);
     Optional<Member> findByEmail(String email);
     Optional<Member> findById(UUID id);
+    Optional<Member> findByPersonId(UUID personId);
     Optional<Member> findByEmailConfirmationTokenHash(String tokenHash);
     void updateTokenHash(UUID id, String tokenHash);
     void updateEmailConfirmation(UUID id, boolean emailVerified, String tokenHash, java.time.LocalDateTime expiresAt);
@@ -18,6 +19,7 @@ public interface MemberRepository {
     void anonymize(UUID id, String anonymizedEmail);
     void updatePrivacyConsent(UUID id, boolean accepted, java.time.LocalDateTime acceptedAt, String version);
     void updateTermsConsent(UUID id, boolean accepted, java.time.LocalDateTime acceptedAt, String version);
+    void updateNotificationChannel(UUID id, com.tfm.tennis_platform.domain.models.enums.NotificationChannel channel);
     Optional<Member> findByRole(UserRole role);
     List<Member> findAllByRole(UserRole role);
     List<Member> searchUmpiresByQuery(String query);

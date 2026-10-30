@@ -3,10 +3,12 @@ import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { AccountSettingsComponent } from './account-settings';
 import { AuthService, AccountExportData, ConsentHistoryEntry } from '../../core/auth/auth.service';
+import { NotificationService } from '../../data/services/notification.service';
 
 describe('AccountSettingsComponent', () => {
   let component: AccountSettingsComponent;
   let authServiceSpy: jasmine.SpyObj<AuthService>;
+  let notificationServiceSpy: jasmine.SpyObj<NotificationService>;
 
   beforeEach(async () => {
     authServiceSpy = jasmine.createSpyObj('AuthService', [
@@ -15,13 +17,19 @@ describe('AccountSettingsComponent', () => {
       'deleteAccount',
       'logout',
     ]);
+    notificationServiceSpy = jasmine.createSpyObj('NotificationService', [
+      'getPreference',
+      'updatePreference'
+    ]);
 
     authServiceSpy.getConsentHistory.and.returnValue(of({ history: [] }));
+    notificationServiceSpy.getPreference.and.returnValue(of({ channel: 'BOTH' }));
 
     await TestBed.configureTestingModule({
       imports: [AccountSettingsComponent],
       providers: [
         { provide: AuthService, useValue: authServiceSpy },
+        { provide: NotificationService, useValue: notificationServiceSpy },
         { provide: Router, useValue: { navigateByUrl: jasmine.createSpy('navigateByUrl') } },
       ],
     }).compileComponents();
@@ -33,6 +41,17 @@ describe('AccountSettingsComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should load initial notification preference and update channel', () => {
+    expect(component.selectedChannel()).toBe('BOTH');
+
+    notificationServiceSpy.updatePreference.and.returnValue(of({ channel: 'APP' }));
+    component.onChannelSelected('APP');
+
+    expect(notificationServiceSpy.updatePreference).toHaveBeenCalledWith('APP');
+    expect(component.selectedChannel()).toBe('APP');
+    expect(component.channelSuccess()).toContain('guardada correctamente');
   });
 
   describe('getEmailLabel', () => {

@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService, AccountExportData, ConsentHistoryEntry } from '../../core/auth/auth.service';
+import { NotificationService } from '../../data/services/notification.service';
+import { NotificationChannel } from '../../data/interfaces/notification.model';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
@@ -13,8 +15,85 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
     <section class="mx-auto max-w-2xl px-4 py-10 sm:py-16">
       <h1 class="text-2xl font-bold text-neutral-900">Ajustes de cuenta</h1>
       <p class="mt-2 text-sm text-neutral-600">
-        Gestiona tu cuenta y datos personales conforme al RGPD.
+        Gestiona tu cuenta, canales de notificación y datos personales conforme al RGPD.
       </p>
+
+      <!-- Notification Preferences Section -->
+      <div class="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 class="text-lg font-semibold text-neutral-900">Preferencias de notificaciones</h2>
+        <p class="mt-1 text-sm text-neutral-600">
+          Elige a través de qué canal deseas recibir las novedades y avisos de partidos.
+        </p>
+
+        <div class="mt-5 space-y-3">
+          <label class="flex items-start gap-3 rounded-xl border border-neutral-200 p-3.5 transition-colors hover:bg-neutral-50 cursor-pointer" [class.border-primary-500]="selectedChannel() === 'BOTH'" [class.bg-primary-50]="selectedChannel() === 'BOTH'">
+            <input
+              type="radio"
+              name="notificationChannel"
+              value="BOTH"
+              [checked]="selectedChannel() === 'BOTH'"
+              (change)="onChannelSelected('BOTH')"
+              class="mt-0.5 text-primary-600 focus:ring-primary-500"
+            />
+            <div>
+              <span class="block text-sm font-semibold text-neutral-900">En la app y por email (Recomendado)</span>
+              <span class="block text-xs text-neutral-500">Recibe avisos dentro de la plataforma y un correo electrónico ante cada evento importante.</span>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 rounded-xl border border-neutral-200 p-3.5 transition-colors hover:bg-neutral-50 cursor-pointer" [class.border-primary-500]="selectedChannel() === 'APP'" [class.bg-primary-50]="selectedChannel() === 'APP'">
+            <input
+              type="radio"
+              name="notificationChannel"
+              value="APP"
+              [checked]="selectedChannel() === 'APP'"
+              (change)="onChannelSelected('APP')"
+              class="mt-0.5 text-primary-600 focus:ring-primary-500"
+            />
+            <div>
+              <span class="block text-sm font-semibold text-neutral-900">Solo en la app</span>
+              <span class="block text-xs text-neutral-500">Recibe notificaciones únicamente en el icono de campana de la plataforma.</span>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 rounded-xl border border-neutral-200 p-3.5 transition-colors hover:bg-neutral-50 cursor-pointer" [class.border-primary-500]="selectedChannel() === 'EMAIL'" [class.bg-primary-50]="selectedChannel() === 'EMAIL'">
+            <input
+              type="radio"
+              name="notificationChannel"
+              value="EMAIL"
+              [checked]="selectedChannel() === 'EMAIL'"
+              (change)="onChannelSelected('EMAIL')"
+              class="mt-0.5 text-primary-600 focus:ring-primary-500"
+            />
+            <div>
+              <span class="block text-sm font-semibold text-neutral-900">Solo por email</span>
+              <span class="block text-xs text-neutral-500">Recibe los avisos directamente en la bandeja de entrada de tu correo.</span>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 rounded-xl border border-neutral-200 p-3.5 transition-colors hover:bg-neutral-50 cursor-pointer" [class.border-primary-500]="selectedChannel() === 'NONE'" [class.bg-primary-50]="selectedChannel() === 'NONE'">
+            <input
+              type="radio"
+              name="notificationChannel"
+              value="NONE"
+              [checked]="selectedChannel() === 'NONE'"
+              (change)="onChannelSelected('NONE')"
+              class="mt-0.5 text-primary-600 focus:ring-primary-500"
+            />
+            <div>
+              <span class="block text-sm font-semibold text-neutral-900">Desactivadas</span>
+              <span class="block text-xs text-neutral-500">No recibirás notificaciones en la app ni por correo electrónico.</span>
+            </div>
+          </label>
+        </div>
+
+        @if (channelSuccess()) {
+          <p class="mt-3 text-sm text-green-600 font-medium">{{ channelSuccess() }}</p>
+        }
+        @if (channelError()) {
+          <p class="mt-3 text-sm text-red-600 font-medium">{{ channelError() }}</p>
+        }
+      </div>
 
       <!-- Export Section -->
       <div class="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
@@ -178,8 +257,13 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
 })
 export class AccountSettingsComponent implements OnInit {
   private readonly authService = inject(AuthService);
+  private readonly notificationService = inject(NotificationService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+
+  readonly selectedChannel = signal<NotificationChannel>('BOTH');
+  readonly channelSuccess = signal<string | null>(null);
+  readonly channelError = signal<string | null>(null);
 
   readonly exportData = signal<AccountExportData | null>(null);
   readonly isLoadingExport = signal(false);
@@ -197,6 +281,36 @@ export class AccountSettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadConsentHistory();
+    this.loadNotificationPreference();
+  }
+
+  loadNotificationPreference(): void {
+    this.notificationService.getPreference().subscribe({
+      next: res => {
+        this.selectedChannel.set(res.channel);
+      },
+      error: () => {
+        // Fallback default
+        this.selectedChannel.set('BOTH');
+      }
+    });
+  }
+
+  onChannelSelected(channel: NotificationChannel): void {
+    this.selectedChannel.set(channel);
+    this.channelSuccess.set(null);
+    this.channelError.set(null);
+
+    this.notificationService.updatePreference(channel).subscribe({
+      next: res => {
+        this.selectedChannel.set(res.channel);
+        this.channelSuccess.set('Preferencia de notificaciones guardada correctamente.');
+        setTimeout(() => this.channelSuccess.set(null), 4000);
+      },
+      error: err => {
+        this.channelError.set(getApiErrorMessage(err, 'No se pudo actualizar la preferencia de notificaciones.'));
+      }
+    });
   }
 
   loadExportData(): void {

@@ -53,6 +53,7 @@ public class MatchService {
     private final DrawRepository drawRepository;
     private final StageRepository stageRepository;
     private final InscriptionRepository inscriptionRepository;
+    private final NotificationService notificationService;
     private static final int MAX_CONCURRENT_MODIFICATION_ATTEMPTS = 3;
     private static final Duration DEFAULT_MATCH_INTERVAL = Duration.ofHours(1);
 
@@ -336,7 +337,27 @@ public class MatchService {
                 doScheduleWithWarnings(tournamentId, matchId, courtId, scheduledAt, scheduleTimeType, cascade, requesterEmail)
         ));
         tournamentUpdatePublisher.publish(TournamentUpdateEvent.matchScheduleUpdated(tournamentId, matchId));
+        if (result != null && result.match() != null) {
+            triggerMatchScheduleNotification(tournamentId, result.match());
+        }
         return result;
+    }
+
+    private void triggerMatchScheduleNotification(UUID tournamentId, Match match) {
+        try {
+            var tournamentOpt = tournamentRepository.findById(tournamentId);
+            String tournamentName = tournamentOpt.map(t -> t.getName()).orElse("Torneo");
+            notificationService.notifyMatchScheduled(
+                    tournamentId,
+                    tournamentName,
+                    match.getFirstInscriptionId(),
+                    match.getSecondInscriptionId(),
+                    match.getScheduledAt(),
+                    match.getCourt()
+            );
+        } catch (Exception ignored) {
+            // Notifications should not fail the scheduling transaction
+        }
     }
 
     private ScheduleResult doScheduleWithWarnings(UUID tournamentId, UUID matchId, UUID courtId, LocalDateTime scheduledAt, ScheduleTimeType scheduleTimeType, boolean cascade, String requesterEmail) {
@@ -501,6 +522,9 @@ public class MatchService {
                 doSchedule(tournamentId, matchId, courtId, scheduledAt, scheduleTimeType, cascade, requesterEmail)
         ));
         tournamentUpdatePublisher.publish(TournamentUpdateEvent.matchScheduleUpdated(tournamentId, matchId));
+        if (updatedMatch != null) {
+            triggerMatchScheduleNotification(tournamentId, updatedMatch);
+        }
         return updatedMatch;
     }
 

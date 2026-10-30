@@ -1,7 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
+import { NotificationService } from '../data/services/notification.service';
+import { NotificationItem } from '../data/interfaces/notification.model';
 import { AppSettings } from '../shared/constants';
 import { alpha3ToAlpha2 } from '../shared/country-flag.util';
 
@@ -71,6 +74,78 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                   Inscribirse
                 </a>
               }
+              <!-- Notifications Bell Dropdown -->
+              <div class="relative">
+                <button
+                  type="button"
+                  (click)="toggleNotificationsMenu()"
+                  class="relative p-2 text-neutral-600 hover:text-primary-600 hover:bg-neutral-100 rounded-full transition-colors focus:outline-none"
+                  title="Notificaciones"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  @if (unreadCount() > 0) {
+                    <span class="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-sm">
+                      {{ unreadCount() > 99 ? '99+' : unreadCount() }}
+                    </span>
+                  }
+                </button>
+
+                @if (isNotificationsOpen()) {
+                  <div class="absolute right-0 top-12 z-50 w-80 sm:w-96 rounded-2xl border border-neutral-200 bg-white shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    <div class="flex items-center justify-between border-b border-neutral-100 px-4 py-3 bg-neutral-50/70">
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-neutral-900">Notificaciones</span>
+                        @if (unreadCount() > 0) {
+                          <span class="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">
+                            {{ unreadCount() }} nueva{{ unreadCount() > 1 ? 's' : '' }}
+                          </span>
+                        }
+                      </div>
+                      @if (unreadCount() > 0) {
+                        <button
+                          type="button"
+                          (click)="markAllNotificationsAsRead()"
+                          class="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                        >
+                          Marcar leídas
+                        </button>
+                      }
+                    </div>
+
+                    <div class="max-h-96 overflow-y-auto divide-y divide-neutral-100">
+                      @if (notifications().length === 0) {
+                        <div class="p-6 text-center text-sm text-neutral-500">
+                          No tienes notificaciones por el momento.
+                        </div>
+                      } @else {
+                        @for (item of notifications(); track item.id) {
+                          <div
+                            (click)="onNotificationClick(item)"
+                            class="p-4 transition-colors hover:bg-neutral-50 cursor-pointer flex gap-3 text-left"
+                            [class.bg-primary-50/30]="!item.read"
+                          >
+                            <div class="mt-0.5">
+                              @if (!item.read) {
+                                <span class="block h-2 w-2 rounded-full bg-primary-600"></span>
+                              } @else {
+                                <span class="block h-2 w-2 rounded-full bg-transparent"></span>
+                              }
+                            </div>
+                            <div class="flex-1 min-w-0">
+                              <p class="text-xs font-semibold text-neutral-900 truncate">{{ item.title }}</p>
+                              <p class="text-xs text-neutral-600 mt-0.5 line-clamp-2 leading-relaxed">{{ item.message }}</p>
+                              <span class="text-[10px] text-neutral-400 mt-1 block">{{ item.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                            </div>
+                          </div>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+
               <div class="relative flex items-center gap-0.5 border border-neutral-200 bg-white rounded-full pl-2 pr-1 py-1 hover:bg-neutral-50 transition-colors">
                 <a
                   routerLink="/perfil"
@@ -335,9 +410,10 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
   `,
   styles: []
 })
-export class HeaderComponent {
+export class HeaderComponent implements OnInit, OnDestroy {
   AppSettings: typeof AppSettings = AppSettings;
   private readonly authService = inject(AuthService);
+  private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
 
   readonly isLoggedIn$ = this.authService.isLoggedIn$;
@@ -345,13 +421,58 @@ export class HeaderComponent {
   readonly role$ = this.authService.role$;
   readonly nationality$ = this.authService.nationality$;
   readonly isProfileMenuOpen = signal(false);
+  readonly isNotificationsOpen = signal(false);
   readonly isMobileMenuOpen = signal(false);
   readonly isMobileProfileOpen = signal(false);
 
   readonly countryCode = signal<string | null>(null);
 
+  readonly unreadCount = this.notificationService.unreadCount;
+  readonly notifications = this.notificationService.notifications;
+
+  private authSub?: Subscription;
+
   constructor() {
     this.nationality$.subscribe(n => this.countryCode.set(alpha3ToAlpha2(n)));
+  }
+
+  ngOnInit(): void {
+    this.authSub = this.isLoggedIn$.subscribe(loggedIn => {
+      if (loggedIn) {
+        this.notificationService.fetchUnreadCount().subscribe();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.authSub?.unsubscribe();
+  }
+
+  toggleNotificationsMenu(): void {
+    const nextState = !this.isNotificationsOpen();
+    this.isNotificationsOpen.set(nextState);
+    if (nextState) {
+      this.closeProfileMenu();
+      this.notificationService.fetchNotifications().subscribe();
+    }
+  }
+
+  closeNotificationsMenu(): void {
+    this.isNotificationsOpen.set(false);
+  }
+
+  onNotificationClick(item: NotificationItem): void {
+    if (!item.read) {
+      this.notificationService.markAsRead(item.id).subscribe();
+    }
+    this.closeNotificationsMenu();
+    if (item.linkUrl) {
+      this.router.navigateByUrl(item.linkUrl);
+    }
+  }
+
+  markAllNotificationsAsRead(): void {
+    this.notificationService.markAllAsRead().subscribe();
   }
 
   getUserInitial(displayName: string | null): string {
@@ -389,6 +510,7 @@ export class HeaderComponent {
   }
 
   toggleProfileMenu(): void {
+    this.closeNotificationsMenu();
     this.isProfileMenuOpen.update(isOpen => !isOpen);
   }
 
@@ -397,6 +519,7 @@ export class HeaderComponent {
   }
 
   toggleMobileMenu(): void {
+    this.closeNotificationsMenu();
     this.isMobileMenuOpen.update(isOpen => !isOpen);
     this.closeProfileMenu();
     this.isMobileProfileOpen.set(false);

@@ -53,4 +53,29 @@ public class JavaMailEmailSender implements EmailSender {
             );
         }
     }
+
+    @Override
+    public void sendNotificationEmail(String toEmail, String subject, String messageText) {
+        if (!properties.enabled()) {
+            log.info("Email notification for {}: {} - {}", toEmail, subject, messageText);
+            return;
+        }
+
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null) {
+            log.warn("Email sender is enabled but JavaMailSender is not configured. Notification for {}: {} - {}", toEmail, subject, messageText);
+            return;
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(properties.from());
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(messageText);
+        try {
+            mailSender.send(message);
+        } catch (MailException exception) {
+            log.warn("Email notification could not be sent to {}: {}", toEmail, exception.getMessage());
+        }
+    }
 }

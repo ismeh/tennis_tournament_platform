@@ -35,4 +35,9 @@ public class InscriptionRepositoryAdapter implements InscriptionRepository {
                 .map(mapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public java.util.Optional<Inscription> findById(UUID id) {
+        return inscriptionRepository.findById(id).map(mapper::toDomain);
+    }
 }
