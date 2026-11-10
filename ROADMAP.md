@@ -29,6 +29,10 @@ Tasks follow a clear progression lifecycle:
 - [ ] **Environment Configuration & Setup Ergonomics**:
   - Streamline `.env` setup scripts for one-click local startup with Docker.
   - Improve Swagger/OpenAPI UI integration for interactive backend endpoint testing.
+- [ ] **Production Delivery Channels Configuration**:
+  - Configure real email delivery: SMTP credentials (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`), a verified sender (`EMAIL_FROM`) and enable `EMAIL_CONFIRMATION_ENABLED=true` so confirmation and notification emails actually leave the server.
+  - Generate and store the VAPID key pair (`node scripts/generate-vapid-keys.mjs`) as environment secrets (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) so Web Push stops reporting `enabled=false`.
+  - Verify both channels end to end in the target environment over HTTPS: email confirmation link, match-scheduled email and in-app push, plus the test notification from account settings.
 
 ---
 
