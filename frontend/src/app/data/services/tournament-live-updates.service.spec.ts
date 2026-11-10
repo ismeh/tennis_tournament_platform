@@ -61,7 +61,7 @@ describe('TournamentLiveUpdatesService', () => {
     const subscription = service.watchTournament('tournament-id').subscribe(event => receivedEvents.push(event));
 
     expect(MockEventSource.instances.length).toBe(1);
-    expect(MockEventSource.instances[0].url).toBe(`${AppSettings.API_URL}/tournaments/tournament-id/updates`);
+    expect(MockEventSource.instances[0].url).toBe(`${AppSettings.API_URL}/tournaments/tournament-id/updates?ngsw-bypass=true`);
 
     MockEventSource.instances[0].emit('match-result-updated', {
       type: 'MATCH_RESULT_UPDATED',

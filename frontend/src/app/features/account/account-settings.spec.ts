@@ -1,14 +1,17 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { AccountSettingsComponent } from './account-settings';
 import { AuthService, AccountExportData, ConsentHistoryEntry } from '../../core/auth/auth.service';
 import { NotificationService } from '../../data/services/notification.service';
+import { PushNotificationService } from '../../core/pwa/push-notification.service';
 
 describe('AccountSettingsComponent', () => {
   let component: AccountSettingsComponent;
   let authServiceSpy: jasmine.SpyObj<AuthService>;
   let notificationServiceSpy: jasmine.SpyObj<NotificationService>;
+  let pushServiceSpy: jasmine.SpyObj<PushNotificationService>;
 
   beforeEach(async () => {
     authServiceSpy = jasmine.createSpyObj('AuthService', [
@@ -21,6 +24,21 @@ describe('AccountSettingsComponent', () => {
       'getPreference',
       'updatePreference'
     ]);
+    pushServiceSpy = jasmine.createSpyObj('PushNotificationService', [
+      'initialize',
+      'enable',
+      'disable',
+      'sendTest'
+    ], {
+      supported: signal(true),
+      enabled: signal(true),
+      isSubscribed: signal(false),
+      isLoading: signal(false),
+      error: signal<string | null>(null),
+      isIos: false,
+      isStandalone: false
+    });
+    pushServiceSpy.sendTest.and.returnValue(of({ delivered: 1 }));
 
     authServiceSpy.getConsentHistory.and.returnValue(of({ history: [] }));
     notificationServiceSpy.getPreference.and.returnValue(of({ channel: 'BOTH' }));
@@ -30,6 +48,7 @@ describe('AccountSettingsComponent', () => {
       providers: [
         { provide: AuthService, useValue: authServiceSpy },
         { provide: NotificationService, useValue: notificationServiceSpy },
+        { provide: PushNotificationService, useValue: pushServiceSpy },
         { provide: Router, useValue: { navigateByUrl: jasmine.createSpy('navigateByUrl') } },
       ],
     }).compileComponents();
@@ -52,6 +71,16 @@ describe('AccountSettingsComponent', () => {
     expect(notificationServiceSpy.updatePreference).toHaveBeenCalledWith('APP');
     expect(component.selectedChannel()).toBe('APP');
     expect(component.channelSuccess()).toContain('guardada correctamente');
+  });
+
+  it('should initialize push state and send a test notification', () => {
+    expect(pushServiceSpy.initialize).toHaveBeenCalled();
+
+    component.sendPushTest();
+
+    expect(pushServiceSpy.sendTest).toHaveBeenCalled();
+    expect(component.pushTestMessage()).toContain('Notificación de prueba enviada');
+    expect(component.isSendingPushTest()).toBeFalse();
   });
 
   describe('getEmailLabel', () => {

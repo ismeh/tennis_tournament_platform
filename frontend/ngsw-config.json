@@ -1,0 +1,79 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app-shell",
+      "installMode": "prefetch",
+      "resources": {
+        "files": ["/favicon.ico", "/index.html", "/manifest.webmanifest", "/*.css", "/*.js"]
+      }
+    },
+    {
+      "name": "static-assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/assets/**",
+          "/icons/**",
+          "/media/**",
+          "/surfaces/**",
+          "/logo_sin_texto_resized.svg"
+        ]
+      }
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "tournaments-api",
+      "urls": ["/api/tournaments", "/api/tournaments/**"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 200,
+        "maxAge": "1d",
+        "timeout": "3s"
+      }
+    },
+    {
+      "name": "clubs-api",
+      "urls": ["/api/clubs", "/api/clubs/**"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 100,
+        "maxAge": "1d",
+        "timeout": "3s"
+      }
+    },
+    {
+      "name": "rankings-api",
+      "urls": ["/api/rankings", "/api/rankings/**"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 50,
+        "maxAge": "1d",
+        "timeout": "3s"
+      }
+    },
+    {
+      "name": "public-calendar-api",
+      "urls": ["/api/calendar/tournaments", "/api/calendar/tournaments/**"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 30,
+        "maxAge": "1d",
+        "timeout": "3s"
+      }
+    },
+    {
+      "name": "reference-data-api",
+      "urls": ["/api/refs", "/api/refs/**"],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 50,
+        "maxAge": "7d"
+      }
+    }
+  ],
+  "navigationUrls": ["/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**"]
+}

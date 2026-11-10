@@ -2,6 +2,7 @@ import {
   APP_INITIALIZER,
   ApplicationConfig,
   ErrorHandler,
+  isDevMode,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection
 } from '@angular/core';
@@ -20,6 +21,7 @@ import { AuthService } from './core/auth/auth.service';
 import { firstValueFrom } from 'rxjs';
 import { AppConfigService } from './core/config/app-config.service';
 import { AppReadyService } from './core/app-ready.service';
+import { provideServiceWorker } from '@angular/service-worker';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -30,6 +32,10 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
     provideClientHydration(withEventReplay()),
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000'
+    }),
     provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top' })),
     provideHttpClient(
       withInterceptors([requestLoggingInterceptor, authInterceptor, apiErrorInterceptor])

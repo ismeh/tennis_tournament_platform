@@ -5,6 +5,13 @@ import { AppSettings } from '../../shared/constants';
 
 describe('AppConfigService', () => {
   let service: AppConfigService;
+  const originalApiUrl = AppSettings.API_URL;
+  const runtimeConfigStorageKey = 'puntomatch_runtime_config';
+
+  afterEach(() => {
+    AppSettings.API_URL = originalApiUrl;
+    window.localStorage.removeItem(runtimeConfigStorageKey);
+  });
 
   function setup(platformId: string) {
     TestBed.configureTestingModule({

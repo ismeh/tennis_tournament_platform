@@ -15,6 +15,11 @@ import { AccountSettingsComponent } from './features/account/account-settings';
 import { PrivacyPolicyComponent } from './features/privacy/privacy-policy';
 import { TermsConditionsComponent } from './features/terms/terms-conditions';
 import { ContactComponent } from './features/contact/contact';
+import { ClubListComponent } from './features/clubs/club-list';
+import { ClubDetailComponent } from './features/clubs/club-detail';
+import { ClubCreateComponent } from './features/clubs/club-create';
+import { MyClubsComponent } from './features/clubs/my-clubs';
+import { ClubManageComponent } from './features/clubs/club-manage';
 import { authGuard } from './core/guards/auth.guard';
 import { organizerGuard } from './core/guards/organizer.guard';
 
@@ -54,6 +59,34 @@ export const routes: Routes = [
     component: ManageCategoriesComponent,
     canActivate: [organizerGuard],
     data: { title: 'Mis Categorías' }
+  },
+  {
+    path: 'clubes',
+    component: ClubListComponent,
+    data: { title: 'Clubes' }
+  },
+  {
+    path: 'clubes/crear',
+    component: ClubCreateComponent,
+    canActivate: [authGuard],
+    data: { title: 'Crear club' }
+  },
+  {
+    path: 'clubes/:clubId/gestion',
+    component: ClubManageComponent,
+    canActivate: [authGuard],
+    data: { title: 'Gestión del club' }
+  },
+  {
+    path: 'clubes/:slug',
+    component: ClubDetailComponent,
+    data: { title: 'Club' }
+  },
+  {
+    path: 'mis-clubes',
+    component: MyClubsComponent,
+    canActivate: [authGuard],
+    data: { title: 'Mis clubes' }
   },
   {
     path: 'como-funciona',

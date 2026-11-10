@@ -65,6 +65,9 @@ public class TournamentEntity {
     @Setter
     private TournamentStatus status;
 
+    @Column(name = "club_id")
+    private UUID clubId;
+
     @ManyToOne
     @JoinColumn(name = "created_by")
     private MemberEntity createdBy;

@@ -30,6 +30,7 @@
             ],
             "server": "src/main.server.ts",
             "outputMode": "server",
+            "serviceWorker": "ngsw-config.json",
             "ssr": {
               "entry": "src/server.ts"
             }
@@ -66,6 +67,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "tfm_front:build:production"

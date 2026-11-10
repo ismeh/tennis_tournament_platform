@@ -34,6 +34,7 @@ public class NotificationService {
     private final EmailSender emailSender;
     private final JpaInscriptionRepository jpaInscriptionRepository;
     private final JpaMemberRepository jpaMemberRepository;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional(readOnly = true)
     public List<Notification> getUserNotifications(String userEmail) {
@@ -108,6 +109,12 @@ public class NotificationService {
                     .createdAt(LocalDateTime.now())
                     .build();
             notificationRepository.save(notification);
+
+            try {
+                pushNotificationService.sendToUser(userId, title, message, linkUrl);
+            } catch (Exception ex) {
+                log.warn("Failed to deliver push notification to user {}: {}", member.getEmail(), ex.getMessage());
+            }
         }
 
         if (channel.includesEmail()) {

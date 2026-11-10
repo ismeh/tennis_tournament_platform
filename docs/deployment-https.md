@@ -9,13 +9,18 @@ This makes the browser use a single origin and avoids CORS issues. Login remains
 
 ## Environment Variable Matrix by Mode
 
-Use different values for `FRONTEND_API_URL` and `FRONTEND_CONFIRMATION_URL` depending on the public entry point the browser will use.
+Use two different variables depending on where the request is made:
 
-| Mode | Compose | Entry URL | `FRONTEND_API_URL` | `FRONTEND_CONFIRMATION_URL` |
-|---|---|---|---|---|
-| Local HTTP | `compose.yaml` | `http://localhost:4200` | `http://localhost:8080/api` | `http://localhost:4200/confirmar-email` |
-| Local HTTPS with Nginx | `compose.yaml` + `compose.https-local.yaml` | `https://localhost` | `https://localhost/api` | `https://localhost/confirmar-email` |
-| Public demo with Nginx | `compose.yaml` + `compose.demo.yaml` | `https://demo.example.com` | `https://demo.example.com/api` | `https://demo.example.com/confirmar-email` |
+- `FRONTEND_API_URL` is the **absolute URL used by the SSR server** to reach the backend. Inside Compose it defaults to the internal service name (`http://backend:8080/api`).
+- `FRONTEND_PUBLIC_API_URL` is written into the browser runtime configuration. Behind Nginx it should stay `/api` so the PWA, the service worker and the reverse proxy all share one origin.
+
+`FRONTEND_CONFIRMATION_URL` still points to the public confirmation page opened from an email.
+
+| Mode | Compose | Entry URL | `FRONTEND_API_URL` (SSR) | `FRONTEND_PUBLIC_API_URL` (browser) | `FRONTEND_CONFIRMATION_URL` |
+|---|---|---|---|---|---|
+| Local HTTP | `compose.yaml` | `http://localhost:4200` | `http://backend:8080/api` | `http://localhost:8080/api` | `http://localhost:4200/confirmar-email` |
+| Local HTTPS with Nginx | `compose.yaml` + `compose.https-local.yaml` | `https://localhost` | `http://backend:8080/api` | `/api` | `https://localhost/confirmar-email` |
+| Public demo with Nginx | `compose.yaml` + `compose.demo.yaml` | `https://demo.example.com` | `http://backend:8080/api` | `/api` | `https://demo.example.com/confirmar-email` |
 
 To avoid editing the same `.env` file every time, you can keep separate files and pass them with `--env-file`:
 
@@ -44,7 +49,6 @@ docker compose --env-file .env.demo \
 2. Start the application with Nginx:
 
    ```bash
-   FRONTEND_API_URL=https://localhost/api \
    FRONTEND_CONFIRMATION_URL=https://localhost/confirmar-email \
    docker compose -f compose.yaml -f compose.https-local.yaml up -d
    ```
@@ -94,6 +98,27 @@ docker compose -f compose.yaml -f compose.demo.yaml exec nginx nginx -s reload
 
 For a simple demo, you can run it from `cron` once per day.
 
+## Web Push (VAPID)
+
+Push notifications require HTTPS in production (or `localhost` for development) and a VAPID key
+pair. Generate it once per environment and keep the private key out of version control:
+
+```bash
+node scripts/generate-vapid-keys.mjs
+```
+
+Copy the three output variables into `.env`:
+
+```bash
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:you@example.com
+```
+
+When the keys are empty the backend still starts, but `GET /api/push/public-key` reports
+`enabled=false` and the settings screen explains that push is not configured. Rotating the keys
+invalidates all existing device subscriptions, so ask users to enable push again.
+
 ## Ports and Exposure
 
 Nginx exposes `80` and `443`. The base `compose.yaml` also exposes the frontend and backend to make development easier. For a more locked-down public demo, remove or restrict the direct `frontend`, `backend`, and `postgres` ports on the server.
@@ -129,7 +154,8 @@ HTTPS_HTTP_PORT=80
 HTTPS_PORT=443
 
 # API and URLs
-FRONTEND_API_URL=https://yourdomain.com/api
+FRONTEND_API_URL=http://backend:8080/api
+FRONTEND_PUBLIC_API_URL=/api
 FRONTEND_CONFIRMATION_URL=https://yourdomain.com/confirmar-email
 
 # Database Credentials

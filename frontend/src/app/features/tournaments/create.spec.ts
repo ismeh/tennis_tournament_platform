@@ -119,7 +119,8 @@ describe('CreateTournamentComponent', () => {
       courtCount: 4,
       setsPerMatch: 3,
       gamesPerSet: 6,
-      decisiveTiebreakPoints: 7
+      decisiveTiebreakPoints: 7,
+      clubId: null
     });
     expect(component.errorMessage()).toBeNull();
     expect(navigateSpy).toHaveBeenCalledWith(['/torneos', 'tournament-id']);

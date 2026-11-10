@@ -69,6 +69,8 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/legal/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/umpires").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/tournaments/*/umpires").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/clubs", "/api/clubs/permissions", "/api/clubs/public/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/push/public-key").permitAll()
                     .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                     .anyRequest().authenticated()
                 )

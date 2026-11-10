@@ -83,6 +83,9 @@ class TournamentGenerationFlowTest {
     @Mock
     private TournamentUmpireRepository tournamentUmpireRepository;
 
+    @Mock
+    private com.tfm.tennis_platform.domain.port.out.ClubMembershipRepository clubMembershipRepository;
+
     private TournamentService tournamentService;
     private EventService eventService;
 
@@ -105,7 +108,7 @@ class TournamentGenerationFlowTest {
 
         lenient().when(matchRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        tournamentService = new TournamentService(tournamentRepository, memberRepository, courtRepository, scheduleConfigRepository, tournamentUmpireRepository);
+        tournamentService = new TournamentService(tournamentRepository, memberRepository, courtRepository, scheduleConfigRepository, tournamentUmpireRepository, clubMembershipRepository);
         eventService = new EventService(
                 tournamentRepository,
                 inscriptionRepository,

@@ -58,6 +58,8 @@ import {
 import { MemberService } from '../../data/services/member.service';
 import { TournamentLiveUpdatesService } from '../../data/services/tournament-live-updates.service';
 import { TournamentService } from '../../data/services/tournament.service';
+import { TournamentOfflineService } from '../../data/services/tournament-offline.service';
+import { NetworkStatusService } from '../../core/offline/network-status.service';
 import { InvitationService } from '../../core/services/invitation.service';
 import { ReferenceDataService } from '../../data/services/reference-data.service';
 import { ClubAutocompleteComponent } from '../../components/club-autocomplete';
@@ -114,6 +116,19 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
         <a routerLink="/torneos" class="inline-flex items-center text-sm font-semibold text-primary-700 hover:text-primary-800">
           <- Volver al listado
         </a>
+
+        @if (isShowingOfflineCopy()) {
+          <div class="mt-4 flex flex-col gap-1 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:gap-2" role="status">
+            <span class="font-semibold">Sin conexión.</span>
+            <span>
+              Mostrando la última copia guardada
+              @if (offlineCopyCachedAt()) {
+                el {{ offlineCopyCachedAt() | date: 'dd/MM/yyyy HH:mm' }}
+              }.
+              Las acciones de edición se activarán al recuperar la conexión.
+            </span>
+          </div>
+        }
 
         @if (isLoading()) {
           <div class="mt-5 rounded-2xl border border-neutral-200 bg-white p-6 text-neutral-600">Cargando torneo...</div>
@@ -217,6 +232,22 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Exportar datos (PDF)
+                }
+              </button>
+              <button
+                type="button"
+                (click)="exportTournamentXlsx()"
+                [disabled]="isExportingTournamentXlsx()"
+                class="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                @if (isExportingTournamentXlsx()) {
+                  <span class="h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-primary-600"></span>
+                  Exportando...
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Exportar datos (Excel)
                 }
               </button>
             </div>
@@ -2401,6 +2432,8 @@ type MatchScheduleSortDirection = 'asc' | 'desc';
 export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewInit {
   private readonly route = inject(ActivatedRoute);
   private readonly tournamentService = inject(TournamentService);
+  private readonly tournamentOfflineService = inject(TournamentOfflineService);
+  private readonly networkStatus = inject(NetworkStatusService);
   private readonly invitationService = inject(InvitationService);
   private readonly tournamentLiveUpdatesService = inject(TournamentLiveUpdatesService);
   private readonly memberService = inject(MemberService);
@@ -2424,6 +2457,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly stageOptions: TournamentStageType[] = ['SINGLE_ELIMINATION', 'ROUND_ROBIN', 'DOUBLE_ELIMINATION', 'CONSOLATION'];
   readonly surfaceOptions: TournamentSurfaceCategory[] = ['CLAY', 'HARD', 'GRASS', 'CARPET'];
   readonly tournament = signal<TournamentResponse | null>(null);
+  readonly isShowingOfflineCopy = signal(false);
+  readonly offlineCopyCachedAt = signal<string | null>(null);
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly actionMessage = signal<string | null>(null);
@@ -2500,6 +2535,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   readonly isUpdatingCourt = signal(false);
   readonly isDeletingCourt = signal(false);
   readonly isExportingTournamentPdf = signal(false);
+  readonly isExportingTournamentXlsx = signal(false);
   readonly newCourtName = signal('');
   readonly selectedCourtId = signal<string | null>(null);
   readonly selectedCourtName = signal('');
@@ -2608,6 +2644,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
   private manualPlayerSearchDebounceHandle: ReturnType<typeof setTimeout> | null = null;
   private manualPlayerSearchRequestId = 0;
   private liveUpdatesSubscription: Subscription | null = null;
+  private networkSubscription: Subscription | null = null;
 
   readonly isCreator = computed(() => {
     const tournament = this.tournament();
@@ -2914,6 +2951,11 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.resolveCurrentMemberId();
     this.loadTournament(tournamentId);
     this.startTournamentLiveUpdates(tournamentId);
+    this.networkSubscription = this.networkStatus.reconnected$.subscribe(() => {
+      const currentId = this.tournament()?.id ?? tournamentId;
+      this.loadTournament(currentId, true, true);
+      this.startTournamentLiveUpdates(currentId);
+    });
   }
 
   ngAfterViewInit(): void {
@@ -2922,6 +2964,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
   ngOnDestroy(): void {
     this.liveUpdatesSubscription?.unsubscribe();
+    this.networkSubscription?.unsubscribe();
     this.cancelManualPlayerSearch();
     this.mapInstance?.remove();
   }
@@ -3103,6 +3146,37 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       error: (error) => {
         this.isExportingTournamentPdf.set(false);
         this.actionError.set(getApiErrorMessage(error, 'No se pudo exportar el PDF del torneo.'));
+      }
+    });
+  }
+
+  exportTournamentXlsx(): void {
+    const currentTournament = this.tournament();
+    if (!currentTournament || this.isExportingTournamentXlsx()) {
+      return;
+    }
+
+    if (!this.isLoggedIn()) {
+      this.actionError.set('Debe registrarse para exportar el Excel del torneo.');
+      return;
+    }
+
+    this.isExportingTournamentXlsx.set(true);
+
+    this.tournamentService.exportTournamentXlsx(currentTournament.id).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = this.sanitizeFilename(currentTournament.formalName) + '.xlsx';
+        link.click();
+        window.URL.revokeObjectURL(url);
+        this.isExportingTournamentXlsx.set(false);
+        this.actionMessage.set('Excel exportado correctamente.');
+      },
+      error: (error) => {
+        this.isExportingTournamentXlsx.set(false);
+        this.actionError.set(getApiErrorMessage(error, 'No se pudo exportar el Excel del torneo.'));
       }
     });
   }
@@ -4417,10 +4491,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
 
     this.tournamentService.getTournamentById(tournamentId).subscribe({
       next: tournament => {
-        this.tournament.set(tournament);
-        this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
-        this.initializeInscriptionSelection();
-        this.syncManualPlayerEventSelection(tournament.events ?? []);
+        this.isShowingOfflineCopy.set(false);
+        this.offlineCopyCachedAt.set(null);
+        void this.tournamentOfflineService.saveTournament(tournament);
+        this.applyTournamentData(tournament, preserveActiveSection);
         this.loadTournamentInscriptions();
         this.loadCourts(tournament.id);
         this.loadScheduleConfig(tournamentId);
@@ -4428,28 +4502,72 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
         if (!silent) {
           this.isLoading.set(false);
         }
-        if (!preserveActiveSection) {
-          let restored = false;
-          if (typeof window !== 'undefined' && window.sessionStorage) {
-            const savedSection = sessionStorage.getItem(`tournament_detail_section_${tournamentId}`);
-            if (savedSection && ['overview', 'setup', 'inscriptions', 'stages'].includes(savedSection)) {
-              this.activeSection.set(savedSection as TournamentDetailSection);
-              restored = true;
-            }
-          }
-          if (!restored) {
-            this.activeSection.set(this.isTournamentAdmin() ? 'setup' : 'overview');
-          }
-        }
-        setTimeout(() => this.tryInitMap(), 0);
       },
       error: (error) => {
-        this.errorMessage.set(getApiErrorMessage(error, 'No se pudo cargar el detalle del torneo.'));
-        if (!silent) {
-          this.isLoading.set(false);
-        }
+        void this.restoreTournamentFromCache(tournamentId, preserveActiveSection, silent, error);
       }
     });
+  }
+
+  private applyTournamentData(tournament: TournamentResponse, preserveActiveSection: boolean): void {
+    this.tournament.set(tournament);
+    this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
+    this.initializeInscriptionSelection();
+    this.syncManualPlayerEventSelection(tournament.events ?? []);
+
+    if (!preserveActiveSection) {
+      let restored = false;
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const savedSection = sessionStorage.getItem(`tournament_detail_section_${tournament.id}`);
+        if (savedSection && ['overview', 'setup', 'inscriptions', 'stages'].includes(savedSection)) {
+          this.activeSection.set(savedSection as TournamentDetailSection);
+          restored = true;
+        }
+      }
+      if (!restored) {
+        this.activeSection.set(this.isTournamentAdmin() ? 'setup' : 'overview');
+      }
+    }
+
+    setTimeout(() => this.tryInitMap(), 0);
+  }
+
+  private async restoreTournamentFromCache(
+    tournamentId: string,
+    preserveActiveSection: boolean,
+    silent: boolean,
+    error: unknown
+  ): Promise<void> {
+    const record = await this.tournamentOfflineService.readTournament(tournamentId);
+    if (!record) {
+      this.errorMessage.set(getApiErrorMessage(error, 'No se pudo cargar el detalle del torneo.'));
+      if (!silent) {
+        this.isLoading.set(false);
+      }
+      return;
+    }
+
+    this.applyTournamentData(record.data, preserveActiveSection);
+    this.isShowingOfflineCopy.set(true);
+    this.offlineCopyCachedAt.set(record.cachedAt);
+    this.errorMessage.set(null);
+    this.isLoading.set(false);
+    void this.loadTournamentInscriptionsFromCache(tournamentId);
+  }
+
+  private async loadTournamentInscriptionsFromCache(tournamentId: string): Promise<void> {
+    const eventId = this.selectedTournamentInscriptionEventId() ?? undefined;
+    this.isLoadingTournamentInscriptions.set(true);
+
+    const record = await this.tournamentOfflineService.readInscriptions(tournamentId, eventId);
+    if (record) {
+      this.tournamentInscriptions.set(record.data);
+      this.tournamentInscriptionsError.set(null);
+    } else {
+      this.tournamentInscriptions.set(null);
+    }
+
+    this.isLoadingTournamentInscriptions.set(false);
   }
 
   private startTournamentLiveUpdates(tournamentId: string): void {
@@ -4478,6 +4596,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
     this.tournamentService.getTournamentById(tournamentId).subscribe({
       next: tournament => {
         this.tournament.set(tournament);
+        void this.tournamentOfflineService.saveTournament(tournament);
         this.hydrateSelectedEventsFromTournament(tournament.events ?? []);
         this.initializeInscriptionSelection();
         this.syncManualPlayerEventSelection(tournament.events ?? []);
@@ -4804,17 +4923,24 @@ export class TournamentDetailComponent implements OnInit, OnDestroy, AfterViewIn
       return;
     }
 
+    const eventId = this.selectedTournamentInscriptionEventId() ?? undefined;
     this.isLoadingTournamentInscriptions.set(true);
     this.tournamentInscriptionsError.set(null);
 
     this.tournamentService
-      .getTournamentInscriptions(currentTournament.id, this.selectedTournamentInscriptionEventId() ?? undefined)
+      .getTournamentInscriptions(currentTournament.id, eventId)
       .subscribe({
         next: response => {
           this.tournamentInscriptions.set(response);
+          void this.tournamentOfflineService.saveInscriptions(currentTournament.id, eventId, response);
           this.isLoadingTournamentInscriptions.set(false);
         },
         error: (error) => {
+          if (!this.networkStatus.isOnline() || this.isShowingOfflineCopy()) {
+            void this.loadTournamentInscriptionsFromCache(currentTournament.id);
+            return;
+          }
+
           this.tournamentInscriptions.set(null);
           this.tournamentInscriptionsError.set(getApiErrorMessage(error, 'No se pudo cargar el listado de jugadores inscritos.'));
           this.isLoadingTournamentInscriptions.set(false);

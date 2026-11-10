@@ -23,6 +23,15 @@ application:
           location: ${PRO_PLAYERS_MALE_CSV_LOCATION:classpath:db/seed/pro_players_male.csv}
         - name: female
           location: ${PRO_PLAYERS_FEMALE_CSV_LOCATION:classpath:db/seed/pro_players_female.csv}
+  push:
+    # Web Push stays disabled (without blocking startup) when the VAPID keys are empty.
+    vapid:
+      public-key: ${VAPID_PUBLIC_KEY:}
+      private-key: ${VAPID_PRIVATE_KEY:}
+      subject: ${VAPID_SUBJECT:mailto:no-reply@puntomatch.local}
+    ttl-seconds: ${VAPID_TTL_SECONDS:86400}
+    icon: /icons/icon-192.png
+    badge: /icons/favicon-32.png
   email:
     confirmation:
       # Business rule: true requires users to confirm email before login; false creates accounts already verified.
@@ -48,3 +57,21 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLER_ARG:1.0}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://tempo:4318/v1/traces}
+    logging:
+      export:
+        otlp:
+          enabled: false
+  otlp:
+    metrics:
+      export:
+        enabled: false
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://tempo:4318/v1/traces}

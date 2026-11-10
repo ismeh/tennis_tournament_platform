@@ -54,6 +54,7 @@ import com.tfm.tennis_platform.domain.models.inscription.ParticipantDetailUpdate
 import com.tfm.tennis_platform.domain.models.inscription.ParticipantPointsUpdateCommand;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.TournamentWebMapper;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.MatchWebMapper;
+import com.tfm.tennis_platform.infrastructure.excel.TournamentExcelExporter;
 import com.tfm.tennis_platform.infrastructure.pdf.TournamentPdfExporter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -78,6 +79,7 @@ public class TournamentController {
     private final InscriptionService inscriptionService;
     private final CourtService courtService;
     private final TournamentPdfExporter tournamentPdfExporter;
+    private final TournamentExcelExporter tournamentExcelExporter;
     private final ScheduleConfigService scheduleConfigService;
 
     @PostMapping
@@ -427,6 +429,28 @@ public class TournamentController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
                 .body(pdfBytes);
+    }
+
+    @GetMapping("/{tournamentId}/export/xlsx")
+    public ResponseEntity<byte[]> exportTournamentXlsx(
+            @PathVariable UUID tournamentId
+    ) {
+        Tournament tournament = tournamentService.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament", tournamentId));
+
+        TournamentInscriptionsView inscriptions = inscriptionService.findByTournament(tournamentId, null);
+        List<Court> courts = courtService.findByTournamentId(tournamentId);
+        List<com.tfm.tennis_platform.domain.models.Match> matches = matchService.findByTournamentId(tournamentId);
+
+        byte[] xlsxBytes = tournamentExcelExporter.exportTournamentData(tournament, inscriptions, courts, matches);
+
+        String filename = sanitizeFilename(tournament.getName()) + ".xlsx";
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                .body(xlsxBytes);
     }
 
     private String sanitizeFilename(String name) {

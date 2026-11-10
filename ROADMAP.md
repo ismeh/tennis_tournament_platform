@@ -40,18 +40,15 @@ Tasks follow a clear progression lifecycle:
 - [ ] **Umpire & Live Match Scoring**:
   - Live umpire interface for point-by-point / game-by-game scoring updates in real time.
   - Enhanced SSE listener handling on client with optimistic UI updates.
-- [ ] **Comprehensive Exporting**:
-  - Excel/CSV export of inscriptions, draw results, and match scores.
 
 ---
 
 ## 🔮 Long Term
 
-- [ ] **Mobile Application / PWA**:
-  - Progressive Web App (PWA) optimization and offline match viewing capabilities for players on court.
+- [ ] **Native Store Distribution (Capacitor)**:
+  - Wrap the existing PWA with Capacitor for App Store / Google Play publication, native push and store signing.
+  - Reuse the offline and update abstractions without forking the Angular application.
 - [ ] **External Federation Integrations**:
   - Direct synchronization with national federation APIs (RFET / ITF / ATP / WTA) for real-time player licenses and points.
-- [ ] **Multi-Club & Multi-Tenant Support**:
-  - Granular organizational tenants for multi-club federations and venue networks.
-- [ ] **Advanced Observability & Scalability**:
+- [x] **Advanced Observability & Scalability**:
   - OpenTelemetry distributed tracing and Grafana dashboard templates for high-concurrency tournament traffic.

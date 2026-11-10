@@ -18,6 +18,12 @@ export class TournamentLiveUpdatesService {
         return undefined;
       }
 
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        // The view restarts live updates when the browser reconnects.
+        observer.complete();
+        return undefined;
+      }
+
       const eventSource = new EventSource(this.getUpdatesUrl(tournamentId));
       const handleMatchResultUpdated = (event: MessageEvent<string>) => this.emitEvent(event, observer);
       const handleMatchScheduleUpdated = (event: MessageEvent<string>) => this.emitEvent(event, observer);
@@ -34,7 +40,8 @@ export class TournamentLiveUpdatesService {
   }
 
   private getUpdatesUrl(tournamentId: string): string {
-    return `${AppSettings.API_URL}/tournaments/${encodeURIComponent(tournamentId)}/updates`;
+    // `ngsw-bypass` keeps the long-lived event stream out of the service worker data cache.
+    return `${AppSettings.API_URL}/tournaments/${encodeURIComponent(tournamentId)}/updates?ngsw-bypass=true`;
   }
 
   private emitEvent(event: MessageEvent<string>, observer: { next: (value: TournamentUpdateEvent) => void }): void {

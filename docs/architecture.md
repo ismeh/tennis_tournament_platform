@@ -48,6 +48,8 @@ com.tfm.tennis_platform
     ├── controller/      REST controllers + DTOs + WebMappers
     ├── persistence/     JPA entities + JPA repositories + adapters + PersistenceMappers
     ├── security/        SecurityConfig, JwtService, JwtAuthenticationFilter, MemberDetailsService
+    ├── pdf/             OpenPDF document exporters
+    ├── excel/           Apache POI XLSX exporters
     └── loggin/          CorrelationIdFilter (MDC correlation ID injection)
 ```
 
@@ -70,6 +72,8 @@ Cross-boundary communication uses port interfaces (defined in `domain/port/`) im
 ```
 app/
 ├── core/auth/           Authentication: AuthService, authInterceptor (global, singleton)
+├── core/offline/        Connectivity signal and IndexedDB snapshot storage
+├── core/pwa/            Service worker update lifecycle (SwUpdate wrapper)
 ├── data/
 │   ├── interfaces/      TypeScript interfaces matching backend DTOs
 │   └── services/        HTTP services (Repository layer)
@@ -78,6 +82,23 @@ app/
 ├── layout/              AppLayoutComponent: wraps header + outlet + footer
 └── shared/              Constants (AppSettings), pipes, directives
 ```
+
+### Progressive Web App and Offline Mode
+
+The frontend is an installable PWA built with `@angular/service-worker`:
+
+- `ngsw-config.json` defines the app shell, lazy static assets and `dataGroups` for public read
+  endpoints (tournaments, clubs, rankings, reference data).
+- `TournamentOfflineService` stores tournament and inscription snapshots in IndexedDB, used as a
+  labelled fallback when a read fails.
+- Write operations always require connectivity.
+- `ConnectionStatusBannerComponent` surfaces offline, reconnection and update states.
+- `PushNotificationService` (in `core/pwa/`) registers Web Push subscriptions through `SwPush`,
+  syncs them with `/api/push/subscriptions` and lets the account settings screen enable, disable or
+  send a test notification. Push delivery remains tied to the `APP`/`BOTH` channel.
+
+Offline support is deliberately **read-only**; the rationale, alternatives and the Capacitor
+evolution path are documented in [`docs/decisions/`](./decisions/README.md).
 
 ### Routing
 
@@ -104,7 +125,8 @@ JwtAuthenticationFilter
       ▼
 SecurityFilterChain (SecurityConfig)
   public endpoints → /api/auth/*, calendar tournament list,
-                     public rankings, public age categories
+                     public rankings, public age categories,
+                     club search/directory/public pages
   other paths      → authenticated
       │
       ▼
@@ -143,6 +165,6 @@ Angular Component renders data
 
 ## API Namespace Notes
 
-Active REST controllers are namespaced under `/api`, including auth, tournaments, calendar, rankings, pro players, persons, members, matches, and age categories.
+Active REST controllers are namespaced under `/api`, including auth, tournaments, calendar, rankings, pro players, persons, members, matches, clubs, and age categories.
 
 When changing API contracts, update the backend controller, frontend client layer, and API documentation in the same change.

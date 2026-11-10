@@ -1,8 +1,12 @@
 services:
   postgres:
-    container_name: tfm-postgres
+    container_name: ${CONTAINER_PREFIX:-tfm}-postgres
     image: postgres:18
     restart: unless-stopped
+    labels:
+      com.observability.stack: ${COMPOSE_PROJECT_NAME:-tennis-platform}
+      com.observability.service: "${CONTAINER_PREFIX:-tfm}-postgres"
+      com.observability.role: "database"
     ports:
       - "${DB_PORT:-5432}:5432"
     environment:
@@ -16,12 +20,22 @@ services:
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql
+    networks:
+      - default
+      - app-network
 
   backend:
     image: ${DOCKER_USERNAME:-ismeh}/tennis-backend:latest
     pull_policy: always
-    container_name: tfm-backend
+    container_name: ${CONTAINER_PREFIX:-tfm}-backend
     restart: unless-stopped
+    labels:
+      com.observability.stack: ${COMPOSE_PROJECT_NAME:-tennis-platform}
+      com.observability.service: "${CONTAINER_PREFIX:-tfm}-backend"
+      com.observability.role: "backend"
+      prometheus.scrape: "true"
+      prometheus.port: "${BACKEND_PORT:-8080}"
+      prometheus.path: "/actuator/prometheus"
     ports:
       - "${BACKEND_PORT:-8080}:${BACKEND_PORT:-8080}"
     environment:
@@ -52,26 +66,52 @@ services:
       - PRO_PLAYERS_MALE_CSV_LOCATION=${PRO_PLAYERS_MALE_CSV_LOCATION:-classpath:db/seed/pro_players_male.csv}
       - PRO_PLAYERS_FEMALE_CSV_LOCATION=${PRO_PLAYERS_FEMALE_CSV_LOCATION:-classpath:db/seed/pro_players_female.csv}
       - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
-      - GOOGLE_PLACES_BASE_URL=${GOOGLE_PLACES_BASE_URL}
+      - GOOGLE_PLACES_BASE_URL=${GOOGLE_PLACES_BASE_URL:-https://places.googleapis.com}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:no-reply@puntomatch.local}
+      - VAPID_TTL_SECONDS=${VAPID_TTL_SECONDS:-86400}
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://tempo:4318/v1/traces}
+      - MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://tempo:4318/v1/traces}
+      - MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED=false
+      - MANAGEMENT_OPENTELEMETRY_LOGGING_EXPORT_OTLP_ENABLED=false
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-1.0}
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - default
+      - app-network
   
   frontend:
     image: ${DOCKER_USERNAME:-ismeh}/tennis-frontend:latest
     pull_policy: always
-    container_name: tfm-frontend
+    container_name: ${CONTAINER_PREFIX:-tfm}-frontend
     restart: unless-stopped
+    labels:
+      com.observability.stack: ${COMPOSE_PROJECT_NAME:-tennis-platform}
+      com.observability.service: "${CONTAINER_PREFIX:-tfm}-frontend"
+      com.observability.role: "frontend"
     ports:
       - "${FRONTEND_PORT:-4200}:4000"
     environment:
       - PORT=4000
       - NODE_ENV=production
-      - API_URL=${FRONTEND_API_URL:-http://localhost:${BACKEND_PORT:-8080}/api}
+      - API_URL=${FRONTEND_API_URL:-http://backend:${BACKEND_PORT:-8080}/api}
+      - PUBLIC_API_URL=${FRONTEND_PUBLIC_API_URL:-http://localhost:${BACKEND_PORT:-8080}/api}
       - PRODUCTION=true
-      - NG_ALLOWED_HOSTS=${FRONTEND_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - NG_ALLOWED_HOSTS=${FRONTEND_ALLOWED_HOSTS:-localhost,127.0.0.1,tfm-frontend,frontend,puntomatch.istr.es}
     depends_on:
       - backend
+    networks:
+      - default
+      - app-network
+
+networks:
+  default:
+    driver: bridge
+  app-network:
+    external: true
 
 volumes:
   postgres_data:

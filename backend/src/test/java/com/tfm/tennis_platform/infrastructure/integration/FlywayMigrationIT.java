@@ -87,6 +87,7 @@ class FlywayMigrationIT {
         assertTrue(tables.contains("participants"), "participants table should exist");
         assertTrue(tables.contains("ref_age_category"), "ref_age_category table should exist");
         assertTrue(tables.contains("pro_players"), "pro_players table should exist");
+        assertTrue(tables.contains("push_subscriptions"), "push_subscriptions table should exist");
         assertFalse(tables.contains("categories"), "categories table should NOT exist (removed as dead code)");
         assertFalse(tables.contains("rankings"), "rankings table should NOT exist (removed as dead code)");
         assertFalse(tables.contains("matchups"), "matchups table should NOT exist (removed as dead code)");

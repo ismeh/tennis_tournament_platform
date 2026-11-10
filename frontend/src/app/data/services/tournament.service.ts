@@ -184,6 +184,15 @@ export class TournamentService {
     );
   }
 
+  exportTournamentXlsx(tournamentId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${tournamentId}/export/xlsx`, {
+      responseType: 'blob',
+      observe: 'response'
+    }).pipe(
+      map((response: HttpResponse<Blob>) => response.body as Blob)
+    );
+  }
+
   updateParticipantsPoints(tournamentId: string, updates: ParticipantPointsUpdateRequest[]): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/${tournamentId}/participants/points`, updates);
   }

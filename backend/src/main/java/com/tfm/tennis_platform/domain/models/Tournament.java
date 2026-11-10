@@ -40,6 +40,7 @@ public class Tournament {
     private final Integer setsPerMatch;
     private final Integer decisiveTiebreakPoints;
     private final Integer gamesPerSet;
+    private final UUID clubId;
     private final Member createdBy;
     private final List<Event> events;
 

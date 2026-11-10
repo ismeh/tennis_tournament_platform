@@ -39,6 +39,10 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
               Ranking
             </a>
+            <a routerLink="/clubes" routerLinkActive="text-primary-600 bg-primary-50"
+               class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
+              Clubes
+            </a>
             <a routerLink="/como-funciona" routerLinkActive="text-primary-600 bg-primary-50"
                class="px-4 py-2 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
               Cómo Funciona
@@ -198,6 +202,13 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                     >
                       Ajustes de cuenta
                     </a>
+                    <a
+                      routerLink="/mis-clubes"
+                      class="block px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+                      (click)="closeProfileMenu()"
+                    >
+                      Mis clubes
+                    </a>
                     @if ((role$ | async) === 'ORGANIZER') {
                       <a
                         routerLink="/mis-categorias"
@@ -274,6 +285,11 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                (click)="closeMobileMenu()"
                class="block px-4 py-2.5 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
               Ranking
+            </a>
+            <a routerLink="/clubes" routerLinkActive="text-primary-600 bg-primary-50"
+               (click)="closeMobileMenu()"
+               class="block px-4 py-2.5 rounded-lg text-neutral-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium text-sm">
+              Clubes
             </a>
             <a routerLink="/como-funciona" routerLinkActive="text-primary-600 bg-primary-50"
                (click)="closeMobileMenu()"
@@ -364,6 +380,13 @@ import { alpha3ToAlpha2 } from '../shared/country-flag.util';
                       class="block px-4 py-2 rounded-lg text-sm font-medium text-neutral-500 hover:bg-primary-50 hover:text-primary-700 transition-colors"
                     >
                       Ajustes de cuenta
+                    </a>
+                    <a
+                      routerLink="/mis-clubes"
+                      (click)="closeMobileMenu()"
+                      class="block px-4 py-2 rounded-lg text-sm font-medium text-neutral-500 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                    >
+                      Mis clubes
                     </a>
                     @if ((role$ | async) === 'ORGANIZER') {
                       <a

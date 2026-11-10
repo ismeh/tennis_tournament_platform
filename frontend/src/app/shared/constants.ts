@@ -1,6 +1,6 @@
 export class AppSettings {
     static readonly PROJECT_NAME = 'PuntoMatch';
-    static API_URL = 'http://localhost:8080/api';
+    static API_URL = '/api';
     static readonly TOKEN_KEY = 'access_token';
     static readonly REFRESH_TOKEN_KEY = 'refresh_token';
     static readonly USER_NAME_KEY = 'user_display_name';

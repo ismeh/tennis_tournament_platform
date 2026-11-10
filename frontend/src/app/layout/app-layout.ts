@@ -3,11 +3,12 @@ import { RouterOutlet } from '@angular/router';
 import { HeaderComponent } from '../components/header';
 import { FooterComponent } from '../components/footer';
 import { ToastContainerComponent } from '../components/toast-container';
+import { ConnectionStatusBannerComponent } from '../components/connection-status-banner';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, HeaderComponent, FooterComponent, ToastContainerComponent],
+  imports: [RouterOutlet, HeaderComponent, FooterComponent, ToastContainerComponent, ConnectionStatusBannerComponent],
   template: `
     <div class="flex flex-col min-h-screen">
       <app-header></app-header>
@@ -16,6 +17,7 @@ import { ToastContainerComponent } from '../components/toast-container';
       </main>
       <app-footer></app-footer>
       <app-toast-container></app-toast-container>
+      <app-connection-status-banner></app-connection-status-banner>
     </div>
   `,
   styles: []

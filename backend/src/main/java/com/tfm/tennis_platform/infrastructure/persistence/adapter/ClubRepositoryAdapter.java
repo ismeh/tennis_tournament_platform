@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -25,8 +26,30 @@ public class ClubRepositoryAdapter implements ClubRepository {
     }
 
     @Override
+    public List<Club> findPublicClubs(String query) {
+        return clubRepository.findPublicClubs(query).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<Club> findByNameIgnoreCase(String name) {
         return clubRepository.findByNameIgnoreCase(name).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Club> findById(UUID id) {
+        return clubRepository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Club> findBySlug(String slug) {
+        return clubRepository.findBySlug(slug).map(mapper::toDomain);
+    }
+
+    @Override
+    public boolean existsBySlug(String slug) {
+        return clubRepository.existsBySlug(slug);
     }
 
     @Override

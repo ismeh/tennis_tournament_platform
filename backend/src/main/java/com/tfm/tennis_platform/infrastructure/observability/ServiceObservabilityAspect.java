@@ -61,7 +61,8 @@ public class ServiceObservabilityAspect {
             Object result = joinPoint.proceed();
             long durationMillis = elapsedMillis(startNanos);
             recordTimer(sample, serviceName, methodName, "success", "None");
-            observation.lowCardinalityKeyValue("outcome", "success");
+            observation.lowCardinalityKeyValue("outcome", "success")
+                    .lowCardinalityKeyValue("exception", "None");
 
             log.info(
                     "service.success operation={} durationMs={} result={}",

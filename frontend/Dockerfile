@@ -15,6 +15,7 @@ FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
 ENV PORT=4000
 ENV API_URL=http://localhost:8080/api
+ENV PUBLIC_API_URL=/api
 ENV PRODUCTION=true
 
 WORKDIR /app

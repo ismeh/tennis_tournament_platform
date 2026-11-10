@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { AuthService, AccountExportData, ConsentHistoryEntry } from '../../core/auth/auth.service';
 import { NotificationService } from '../../data/services/notification.service';
 import { NotificationChannel } from '../../data/interfaces/notification.model';
+import { PushNotificationService } from '../../core/pwa/push-notification.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 
 @Component({
@@ -92,6 +93,86 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
         }
         @if (channelError()) {
           <p class="mt-3 text-sm text-red-600 font-medium">{{ channelError() }}</p>
+        }
+      </div>
+
+      <!-- Push Notifications Section -->
+      <div class="mt-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 class="text-lg font-semibold text-neutral-900">Notificaciones push</h2>
+        <p class="mt-1 text-sm text-neutral-600">
+          Recibe avisos de partidos y torneos en tu dispositivo, incluso cuando la app está cerrada.
+          Puedes activarlas en cada dispositivo que uses.
+        </p>
+
+        @if (!push.supported()) {
+          <div class="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+            Este navegador no admite notificaciones push. En iPhone necesitas instalar la app en la
+            pantalla de inicio y usar iOS 16.4 o superior.
+          </div>
+        } @else if (!push.enabled() && !push.isLoading()) {
+          <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            Las notificaciones push no están configuradas en este entorno.
+          </div>
+        } @else {
+          @if (push.isIos && !push.isStandalone) {
+            <div class="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+              <p class="font-semibold">En iPhone, primero instala la app</p>
+              <p class="mt-1">
+                Abre esta página en Safari, pulsa <strong>Compartir</strong> y elige
+                <strong>Añadir a pantalla de inicio</strong>. Después abre PuntoMatch desde el icono
+                y activa aquí las notificaciones.
+              </p>
+            </div>
+          }
+
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <span
+              class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+              [class]="push.isSubscribed() ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-600'"
+            >
+              {{ push.isSubscribed() ? 'Activadas en este dispositivo' : 'Desactivadas en este dispositivo' }}
+            </span>
+          </div>
+
+          <div class="mt-4 flex flex-wrap gap-3">
+            @if (push.isSubscribed()) {
+              <button
+                type="button"
+                (click)="push.disable()"
+                [disabled]="push.isLoading()"
+                class="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-60"
+              >
+                {{ push.isLoading() ? 'Desactivando...' : 'Desactivar en este dispositivo' }}
+              </button>
+              <button
+                type="button"
+                (click)="sendPushTest()"
+                [disabled]="isSendingPushTest()"
+                class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 disabled:opacity-60"
+              >
+                {{ isSendingPushTest() ? 'Enviando...' : 'Enviar notificación de prueba' }}
+              </button>
+            } @else {
+              <button
+                type="button"
+                (click)="push.enable()"
+                [disabled]="push.isLoading()"
+                class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600 disabled:opacity-60"
+              >
+                {{ push.isLoading() ? 'Activando...' : 'Activar notificaciones push' }}
+              </button>
+            }
+          </div>
+        }
+
+        @if (pushTestMessage()) {
+          <p class="mt-3 text-sm font-medium text-green-600">{{ pushTestMessage() }}</p>
+        }
+        @if (pushTestError()) {
+          <p class="mt-3 text-sm font-medium text-red-600">{{ pushTestError() }}</p>
+        }
+        @if (push.error()) {
+          <p class="mt-3 text-sm font-medium text-red-600">{{ push.error() }}</p>
         }
       </div>
 
@@ -258,12 +339,17 @@ import { getApiErrorMessage } from '../../core/errors/api-error.util';
 export class AccountSettingsComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly notificationService = inject(NotificationService);
+  readonly push = inject(PushNotificationService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
 
   readonly selectedChannel = signal<NotificationChannel>('BOTH');
   readonly channelSuccess = signal<string | null>(null);
   readonly channelError = signal<string | null>(null);
+
+  readonly pushTestMessage = signal<string | null>(null);
+  readonly pushTestError = signal<string | null>(null);
+  readonly isSendingPushTest = signal(false);
 
   readonly exportData = signal<AccountExportData | null>(null);
   readonly isLoadingExport = signal(false);
@@ -282,6 +368,30 @@ export class AccountSettingsComponent implements OnInit {
   ngOnInit(): void {
     this.loadConsentHistory();
     this.loadNotificationPreference();
+    this.push.initialize();
+  }
+
+  sendPushTest(): void {
+    this.pushTestMessage.set(null);
+    this.pushTestError.set(null);
+    this.isSendingPushTest.set(true);
+
+    this.push.sendTest().subscribe({
+      next: response => {
+        this.isSendingPushTest.set(false);
+        this.pushTestMessage.set(
+          response.delivered > 0
+            ? 'Notificación de prueba enviada. Revisa las notificaciones de tu dispositivo.'
+            : 'No hay ningún dispositivo suscrito a las notificaciones push.'
+        );
+      },
+      error: error => {
+        this.isSendingPushTest.set(false);
+        this.pushTestError.set(
+          getApiErrorMessage(error, 'No se pudo enviar la notificación de prueba.')
+        );
+      }
+    });
   }
 
   loadNotificationPreference(): void {

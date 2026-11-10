@@ -302,6 +302,15 @@ describe('TournamentService', () => {
     });
   });
 
+  describe('exportTournamentXlsx', () => {
+    it('should GET XLSX export', () => {
+      service.exportTournamentXlsx('t1').subscribe();
+      const req = httpMock.expectOne(`${apiUrl}/tournaments/t1/export/xlsx`);
+      expect(req.request.method).toBe('GET');
+      req.flush(new Blob());
+    });
+  });
+
   describe('updateParticipantsPoints', () => {
     it('should PATCH participants points', () => {
       service.updateParticipantsPoints('t1', []).subscribe();

@@ -22,8 +22,33 @@ public record TournamentRequest(
     Integer courtCount,
     Integer setsPerMatch,
     Integer decisiveTiebreakPoints,
-    Integer gamesPerSet
+    Integer gamesPerSet,
+    java.util.UUID clubId
 ) {
+    public TournamentRequest(
+        String formalName,
+        LocalDate playStartDate,
+        LocalDate playEndDate,
+        LocalTime tournamentStartTime,
+        LocalDate inscriptionStartDate,
+        LocalDate inscriptionEndDate,
+        Surface surfaceCategory,
+        Integer maxPlayers,
+        String location,
+        Double locationLatitude,
+        Double locationLongitude,
+        String locationPlaceId,
+        String locationFormattedAddress,
+        Integer courtCount,
+        Integer setsPerMatch,
+        Integer decisiveTiebreakPoints,
+        Integer gamesPerSet
+    ) {
+        this(formalName, playStartDate, playEndDate, tournamentStartTime, inscriptionStartDate, inscriptionEndDate,
+             surfaceCategory, maxPlayers, location, locationLatitude, locationLongitude, locationPlaceId,
+             locationFormattedAddress, courtCount, setsPerMatch, decisiveTiebreakPoints, gamesPerSet, null);
+    }
+
     public TournamentRequest(
         String formalName,
         LocalDate playStartDate,

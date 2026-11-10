@@ -140,4 +140,51 @@ public interface JpaMatchRepository extends JpaRepository<MatchEntity, UUID> {
             @Param("gender") String gender,
             @Param("categoryId") Integer categoryId
     );
+
+    @Query("""
+            select
+              person.id as personId,
+              person.firstName as firstName,
+              person.lastName as lastName,
+              person.gender as gender,
+              person.tennisId as license,
+              sum(case
+                when winner.id = firstInscription.id then cast(coalesce(match.firstPlayerPoints, '0') as long)
+                when winner.id = secondInscription.id then cast(coalesce(match.secondPlayerPoints, '0') as long)
+                else 0
+              end) as points,
+              count(match.id) as victories,
+              count(distinct event.tournament.id) as tournaments
+            from MatchEntity match
+            join match.draw draw
+            join draw.stage stage
+            join stage.event event
+            join match.winner winner
+            join winner.participant participant
+            join participant.individualPerson person
+            left join match.firstInscription firstInscription
+            left join match.secondInscription secondInscription
+            where person.club.id = :clubId
+              and match.status = com.tfm.tennis_platform.domain.models.enums.MatchStatus.COMPLETED
+              and (:gender is null or upper(coalesce(event.gender, '')) = :gender)
+            group by
+              person.id,
+              person.firstName,
+              person.lastName,
+              person.gender,
+              person.tennisId
+            order by
+              sum(case
+                when winner.id = firstInscription.id then cast(coalesce(match.firstPlayerPoints, '0') as long)
+                when winner.id = secondInscription.id then cast(coalesce(match.secondPlayerPoints, '0') as long)
+                else 0
+              end) desc,
+              count(match.id) desc,
+              person.lastName asc,
+              person.firstName asc
+            """)
+    List<ClubRankingProjection> findClubRanking(
+            @Param("clubId") UUID clubId,
+            @Param("gender") String gender
+    );
 }

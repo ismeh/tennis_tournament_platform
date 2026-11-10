@@ -11,7 +11,10 @@ import com.tfm.tennis_platform.domain.models.TournamentPeriod;
 import com.tfm.tennis_platform.domain.models.TournamentSummary;
 import com.tfm.tennis_platform.domain.models.enums.TournamentStatus;
 import com.tfm.tennis_platform.domain.models.enums.UserRole;
+import com.tfm.tennis_platform.domain.models.enums.ClubPermission;
+import com.tfm.tennis_platform.domain.port.out.ClubMembershipRepository;
 import com.tfm.tennis_platform.domain.port.out.CourtRepository;
+
 import com.tfm.tennis_platform.domain.port.out.MemberRepository;
 import com.tfm.tennis_platform.domain.port.out.ScheduleConfigRepository;
 import com.tfm.tennis_platform.domain.port.out.TournamentRepository;
@@ -35,6 +38,7 @@ public class TournamentService {
     private final CourtRepository courtRepository;
     private final ScheduleConfigRepository scheduleConfigRepository;
     private final TournamentUmpireRepository tournamentUmpireRepository;
+    private final ClubMembershipRepository clubMembershipRepository;
 
     @Transactional
     public Tournament create(Tournament tournament, String creatorEmail, Integer courtCount) {
@@ -47,6 +51,14 @@ public class TournamentService {
 
         if (tournament.getStartTime() == null) {
             throw new InvalidArgumentException("La hora de inicio del torneo es obligatoria.");
+        }
+
+        if (tournament.getClubId() != null) {
+            var membership = clubMembershipRepository.findByClubIdAndMemberId(tournament.getClubId(), creator.getId())
+                    .orElseThrow(() -> new AccessDeniedException("No perteneces al club indicado."));
+            if (!membership.hasPermission(ClubPermission.MANAGE_TOURNAMENTS)) {
+                throw new AccessDeniedException("No tienes permisos para organizar torneos de este club.");
+            }
         }
 
         Tournament tournamentToSave = Tournament.builder()
@@ -69,6 +81,7 @@ public class TournamentService {
                 .setsPerMatch(tournament.getSetsPerMatch())
                 .decisiveTiebreakPoints(tournament.getDecisiveTiebreakPoints())
                 .gamesPerSet(tournament.getGamesPerSet())
+                .clubId(tournament.getClubId())
                 .createdBy(creator)
                 .build();
 

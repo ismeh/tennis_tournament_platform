@@ -50,6 +50,7 @@ describe('TournamentDetailComponent', () => {
       'removeTournamentUmpire',
       'updateTournamentGeneralInfo',
       'exportTournamentPdf',
+      'exportTournamentXlsx',
       'updateParticipantsPoints',
       'generateDraws',
       'saveScheduleConfig'
@@ -299,6 +300,7 @@ describe('TournamentDetailComponent', () => {
       events: []
     }));
     tournamentServiceSpy.exportTournamentPdf.and.returnValue(of(new Blob()));
+    tournamentServiceSpy.exportTournamentXlsx.and.returnValue(of(new Blob()));
     tournamentServiceSpy.updateParticipantsPoints.and.returnValue(of(void 0));
     tournamentServiceSpy.generateDraws.and.returnValue(of({
       id: 'tournament-id',

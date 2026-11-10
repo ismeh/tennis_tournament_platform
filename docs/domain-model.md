@@ -24,6 +24,12 @@ Member
   ├─ Role[]
   └─ Person profile
 
+Club
+  ├─ ClubMembership[]
+  │    ├─ role: ClubRole
+  │    └─ customPermissions: ClubPermission[]
+  └─ ClubRankingEntry[] (read model)
+
 Ranking
   ├─ ProfessionalRankingEntry
   └─ TournamentRankingEntry
@@ -48,6 +54,7 @@ Important fields:
 - `location`
 - `status`: `TournamentStatus`
 - `providerOrganisationId`
+- `clubId`: optional organizing club
 - `events`
 - `courts`
 
@@ -187,6 +194,41 @@ Important fields:
 - `tournamentId`
 - `name`
 
+### Club
+
+Organizational tenant with an optional public page and internal management.
+
+Important fields:
+
+- `id`: UUID
+- `name`
+- `slug`: unique public URL segment
+- `tagline`, `description`
+- `logoUrl`, `bannerUrl`
+- `primaryColor`, `secondaryColor`
+- `city`, `country`
+- `contactEmail`, `phone`, `website`
+- `instagramUrl`, `facebookUrl`, `xUrl`
+- `foundedYear`
+- `publicPageEnabled`
+- `createdBy`: member UUID
+
+### ClubMembership
+
+Association between a club and a member account.
+
+Important fields:
+
+- `id`: UUID
+- `clubId`
+- `memberId`
+- `role`: `ClubRole`
+- `customPermissions`: additional `ClubPermission` grants
+- `joinedAt`
+
+Effective permissions are the union of `role.defaultPermissions()` and
+`customPermissions`. Only one `OWNER` membership exists per club.
+
 ---
 
 ## Enumerations
@@ -194,6 +236,8 @@ Important fields:
 Active enum package: `com.tfm.tennis_platform.domain.models.enums`.
 
 - `AgeCategoryEnum`
+- `ClubPermission`
+- `ClubRole`
 - `DrawType`
 - `EntryStatus`
 - `MemberTier`
@@ -211,6 +255,9 @@ Active enum package: `com.tfm.tennis_platform.domain.models.enums`.
 The domain also contains read-oriented models for API responses and ranking/calendar projections:
 
 - `TournamentSummary`
+- `club/ClubMemberView`
+- `club/ClubMembershipSummary`
+- `club/ClubRankingEntry`
 - `calendar/TournamentCalendarItem`
 - `calendar/PlayerMatchCalendarItem`
 - `ranking/ProfessionalRankingEntry`

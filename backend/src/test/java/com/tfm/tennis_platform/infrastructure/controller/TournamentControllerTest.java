@@ -32,6 +32,7 @@ import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentStatusUpd
 import com.tfm.tennis_platform.infrastructure.controller.dto.TournamentSummaryResponse;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.MatchWebMapper;
 import com.tfm.tennis_platform.infrastructure.controller.mapper.TournamentWebMapper;
+import com.tfm.tennis_platform.infrastructure.excel.TournamentExcelExporter;
 import com.tfm.tennis_platform.infrastructure.pdf.TournamentPdfExporter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -70,6 +71,7 @@ class TournamentControllerTest {
     @Mock private InscriptionService inscriptionService;
     @Mock private CourtService courtService;
     @Mock private TournamentPdfExporter tournamentPdfExporter;
+    @Mock private TournamentExcelExporter tournamentExcelExporter;
     @Mock private ScheduleConfigService scheduleConfigService;
 
     @InjectMocks
@@ -460,6 +462,43 @@ class TournamentControllerTest {
             when(tournamentService.findById(tournamentId)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> controller.exportTournamentPdf(tournamentId))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("exportTournamentXlsx")
+    class ExportXlsxTests {
+
+        @Test
+        @DisplayName("should export XLSX with the spreadsheet content type and filename")
+        void should_export_xlsx() {
+            UUID tournamentId = UUID.randomUUID();
+            Tournament tournament = buildTournament();
+            when(tournamentService.findById(tournamentId)).thenReturn(Optional.of(tournament));
+            when(inscriptionService.findByTournament(tournamentId, null)).thenReturn(null);
+            when(courtService.findByTournamentId(tournamentId)).thenReturn(List.of());
+            when(matchService.findByTournamentId(tournamentId)).thenReturn(List.of());
+            when(tournamentExcelExporter.exportTournamentData(eq(tournament), eq(null), any(), any()))
+                    .thenReturn(new byte[]{1, 2, 3});
+
+            ResponseEntity<byte[]> response = controller.exportTournamentXlsx(tournamentId);
+
+            assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+            assertThat(response.getBody()).isEqualTo(new byte[]{1, 2, 3});
+            assertThat(response.getHeaders().getContentType().toString())
+                    .isEqualTo("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            assertThat(response.getHeaders().getFirst("Content-Disposition"))
+                    .contains("open_de_primavera.xlsx");
+        }
+
+        @Test
+        @DisplayName("should throw when tournament not found")
+        void should_throw_when_tournament_not_found_for_xlsx() {
+            UUID tournamentId = UUID.randomUUID();
+            when(tournamentService.findById(tournamentId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> controller.exportTournamentXlsx(tournamentId))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }

@@ -54,6 +54,7 @@ export interface TournamentCreateRequest {
   setsPerMatch?: number;
   decisiveTiebreakPoints?: number;
   gamesPerSet?: number;
+  clubId?: string | null;
 }
 
 export interface TournamentGeneralInfoUpdateRequest {

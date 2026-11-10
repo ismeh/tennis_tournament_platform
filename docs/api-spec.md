@@ -29,6 +29,9 @@ The following endpoints are public in `SecurityConfig`:
 - `GET /api/tournaments/{tournamentId}/inscriptions`
 - `GET /api/rankings/**`
 - `GET /api/age-categories`
+- `GET /api/clubs`
+- `GET /api/clubs/permissions`
+- `GET /api/clubs/public/**`
 - `GET /actuator/health`
 - `GET /actuator/info`
 - `GET /actuator/prometheus`
@@ -228,9 +231,13 @@ Request:
   "surfaceCategory": "CLAY | HARD | GRASS | CARPET",
   "maxPlayers": 32,
   "location": "string",
-  "courtCount": 4
+  "courtCount": 4,
+  "clubId": "uuid or null"
 }
 ```
+
+`clubId` is optional. When present, the authenticated user must belong to the
+club and hold the `MANAGE_TOURNAMENTS` permission.
 
 Response: `201 Created`
 
@@ -315,6 +322,20 @@ Authentication required: yes
 Delete a court.
 
 Authentication required: yes
+
+### GET /api/tournaments/{tournamentId}/export/xlsx
+
+Export a complete tournament snapshot as an Excel workbook
+(`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`).
+
+Authentication required: yes
+
+The workbook contains four sheets:
+
+- `Resumen`: tournament information, format, and aggregate counters.
+- `Inscritos`: registered players with event, category, points, seed, club, and status.
+- `Partidos`: complete match list with schedule, court, status, result, and winner. Matches whose participants are still undecided contain placeholders such as `Ganador de P-003`.
+- `Pistas`: configured courts and their activity state.
 
 ### POST /api/tournaments/{tournamentId}/matches/{matchId}/result
 
@@ -427,6 +448,60 @@ Authentication required: no
 
 ---
 
+## Clubs
+
+Clubs are organizational tenants with an optional public page, member roles,
+granular permissions, and an aggregated internal ranking.
+
+### Public endpoints
+
+Authentication required: no
+
+- `GET /api/clubs` — lightweight club search used by autocomplete (`?q=`).
+- `GET /api/clubs/public` — public club directory (`?q=` optional).
+- `GET /api/clubs/public/{slug}` — public club page.
+- `GET /api/clubs/public/{slug}/rankings` — club ranking (`?gender=MALE|FEMALE|MIXED` optional).
+- `GET /api/clubs/public/{slug}/tournaments` — tournaments associated with the club.
+- `GET /api/clubs/permissions` — role/permission catalog.
+
+Public pages and rankings are only exposed when the club has
+`publicPageEnabled` set to `true`.
+
+### Authenticated management endpoints
+
+Authentication required: yes
+
+- `POST /api/clubs` — create a club; the requester becomes `OWNER`.
+- `GET /api/clubs/mine` — clubs the requester belongs to.
+- `GET /api/clubs/{clubId}/management` — club page, requester membership, and visible members.
+- `GET /api/clubs/{clubId}/rankings` — internal ranking for members (`?gender=` optional).
+- `GET /api/clubs/{clubId}/tournaments` — tournaments associated with the club for members.
+- `PUT /api/clubs/{clubId}/page` — update branding, contact, social links, and visibility.
+- `GET /api/clubs/{clubId}/members` — list members (`VIEW_MEMBERS`).
+- `POST /api/clubs/{clubId}/members` — add a member by email (`MANAGE_MEMBERS`).
+- `PUT /api/clubs/{clubId}/members/{membershipId}/role` — change a role (`MANAGE_PERMISSIONS`).
+- `PUT /api/clubs/{clubId}/members/{membershipId}/permissions` — set custom permission grants (`MANAGE_PERMISSIONS`).
+- `DELETE /api/clubs/{clubId}/members/{membershipId}` — remove a member (`MANAGE_MEMBERS`).
+
+### Roles and permissions
+
+Roles: `OWNER`, `ADMIN`, `COACH`, `MEMBER`.
+
+Permissions: `EDIT_CLUB_PAGE`, `VIEW_MEMBERS`, `MANAGE_MEMBERS`,
+`MANAGE_PERMISSIONS`, `VIEW_RANKINGS`, `MANAGE_TOURNAMENTS`.
+
+Every role has default permissions. A membership can additionally receive
+custom grants, and its effective permissions are the union of both sets.
+`OWNER` always has every permission and cannot be removed or reassigned.
+
+### Club ranking
+
+The ranking aggregates completed singles matches for persons whose `club_id`
+matches the club. Entries are ordered by accumulated points and victories;
+players with the same points share a position.
+
+---
+
 ## Members
 
 ### POST /api/members
@@ -461,6 +536,28 @@ The active frontend result and scheduling flows use the nested tournament match 
 
 - `POST /api/tournaments/{tournamentId}/matches/{matchId}/result`
 - `PATCH /api/tournaments/{tournamentId}/matches/{matchId}/schedule`
+
+---
+
+## In-app Notifications and Web Push
+
+All endpoints require authentication except the public key.
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/api/notifications` | List the current user's in-app notifications. |
+| GET | `/api/notifications/unread-count` | Unread counter for the header bell. |
+| PATCH | `/api/notifications/{id}/read` | Mark one notification as read. |
+| PATCH | `/api/notifications/read-all` | Mark all notifications as read. |
+| GET | `/api/notifications/preferences` | Current channel: `APP`, `EMAIL`, `BOTH` or `NONE`. |
+| PUT | `/api/notifications/preferences` | Update the channel (`{ "channel": "APP" }`). |
+| GET | `/api/push/public-key` | Public VAPID key and whether push is enabled. No authentication required. |
+| POST | `/api/push/subscriptions` | Register or refresh this browser subscription. |
+| DELETE | `/api/push/subscriptions?endpoint=...` | Remove the subscription for the current user. |
+| POST | `/api/push/test` | Send a test notification to the user's subscribed devices. |
+
+Push is attempted only when the notification channel includes the app (`APP` or `BOTH`). Delivery
+is best-effort and never blocks or fails the in-app notification.
 
 ---
 

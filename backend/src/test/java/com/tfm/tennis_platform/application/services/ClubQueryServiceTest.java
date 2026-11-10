@@ -21,6 +21,15 @@ class ClubQueryServiceTest {
     @Mock
     private ClubRepository clubRepository;
 
+    @Mock
+    private com.tfm.tennis_platform.domain.port.out.ClubMembershipRepository membershipRepository;
+
+    @Mock
+    private com.tfm.tennis_platform.domain.port.out.TournamentRepository tournamentRepository;
+
+    @Mock
+    private ClubSlugger clubSlugger;
+
     @InjectMocks
     private ClubQueryService clubQueryService;
 
@@ -80,6 +89,7 @@ class ClubQueryServiceTest {
     void findOrCreate_creates_new_club_when_not_found() {
         Club saved = Club.builder().id(UUID.randomUUID()).name("New Club").build();
         when(clubRepository.findByNameIgnoreCase("New Club")).thenReturn(Optional.empty());
+        when(clubSlugger.generateUnique(eq("New Club"), any())).thenReturn("new-club");
         when(clubRepository.save(any(Club.class))).thenReturn(saved);
 
         Club result = clubQueryService.findOrCreate("  New Club  ");

@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { TournamentService } from '../../data/services/tournament.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { getApiErrorMessage } from '../../core/errors/api-error.util';
 import { LocationInputComponent } from '../../components/location-input';
+import { ClubAutocompleteComponent } from '../../components/club-autocomplete';
 import {
   getTournamentSurfaceCategoryLabel,
   TournamentCreateRequest,
@@ -16,7 +17,7 @@ import {
 @Component({
   selector: 'app-create-tournament-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, LocationInputComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, LocationInputComponent, ClubAutocompleteComponent],
   template: `
     <section class="relative overflow-hidden bg-gradient-to-br from-neutral-50 via-white to-primary-50/60 py-10 sm:py-14">
       <div class="absolute inset-0 -z-10 opacity-60">
@@ -116,6 +117,18 @@ import {
               </label>
             </div>
 
+            <div class="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4">
+              <span class="mb-1 block text-sm font-medium text-neutral-700">Club organizador (opcional)</span>
+              <app-club-autocomplete
+                [formControl]="clubNameControl"
+                placeholder="Busca el club que organiza el torneo"
+                (clubSelected)="onClubSelected($event)"
+              ></app-club-autocomplete>
+              <p class="mt-2 text-xs text-neutral-500">
+                Solo aparecerá en la página del club si tienes permisos para organizar torneos en él.
+              </p>
+            </div>
+
             <div class="grid gap-4 md:grid-cols-2">
               <label class="block">
                 <span class="mb-1 block text-sm font-medium text-neutral-700">Formato de partido</span>
@@ -201,6 +214,8 @@ export class CreateTournamentComponent implements OnInit {
   readonly getSurfaceLabel = getTournamentSurfaceCategoryLabel;
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly selectedClubId = signal<string | null>(null);
+  readonly clubNameControl = new FormControl('', { nonNullable: true });
 
   readonly form = this.fb.group({
     formalName: ['', [Validators.required, Validators.minLength(3)]],
@@ -237,13 +252,20 @@ export class CreateTournamentComponent implements OnInit {
     });
   }
 
+  onClubSelected(event: { clubId: string | null; clubName: string }): void {
+    this.selectedClubId.set(event.clubId);
+  }
+
   submit(): void {
     if (this.form.invalid || this.isSubmitting()) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const payload = this.form.value as TournamentCreateRequest;
+    const payload = {
+      ...this.form.value,
+      clubId: this.selectedClubId()
+    } as TournamentCreateRequest;
 
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
@@ -282,6 +304,8 @@ export class CreateTournamentComponent implements OnInit {
       decisiveTiebreakPoints: 7,
       gamesPerSet: 6
     });
+    this.clubNameControl.reset();
+    this.selectedClubId.set(null);
     this.errorMessage.set(null);
   }
 

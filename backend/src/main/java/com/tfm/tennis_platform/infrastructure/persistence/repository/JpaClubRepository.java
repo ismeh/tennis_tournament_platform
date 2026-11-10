@@ -16,5 +16,23 @@ public interface JpaClubRepository extends JpaRepository<ClubEntity, UUID> {
     @Query("SELECT c FROM ClubEntity c WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) ORDER BY c.name ASC")
     List<ClubEntity> findByNameContaining(@Param("query") String query);
 
+    @Query("""
+            SELECT c
+            FROM ClubEntity c
+            WHERE c.publicPageEnabled = true
+              AND (
+                  :query IS NULL
+                  OR :query = ''
+                  OR LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%'))
+                  OR LOWER(COALESCE(c.city, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+              )
+            ORDER BY c.name ASC
+            """)
+    List<ClubEntity> findPublicClubs(@Param("query") String query);
+
     Optional<ClubEntity> findByNameIgnoreCase(String name);
+
+    Optional<ClubEntity> findBySlug(String slug);
+
+    boolean existsBySlug(String slug);
 }

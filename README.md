@@ -65,7 +65,7 @@ In this mode, `compose.yaml` remains the base orchestration file for PostgreSQL,
 - Backend: `./backend/Dockerfile`
 - Frontend: `./frontend/Dockerfile`
 
-For HTTPS local development, a public Nginx demo, or a production AWS EC2 setup, follow the guide in [`/docs/deployment-https.md`](./docs/deployment-https.md). The important rule is that `FRONTEND_API_URL` must match the public URL used by the browser: `http://localhost:8080/api` for plain local HTTP, `https://localhost/api` for local Nginx HTTPS, or `https://your-domain/api` for public/EC2 deployments.
+For HTTPS local development, a public Nginx demo, or a production AWS EC2 setup, follow the guide in [`/docs/deployment-https.md`](./docs/deployment-https.md). The browser always calls the public origin (`/api` behind Nginx) so the PWA and service worker stay same-origin, while `FRONTEND_API_URL` is only the internal URL used by the SSR server (`http://backend:8080/api` by default).
 
 ### Default Docker Compose URLs
 

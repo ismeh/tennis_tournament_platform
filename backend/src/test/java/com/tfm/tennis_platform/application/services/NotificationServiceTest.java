@@ -46,6 +46,9 @@ class NotificationServiceTest {
     @Mock
     private JpaMemberRepository jpaMemberRepository;
 
+    @Mock
+    private PushNotificationService pushNotificationService;
+
     private NotificationService notificationService;
 
     private final String testEmail = "test@example.com";
@@ -58,7 +61,8 @@ class NotificationServiceTest {
                 memberRepository,
                 emailSender,
                 jpaInscriptionRepository,
-                jpaMemberRepository
+                jpaMemberRepository,
+                pushNotificationService
         );
     }
 
@@ -190,6 +194,7 @@ class NotificationServiceTest {
         );
 
         verify(notificationRepository).save(any(Notification.class));
+        verify(pushNotificationService).sendToUser(eq(userId), eq("Partido programado"), eq("Tu partido es hoy"), eq("/tournaments/1"));
         verify(emailSender).sendNotificationEmail(eq("test@example.com"), eq("Partido programado"), eq("Tu partido es hoy"));
     }
 

@@ -8,6 +8,10 @@ import java.util.UUID;
 
 public interface ClubRepository {
     List<Club> findByNameContaining(String query);
+    List<Club> findPublicClubs(String query);
     Optional<Club> findByNameIgnoreCase(String name);
+    Optional<Club> findById(UUID id);
+    Optional<Club> findBySlug(String slug);
+    boolean existsBySlug(String slug);
     Club save(Club club);
 }

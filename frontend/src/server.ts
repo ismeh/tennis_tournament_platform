@@ -32,6 +32,12 @@ app.use(
     maxAge: '1y',
     index: false,
     redirect: false,
+    setHeaders: (res, path) => {
+      // The service worker, its manifest and the runtime config must always be revalidated.
+      if (/(ngsw\.json|ngsw-worker\.js|manifest\.webmanifest|config\.json)$/.test(path)) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    },
   }),
 );
 

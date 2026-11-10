@@ -94,6 +94,7 @@ public interface TournamentWebMapper {
                 .setsPerMatch(t.getSetsPerMatch())
                 .decisiveTiebreakPoints(t.getDecisiveTiebreakPoints())
                 .gamesPerSet(t.getGamesPerSet())
+                .clubId(t.getClubId())
                 .createdBy(t.getCreatedBy())
                 .events(events)
                 .build();

@@ -1,0 +1,18 @@
+# Docker Compose override for Tennis Tournament Platform Observability
+#
+# Usage with the local stack:
+#   docker compose -f compose.yaml -f compose.local.yaml -f compose.observability.yaml up -d
+#
+# Or launch the global observability stack directly:
+#   docker compose -f /home/ism/docker/observability/docker-compose.yml up -d
+
+include:
+  - path: /home/ism/docker/observability/docker-compose.yml
+    env_file: /home/ism/docker/observability/.env
+
+services:
+  backend:
+    environment:
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://tempo:4318/v1/traces
+      - OTEL_TRACES_SAMPLER_ARG=1.0
+      - MANAGEMENT_HEALTH_SHOW_DETAILS=always
